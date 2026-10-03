@@ -40,14 +40,14 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk "dist/HabitTracker-v${version}-build${GITHUB_RUN_NUMBER}-debug.apk"
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-build-${{ github.run_number }}
           path: dist/*.apk
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-build-${{ github.run_number }}
           path: |
@@ -96,7 +96,7 @@ jobs:
 
       - name: Upload screenshots and reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: device-api${{ matrix.api-level }}-build${{ github.run_number }}
           path: |
