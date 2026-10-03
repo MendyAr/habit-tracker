@@ -2,7 +2,9 @@ package io.github.mendyar.habittracker
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ShortcutManager
 import android.graphics.Rect
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -65,6 +67,12 @@ class LogFlowTest {
         // Publishes shortcuts (Android 7.1+) and redraws widgets; must not throw on any version.
         LauncherSync.refresh(context)
         assertTrue(repository.habits().size == 2)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            // What the launcher shows on long-press: one statistics entry per habit.
+            val published = context.getSystemService(ShortcutManager::class.java).dynamicShortcuts.map { it.id }.toSet()
+            val expected = repository.habits().map { Shortcuts.statsShortcutId(it.id) }.toSet()
+            assertEquals(expected, published)
+        }
     }
 
     private fun resumedActivities(): Int {

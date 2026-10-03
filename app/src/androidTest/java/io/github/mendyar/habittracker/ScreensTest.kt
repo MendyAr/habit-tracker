@@ -163,6 +163,9 @@ class ScreensTest {
 
         // Long-press shortcuts exist from Android 7.1 on.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
+        // Let the launcher finish its return transition; it ignores touches until then.
+        Thread.sleep(2_000)
+        device.waitForIdle()
         dismissAnrDialog()
         device.wait(Until.findObject(By.desc(appName)), 5_000)?.visibleCenter?.let { c ->
             // A stationary swipe is a long press that every launcher recognises.
