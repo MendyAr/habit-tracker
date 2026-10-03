@@ -4,23 +4,29 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Rect
+import android.os.Build
+import android.view.View
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
+import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitEditActivity
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
+import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
-import io.github.mendyar.habittracker.log.LogActivity
+import io.github.mendyar.habittracker.stats.StatsActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,6 +50,7 @@ class ScreensTest {
     fun setUp() {
         HabitRepository.resetForTests()
         context.deleteDatabase("habits.db")
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
         repository.settings.hintShown = true
     }
@@ -77,10 +84,18 @@ class ScreensTest {
         waitUntil { activity.findViewById<TextView>(R.id.selected_count).text.toString() == today.toString() }
         screenshot("1_statistics_day")
 
+        // Scroll to the chart and entries.
+        instrumentation.runOnMainSync {
+            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
+            scroll.scrollTo(0, activity.findViewById<View>(R.id.stats_caption).bottom)
+        }
+        screenshot("2_statistics_history")
+
         instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.period_week).performClick() }
         instrumentation.waitForIdleSync()
         assertEquals(Period.WEEK, repository.settings.period(id))
-        screenshot("2_statistics_week")
+        instrumentation.runOnMainSync { activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, 0) }
+        screenshot("6_statistics_week")
         activity.finish()
     }
 
@@ -104,44 +119,69 @@ class ScreensTest {
         activity.finish()
     }
 
+    /**
+     * The real user flow through the launcher: tap the app icon (logs and returns
+     * to the home screen), then long-press it and open a habit's statistics from
+     * the shortcut popup. Skipped where the launcher has not placed the app icon
+     * on the home screen.
+     */
     @Test
-    fun logConfirmationOverHomeScreen() {
-        seed()
+    fun launcherIconTapAndLongPress() {
+        val id = seed()
+        LauncherSync.refresh(context)
         device.pressHome()
         device.waitForIdle()
-        val w = device.displayWidth
-        val h = device.displayHeight
-        val size = w / 6
-        val intent = Intent(Intent.ACTION_MAIN)
-            .setClass(context, LogActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.sourceBounds = Rect(w / 2 - size / 2, h * 2 / 3, w / 2 + size / 2, h * 2 / 3 + size)
-        context.startActivity(intent)
-        Thread.sleep(550)
-        screenshot("5_log_animation")
-        Thread.sleep(2_000)
-        assertTrue(repository.timestamps(repository.defaultHabit().id).size > 1)
+
+        val appName = context.getString(R.string.app_name)
+        val icon = device.wait(Until.findObject(By.desc(appName)), 3_000) ?: device.findObject(By.text(appName))
+        assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
+        val before = repository.timestamps(id).size
+        icon!!.click()
+        Thread.sleep(450)
+        screenshot("5_log_animation", settleMs = 0)
+        waitUntil { repository.timestamps(id).size == before + 1 }
+        waitUntil { resumedActivity() == null }
+
+        // Long-press shortcuts exist from Android 7.1 on.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
+        device.wait(Until.findObject(By.desc(appName)), 3_000)?.longClick()
+        val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 3_000)
+        assumeTrue("The launcher shows no long-press shortcuts", shortcut != null)
+        screenshot("7_long_press")
+        shortcut!!.click()
+        waitUntil { resumedActivity() is StatsActivity }
+        screenshot("8_from_shortcut")
     }
 
     private fun launch(intent: Intent) {
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
     }
 
-    private fun waitForActivity(): Activity {
+    private fun resumedActivity(): Activity? {
         var activity: Activity? = null
-        waitUntil {
-            instrumentation.runOnMainSync {
-                activity = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).firstOrNull()
-            }
-            activity != null
+        instrumentation.runOnMainSync {
+            activity = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).firstOrNull()
         }
-        return activity!!
+        return activity
     }
 
-    private fun screenshot(name: String) {
-        instrumentation.waitForIdleSync()
-        Thread.sleep(400)
-        val bitmap: Bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
+    private fun waitForActivity(): Activity {
+        waitUntil { resumedActivity() != null }
+        return resumedActivity()!!
+    }
+
+    /** Saves a screenshot, scaled to at most 540 px wide, for CI to collect. */
+    private fun screenshot(name: String, settleMs: Long = 400) {
+        if (settleMs > 0) {
+            instrumentation.waitForIdleSync()
+            Thread.sleep(settleMs)
+        }
+        val full: Bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
+        val bitmap = if (full.width > 540) {
+            Bitmap.createScaledBitmap(full, 540, full.height * 540 / full.width, true)
+        } else {
+            full
+        }
         // Emulator images without external storage fall back to private storage (pulled with run-as).
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "screenshots").apply { mkdirs() }
         FileOutputStream(File(dir, "$name.png")).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }

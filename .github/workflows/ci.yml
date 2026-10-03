@@ -64,10 +64,13 @@ jobs:
         include:
           - api-level: 21 # Android 5.0, the oldest supported version
             target: default
+            profile: Nexus 5
           - api-level: 29 # Android 10
             target: default
+            profile: pixel_3a
           - api-level: 35 # Android 15
             target: google_apis
+            profile: pixel_6
     steps:
       - uses: actions/checkout@v7
 
@@ -89,6 +92,7 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: ${{ matrix.target }}
+          profile: ${{ matrix.profile }}
           arch: x86_64
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
