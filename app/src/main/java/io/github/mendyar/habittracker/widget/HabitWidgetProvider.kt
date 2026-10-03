@@ -146,7 +146,7 @@ class HabitWidgetProvider : AppWidgetProvider() {
             return widgetIds(context).firstOrNull { settings.widgetHabit(it) == habitId }
         }
 
-        /** Redraws every widget. Call off the main thread, after habits changed. */
+        /** Redraws every widget after habits changed. Call on the [Async] I/O thread. */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             widgetIds(context).forEach { update(context, manager, it) }
@@ -154,7 +154,9 @@ class HabitWidgetProvider : AppWidgetProvider() {
 
         /**
          * Associates [widgetId] with [habitId] and redraws it. Refused (returning
-         * false) when another widget already shows that habit. Call off the main thread.
+         * false) when another widget already shows that habit. Call on the [Async]
+         * I/O thread: binding and drawing must be serialised with onUpdate, or a view
+         * computed before the binding could be published after it.
          */
         fun bind(context: Context, widgetId: Int, habitId: Long): Boolean {
             val existing = widgetFor(context, habitId)

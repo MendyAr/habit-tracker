@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitColors
+import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.widget.HabitWidgetProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -20,6 +21,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Widgets on a real system: hosted by an AppWidgetHost exactly as a launcher
@@ -76,7 +79,7 @@ class WidgetDeviceTest {
     fun aBoundWidgetShowsItsHabitAndATapLogsIt() {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
-        assertTrue(HabitWidgetProvider.bind(context, id, water.id))
+        assertTrue(onIo { HabitWidgetProvider.bind(context, id, water.id) })
         waitUntil { label(id) == "Water" }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -102,8 +105,8 @@ class WidgetDeviceTest {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val first = placeWidget()
         val second = placeWidget()
-        assertTrue(HabitWidgetProvider.bind(context, first, water.id))
-        assertFalse(HabitWidgetProvider.bind(context, second, water.id))
+        assertTrue(onIo { HabitWidgetProvider.bind(context, first, water.id) })
+        assertFalse(onIo { HabitWidgetProvider.bind(context, second, water.id) })
         waitUntil { label(second) == context.getString(R.string.widget_choose) }
     }
 
@@ -111,9 +114,9 @@ class WidgetDeviceTest {
     fun aWidgetKeepsItsHabitWhenTheAppIconHabitChanges() {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
-        HabitWidgetProvider.bind(context, id, water.id)
+        onIo { HabitWidgetProvider.bind(context, id, water.id) }
         repository.setDefaultHabit(null)
-        HabitWidgetProvider.updateAll(context)
+        onIo { HabitWidgetProvider.updateAll(context) }
         waitUntil { label(id) == "Water" }
     }
 
@@ -121,9 +124,9 @@ class WidgetDeviceTest {
     fun deletingTheHabitMarksItsWidget() {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
-        HabitWidgetProvider.bind(context, id, water.id)
+        onIo { HabitWidgetProvider.bind(context, id, water.id) }
         repository.deleteHabit(water.id)
-        HabitWidgetProvider.updateAll(context)
+        onIo { HabitWidgetProvider.updateAll(context) }
         waitUntil { label(id) == context.getString(R.string.widget_deleted) }
     }
 
@@ -135,6 +138,22 @@ class WidgetDeviceTest {
         // Bound by the provider when the system announces the new widget.
         waitUntil { HabitWidgetProvider.widgetFor(context, water.id) == id }
         waitUntil { label(id) == "Water" }
+    }
+
+    /**
+     * Runs [block] on the app's I/O thread, where the app itself binds and redraws
+     * widgets, so it is serialised with the provider's own updates.
+     */
+    private fun <T> onIo(block: () -> T): T {
+        var result: T? = null
+        val done = CountDownLatch(1)
+        Async.io {
+            result = block()
+            done.countDown()
+        }
+        assertTrue(done.await(10, TimeUnit.SECONDS))
+        @Suppress("UNCHECKED_CAST")
+        return result as T
     }
 
     private fun waitUntil(timeoutMs: Long = 8_000, condition: () -> Boolean) {
