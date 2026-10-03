@@ -11,6 +11,7 @@ import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -29,6 +30,7 @@ class StatsActivityTest {
 
     @Before
     fun setUp() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
@@ -36,6 +38,7 @@ class StatsActivityTest {
 
     @After
     fun tearDown() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
     }
 

@@ -10,6 +10,7 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitColors
+import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,6 +31,7 @@ class HabitWidgetProviderTest {
 
     @Before
     fun setUp() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
@@ -38,11 +40,16 @@ class HabitWidgetProviderTest {
 
     @After
     fun tearDown() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
     }
 
     /** Places a widget on the (simulated) home screen, as the launcher would. */
-    private fun placeWidget(): Int = shadowOf(manager).createWidget(HabitWidgetProvider::class.java, R.layout.widget_habit)
+    private fun placeWidget(): Int =
+        shadowOf(manager).createWidget(HabitWidgetProvider::class.java, R.layout.widget_habit).also {
+            // Let the provider's onUpdate finish; Robolectric's widget manager is not thread-safe.
+            Async.awaitIdle()
+        }
 
     /** The text the widget currently shows under its icon. */
     private fun label(widgetId: Int): String {
@@ -136,6 +143,9 @@ class HabitWidgetProviderTest {
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
         )
         awaitCondition { repository.timestamps(water.id).size == 1 }
+        // Let the confirmation flip back so no work outlives the test.
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
+        Async.awaitIdle()
         assertEquals(0, repository.timestamps(repository.defaultHabit()!!.id).size)
     }
 
