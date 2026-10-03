@@ -167,6 +167,7 @@ class ScreensTest {
         device.wait(Until.findObject(By.desc(appName)), 5_000)?.longClick()
         val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 5_000)
         screenshot("7_long_press", settleMs = 300)
+        File(screenshotDir(), "timeline.txt").appendText("long-press shortcut found: ${shortcut != null}\n")
         assumeTrue("The launcher shows no long-press shortcuts", shortcut != null)
         shortcut!!.click()
         waitUntil { resumedActivity() is StatsActivity }
@@ -205,7 +206,12 @@ class ScreensTest {
             instrumentation.waitForIdleSync()
             Thread.sleep(settleMs)
         }
-        save(name, instrumentation.uiAutomation.takeScreenshot() ?: return, jpeg = false)
+        // takeScreenshot() occasionally returns null on a busy emulator.
+        for (attempt in 1..3) {
+            val bitmap = instrumentation.uiAutomation.takeScreenshot()
+            if (bitmap != null) return save(name, bitmap, jpeg = false)
+            Thread.sleep(300)
+        }
     }
 
     private fun save(name: String, full: Bitmap, jpeg: Boolean) {
