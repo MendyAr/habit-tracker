@@ -136,14 +136,20 @@ class ScreensTest {
         val icon = device.wait(Until.findObject(By.desc(appName)), 3_000) ?: device.findObject(By.text(appName))
         assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
         val before = repository.timestamps(id).size
+        dismissAnrDialog()
+        val tapped = System.currentTimeMillis()
         icon!!.click()
-        Thread.sleep(450)
-        screenshot("5_log_animation", settleMs = 0)
+        // A burst across the ~1.25 s confirmation (emulators start apps slowly).
+        for (at in longArrayOf(400, 800, 1_200, 1_600, 2_000)) {
+            Thread.sleep(maxOf(0, tapped + at - System.currentTimeMillis()))
+            screenshot("5_log_tap_${at}ms", settleMs = 0)
+        }
         waitUntil { repository.timestamps(id).size == before + 1 }
         waitUntil { resumedActivity() == null }
 
         // Long-press shortcuts exist from Android 7.1 on.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
+        dismissAnrDialog()
         device.wait(Until.findObject(By.desc(appName)), 3_000)?.longClick()
         val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 3_000)
         assumeTrue("The launcher shows no long-press shortcuts", shortcut != null)
@@ -170,9 +176,18 @@ class ScreensTest {
         return resumedActivity()!!
     }
 
+    /** Closes "… isn't responding" dialogs that slow CI emulators show for system apps. */
+    private fun dismissAnrDialog() {
+        if (device.findObject(By.textContains("isn't responding")) != null) {
+            device.findObject(By.text("Wait"))?.click()
+            device.waitForIdle()
+        }
+    }
+
     /** Saves a screenshot, scaled to at most 540 px wide, for CI to collect. */
     private fun screenshot(name: String, settleMs: Long = 400) {
         if (settleMs > 0) {
+            dismissAnrDialog()
             instrumentation.waitForIdleSync()
             Thread.sleep(settleMs)
         }
