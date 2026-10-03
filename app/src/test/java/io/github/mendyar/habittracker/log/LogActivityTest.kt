@@ -3,9 +3,9 @@ package io.github.mendyar.habittracker.log
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutManager
-import android.graphics.Rect
 import android.os.Bundle
 import android.os.Looper
+import android.view.ViewGroup
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
@@ -45,18 +45,19 @@ class LogActivityTest {
     }
 
     @Test
-    fun launcherTapLogsTheDefaultHabitAndClosesItself() {
-        val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java)
-        intent.sourceBounds = Rect(100, 800, 244, 944)
-        val controller = Robolectric.buildActivity(LogActivity::class.java, intent).setup()
+    fun launcherTapLogsTheAppIconHabitAndShowsTheConfirmation() {
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
 
         awaitCondition { repository.defaultHabit()?.let { repository.timestamps(it.id).size } == 1 }
         // The system reports the end of the window transition; Robolectric does not.
-        controller.get().onEnterAnimationComplete()
-        // Let the confirmation play out: up to 1 s waiting for the window, then ~3.1 s with
-        // the first-run hint.
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(8))
-        assertTrue(controller.get().isFinishing)
+        activity.onEnterAnimationComplete()
+        val confirmation = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as LogAnimationView
+        awaitCondition { confirmation.isStarted }
+
+        // Tapping the confirmation dismisses it at once. (That it also closes by itself is
+        // checked on real devices by LogFlowTest; Robolectric's animation clock is unreliable.)
+        confirmation.performClick()
+        assertTrue(activity.isFinishing)
     }
 
     @Test
