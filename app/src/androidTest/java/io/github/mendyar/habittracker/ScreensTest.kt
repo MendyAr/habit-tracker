@@ -1,5 +1,6 @@
 package io.github.mendyar.habittracker
 
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -148,20 +149,33 @@ class ScreensTest {
         val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.sourceBounds = bounds
         context.startActivity(intent)
+        var view: LogAnimationView? = null
         waitUntil {
             val activity = resumedActivity() as? LogActivity
-            var started = false
             if (activity != null) {
                 instrumentation.runOnMainSync {
                     val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                    started = (content.getChildAt(0) as? LogAnimationView)?.isStarted == true
+                    view = (content.getChildAt(0) as? LogAnimationView)?.takeIf { it.isStarted }
                 }
             }
-            started
+            view != null
         }
-        Thread.sleep(400) // into the hold phase: disc, check and count are all shown
+        // Emulators render far behind wall-clock time, so freeze the running animation on its
+        // fully shown frame (disc, check and count) before taking the picture.
+        instrumentation.runOnMainSync { freeze(view!!, atMs = 700f) }
+        Thread.sleep(500)
         screenshot("5_log_animation", settleMs = 0)
         waitUntil { repository.timestamps(id).size == before + 2 }
+        instrumentation.runOnMainSync { view!!.skip() }
+    }
+
+    /** Pauses [view]'s private animator at [atMs] (debug builds are not obfuscated). */
+    private fun freeze(view: LogAnimationView, atMs: Float) {
+        val animator = LogAnimationView::class.java.getDeclaredField("animator")
+            .apply { isAccessible = true }.get(view) as ValueAnimator
+        animator.pause()
+        LogAnimationView::class.java.getDeclaredField("elapsed").apply { isAccessible = true }.setFloat(view, atMs)
+        view.invalidate()
     }
 
     private fun launch(intent: Intent) {
