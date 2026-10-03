@@ -14,7 +14,7 @@ Long-press for statistics.
 
 | Tap: logged in place | Long-press: statistics | History & entries | Your habits | Make it yours |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/tap.png" width="160" alt="A check pops over the tapped icon on the home screen with the text '10 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
+| <img src="docs/screenshots/tap.png" width="160" alt="A check pops up in the middle of the home screen with the text '12 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
 
 <sub>Screenshots are taken automatically by the instrumented tests on an Android 15 emulator.</sub>
 
