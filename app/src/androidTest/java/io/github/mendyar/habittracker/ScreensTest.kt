@@ -149,10 +149,13 @@ class ScreensTest {
         intent.sourceBounds = bounds
         context.startActivity(intent)
         waitUntil {
+            val activity = resumedActivity() as? LogActivity
             var started = false
-            instrumentation.runOnMainSync {
-                val content = (resumedActivity() as? LogActivity)?.findViewById<ViewGroup>(android.R.id.content)
-                started = (content?.getChildAt(0) as? LogAnimationView)?.isStarted == true
+            if (activity != null) {
+                instrumentation.runOnMainSync {
+                    val content = activity.findViewById<ViewGroup>(android.R.id.content)
+                    started = (content.getChildAt(0) as? LogAnimationView)?.isStarted == true
+                }
             }
             started
         }
