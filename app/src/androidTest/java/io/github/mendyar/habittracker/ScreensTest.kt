@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -23,6 +24,7 @@ import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.log.LogActivity
+import io.github.mendyar.habittracker.log.LogAnimationView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -103,7 +105,7 @@ class ScreensTest {
         seed()
         launch(Intent(context, HabitsActivity::class.java))
         val activity = waitForActivity()
-        waitUntil { (activity.findViewById<android.view.ViewGroup>(R.id.habits_list)).childCount == 3 }
+        waitUntil { activity.findViewById<ViewGroup>(R.id.habits_list).childCount == 3 }
         screenshot("3_habits")
         activity.finish()
     }
@@ -146,7 +148,15 @@ class ScreensTest {
         val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.sourceBounds = bounds
         context.startActivity(intent)
-        Thread.sleep(700)
+        waitUntil {
+            var started = false
+            instrumentation.runOnMainSync {
+                val content = (resumedActivity() as? LogActivity)?.findViewById<ViewGroup>(android.R.id.content)
+                started = (content?.getChildAt(0) as? LogAnimationView)?.isStarted == true
+            }
+            started
+        }
+        Thread.sleep(400) // into the hold phase: disc, check and count are all shown
         screenshot("5_log_animation", settleMs = 0)
         waitUntil { repository.timestamps(id).size == before + 2 }
     }
