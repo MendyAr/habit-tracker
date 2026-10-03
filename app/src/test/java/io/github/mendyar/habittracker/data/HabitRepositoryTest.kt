@@ -5,7 +5,6 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.icons.HabitColors
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -29,29 +28,60 @@ class HabitRepositoryTest {
     }
 
     @Test
-    fun defaultHabitIsCreatedOnceAndRemembered() {
-        val first = repository.defaultHabit()
+    fun firstRunCreatesOneHabitForTheAppIconOnlyOnce() {
+        assertNull(repository.defaultHabit())
+        repository.ensureFirstRun()
+        val first = repository.defaultHabit()!!
         assertEquals("Habit", first.name)
-        assertEquals(first, repository.defaultHabit())
-        assertEquals(1, repository.habits().size)
-        assertEquals(first.id, repository.settings.defaultHabitId)
+        repository.ensureFirstRun()
+        assertEquals(listOf(first), repository.habits())
     }
 
     @Test
-    fun deletingTheDefaultHabitFallsBackToTheOldestRemaining() {
-        val first = repository.defaultHabit()
-        val second = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.deleteHabit(first.id)
-        assertEquals(second.id, repository.defaultHabit().id)
+    fun firstRunKeepsExistingHabitsOfAnUpgrade() {
+        val existing = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.ensureFirstRun()
+        assertEquals(listOf(existing), repository.habits())
     }
 
     @Test
-    fun deletingTheOnlyHabitRecreatesADefault() {
-        val first = repository.defaultHabit()
+    fun deletingTheAppIconHabitLeavesTheAppIconWithoutAHabit() {
+        repository.ensureFirstRun()
+        val first = repository.defaultHabit()!!
+        repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         repository.deleteHabit(first.id)
-        val recreated = repository.defaultHabit()
-        assertNotEquals(first.id, recreated.id)
-        assertEquals(1, repository.habits().size)
+        assertNull(repository.defaultHabit())
+        assertEquals(-1L, repository.settings.defaultHabitId)
+    }
+
+    @Test
+    fun deletingEveryHabitNeverRecreatesOne() {
+        repository.ensureFirstRun()
+        repository.deleteHabit(repository.defaultHabit()!!.id)
+        repository.ensureFirstRun()
+        assertTrue(repository.habits().isEmpty())
+        assertNull(repository.defaultHabit())
+    }
+
+    @Test
+    fun theAppIconHabitCanBeChangedAndCleared() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.setDefaultHabit(water.id)
+        assertEquals(water, repository.defaultHabit())
+        repository.setDefaultHabit(null)
+        assertNull(repository.defaultHabit())
+    }
+
+    @Test
+    fun clearEntriesKeepsTheHabitAndOtherHabitsEntries() {
+        val a = repository.createHabit("A", "check", null, HabitColors.DEFAULT)
+        val b = repository.createHabit("B", "check", null, HabitColors.DEFAULT)
+        repeat(3) { repository.log(a.id, it.toLong()) }
+        repository.log(b.id, 5)
+        repository.clearEntries(a.id)
+        assertEquals(0, repository.timestamps(a.id).size)
+        assertEquals(1, repository.timestamps(b.id).size)
+        assertEquals(a, repository.habit(a.id))
     }
 
     @Test
@@ -105,12 +135,5 @@ class HabitRepositoryTest {
         repository.updateHabit(updated)
         assertEquals(updated, repository.habit(habit.id))
         assertTrue(!oldIcon.exists())
-    }
-
-    @Test
-    fun habitOrDefaultHandlesUnknownIds() {
-        val default = repository.defaultHabit()
-        assertEquals(default.id, repository.habitOrDefault(-1).id)
-        assertEquals(default.id, repository.habitOrDefault(999).id)
     }
 }

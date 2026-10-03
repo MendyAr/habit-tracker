@@ -9,7 +9,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PathMeasure
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.TypedValue
@@ -20,11 +19,12 @@ import android.view.animation.OvershootInterpolator
 
 /**
  * The confirmation shown when a timestamp is logged: a coloured disc with a check
- * pops over the tapped launcher icon, a ring ripples outwards and a small pill
- * with the current count floats next to it. Everything then fades away and
+ * pops up in the middle of the screen, a ring ripples outwards and a small pill
+ * with the current count floats below it. Everything then fades away and
  * [onFinished] is invoked.
  *
- * The view is transparent everywhere else, so the home screen stays visible.
+ * It is always drawn in the same place, whichever icon or widget was tapped. The
+ * view is transparent everywhere else, so the home screen stays visible.
  */
 class LogAnimationView(context: Context) : View(context) {
 
@@ -58,26 +58,20 @@ class LogAnimationView(context: Context) : View(context) {
     private val partialCheck = Path()
     private val measure = PathMeasure()
     private val pillRect = RectF()
-    private val location = IntArray(2)
     private val pop = OvershootInterpolator(2.2f)
     private val ease = DecelerateInterpolator(1.6f)
 
-    private var anchorOnScreen: Rect? = null
     private var label = ""
     private var hint: String? = null
     private var holdMs = HOLD_MS
     private var elapsed = 0f
     private var animator: ValueAnimator? = null
 
-    /**
-     * Starts the animation centred on [anchor] (the tapped icon, in screen
-     * coordinates) or on the screen centre when the launcher did not report it.
-     */
-    fun start(color: Int, anchor: Rect?, label: String, hint: String?) {
+    /** Starts the animation in the colour of the logged habit. */
+    fun start(color: Int, label: String, hint: String?) {
         if (animator != null) return
         discPaint.color = color
         ringPaint.color = color
-        anchorOnScreen = anchor
         this.label = label
         this.hint = hint
         holdMs = if (hint != null) HOLD_WITH_HINT_MS else HOLD_MS
@@ -112,23 +106,9 @@ class LogAnimationView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         if (animator == null) return
-        getLocationOnScreen(location)
-        val anchor = anchorOnScreen
-        val cx: Float
-        val cy: Float
-        val radius: Float
-        if (anchor != null && !anchor.isEmpty) {
-            val side = minOf(anchor.width(), anchor.height())
-            cx = anchor.exactCenterX() - location[0]
-            // Some launchers report the whole cell (icon + label); the icon sits at its top.
-            cy = if (anchor.height() > anchor.width() * 1.2f) anchor.top + side / 2f - location[1]
-            else anchor.exactCenterY() - location[1]
-            radius = side / 2f * 0.92f
-        } else {
-            cx = width / 2f
-            cy = height / 2f
-            radius = 36 * density
-        }
+        val cx = width / 2f
+        val cy = height / 2f
+        val radius = DISC_RADIUS_DP * density
 
         val exit = progress(holdMs.toFloat(), EXIT_MS.toFloat())
         val fade = 1f - ease.getInterpolation(exit)
@@ -178,9 +158,7 @@ class LogAnimationView(context: Context) : View(context) {
         val w = minOf(textWidth + 2 * padH, width - 16 * density)
         val h = textPaint.textSize + (if (hintText != null) hintPaint.textSize + lineGap else 0f) + 2 * padV
         val lift = (1f - ease.getInterpolation(amount)) * 10 * density
-        // Above the icon unless that would run into the status bar; below otherwise.
-        val above = cy - radius - gap - h > 32 * density
-        val top = if (above) cy - radius - gap - h + lift else cy + radius + gap - lift
+        val top = cy + radius + gap - lift
         val left = (cx - w / 2f).coerceIn(8 * density, maxOf(8 * density, width - 8 * density - w))
         pillRect.set(left, top, left + w, top + h)
 
@@ -204,6 +182,7 @@ class LogAnimationView(context: Context) : View(context) {
     private fun progress(start: Float, duration: Float): Float = ((elapsed - start) / duration).coerceIn(0f, 1f)
 
     private companion object {
+        const val DISC_RADIUS_DP = 44
         const val HOLD_MS = 950L
         const val HOLD_WITH_HINT_MS = 2800L
         const val EXIT_MS = 300L

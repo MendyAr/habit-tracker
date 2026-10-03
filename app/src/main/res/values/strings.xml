@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Habit Tracker</string>
-    <string name="stats_launcher_name">Habit stats</string>
+    <string name="stats_launcher_name">Habit Stats</string>
     <string name="default_habit_name">Habit</string>
 
     <!-- Log confirmation -->
@@ -35,23 +35,23 @@
 
     <!-- Launcher shortcuts and widget -->
     <string name="shortcut_statistics">Statistics</string>
-    <string name="shortcut_statistics_of">%1$s statistics</string>
+    <string name="shortcut_statistics_of">%1$s Statistics</string>
     <string name="shortcut_habits">Habits</string>
-    <string name="shortcut_habits_long">All habits</string>
+    <string name="shortcut_habits_long">All Habits</string>
     <string name="shortcut_deleted">This habit was deleted</string>
     <string name="widget_description">Log a habit with one tap, right on your home screen</string>
     <string name="widget_log_description">Log %1$s</string>
-    <string name="widget_pick_title">Which habit should this widget log?</string>
+    <string name="widget_pick_title">Choose a Habit for This Widget</string>
 
     <!-- Statistics -->
     <string name="period_day">Day</string>
     <string name="period_week">Week</string>
     <string name="period_month">Month</string>
     <string name="period_year">Year</string>
-    <string name="stats_title_day">Daily statistics</string>
-    <string name="stats_title_week">Weekly statistics</string>
-    <string name="stats_title_month">Monthly statistics</string>
-    <string name="stats_title_year">Yearly statistics</string>
+    <string name="stats_title_day">Daily Statistics</string>
+    <string name="stats_title_week">Weekly Statistics</string>
+    <string name="stats_title_month">Monthly Statistics</string>
+    <string name="stats_title_year">Yearly Statistics</string>
     <string name="stat_average">Average</string>
     <string name="stat_min">Min</string>
     <string name="stat_max">Max</string>
@@ -100,7 +100,7 @@
         <item quantity="other">and %d more</item>
     </plurals>
     <string name="add_entry">Add entry</string>
-    <string name="delete_entry_title">Delete this entry?</string>
+    <string name="delete_entry_title">Delete Entry?</string>
     <string name="delete_entry_message">Logged %1$s</string>
     <string name="future_entry">Entries can\'t be in the future</string>
     <string name="previous">Previous</string>
@@ -109,11 +109,11 @@
 
     <!-- Habits -->
     <string name="habits">Habits</string>
-    <string name="new_habit">New habit</string>
-    <string name="edit_habit">Edit habit</string>
-    <string name="manage_habits">Manage habits…</string>
+    <string name="new_habit">New Habit</string>
+    <string name="edit_habit">Edit Habit</string>
+    <string name="manage_habits">Manage Habits…</string>
     <string name="switch_habit">Switch habit</string>
-    <string name="habits_tip">Tap + to log. Long-press the app icon for statistics.</string>
+    <string name="habits_tip">Tap a habit for its statistics, or + to log it.</string>
     <string name="app_icon_badge">app icon</string>
     <string name="habit_subtitle">%1$s · %2$s</string>
     <string name="log_habit">Log %1$s</string>
@@ -132,20 +132,37 @@
     <string name="icon">Icon</string>
     <string name="upload_icon">Use your own image</string>
     <string name="image_failed">That image couldn\'t be used</string>
-    <string name="home_screen">Home screen</string>
-    <string name="add_to_home">Add icon to home screen</string>
-    <string name="add_widget">Add one-tap widget</string>
+    <string name="home_screen">Home Screen</string>
+    <string name="add_to_home">Add Icon to Home Screen</string>
+    <string name="add_widget">Add One-Tap Widget</string>
     <string name="pin_unsupported">Your launcher doesn\'t support this</string>
     <string name="pin_legacy_done">Icon sent to your home screen</string>
-    <string name="main_icon_habit">The app icon logs this habit</string>
-    <string name="delete_habit">Delete habit</string>
+    <string name="main_icon_habit">App Icon Logs This Habit</string>
+    <string name="delete_habit">Delete Habit</string>
     <string name="delete_habit_title">Delete “%1$s”?</string>
     <plurals name="delete_habit_message">
         <item quantity="one">Its %d entry will be deleted too. This can\'t be undone.</item>
         <item quantity="other">All %d entries will be deleted too. This can\'t be undone.</item>
     </plurals>
-    <string name="add_to_home_title">Add to home screen?</string>
+    <string name="add_to_home_title">Add to Home Screen?</string>
     <string name="add_to_home_message">Tapping the new icon logs “%1$s” without opening the app.</string>
+
+    <!-- v1.1 -->
+    <string name="habits_empty">No habits yet.\nTap + to add one.</string>
+    <string name="widget_choose">Choose Habit</string>
+    <string name="widget_deleted">Habit Deleted</string>
+    <string name="widget_exists">This habit already has a widget</string>
+    <string name="widget_none_free">Every Habit Already Has a Widget</string>
+    <string name="clear">Clear</string>
+    <string name="clear_entries">Clear All Entries</string>
+    <string name="clear_entries_title">Clear All Entries of “%1$s”?</string>
+    <plurals name="clear_entries_message">
+        <item quantity="one">Its %d entry will be deleted. The habit itself stays. This can\'t be undone.</item>
+        <item quantity="other">All %d entries will be deleted. The habit itself stays. This can\'t be undone.</item>
+    </plurals>
+    <string name="clear_entries_nothing">There are no entries to clear</string>
+    <string name="clear_entries_done">All entries cleared</string>
+    <string name="delete_habit_home_note">Android doesn\'t let apps remove home-screen items: its icon will be greyed out and its widget will show “Habit Deleted” until you long-press them and choose Remove.</string>
 
     <!-- Built-in icon names (content descriptions) -->
     <string name="icon_check">Check</string>

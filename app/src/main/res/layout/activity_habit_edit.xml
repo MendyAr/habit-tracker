@@ -143,15 +143,32 @@
                         android:textSize="16sp" />
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/edit_delete"
-                    style="@style/ActionRow"
+                <LinearLayout
+                    android:id="@+id/edit_danger_card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
                     android:background="@drawable/bg_card"
-                    android:drawableStart="@drawable/ic_ui_delete"
-                    android:drawableTint="@color/danger"
-                    android:text="@string/delete_habit"
-                    android:textColor="@color/danger" />
+                    android:orientation="vertical"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:id="@+id/edit_clear"
+                        style="@style/ActionRow"
+                        android:drawableStart="@drawable/ic_ui_close"
+                        android:drawableTint="@color/danger"
+                        android:text="@string/clear_entries"
+                        android:textColor="@color/danger" />
+
+                    <TextView
+                        android:id="@+id/edit_delete"
+                        style="@style/ActionRow"
+                        android:drawableStart="@drawable/ic_ui_delete"
+                        android:drawableTint="@color/danger"
+                        android:text="@string/delete_habit"
+                        android:textColor="@color/danger" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

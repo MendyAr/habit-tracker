@@ -1,12 +1,14 @@
 package io.github.mendyar.habittracker.stats
 
 import android.content.Context
+import android.content.Intent
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import org.junit.After
@@ -17,6 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class StatsActivityTest {
@@ -73,9 +76,27 @@ class StatsActivityTest {
 
     @Test
     fun opensTheDefaultHabitWithoutAnExtra() {
-        val default = repository.defaultHabit()
+        repository.ensureFirstRun()
+        val default = repository.defaultHabit()!!
         val activity = Robolectric.buildActivity(StatsActivity::class.java).setup().get()
         val name = activity.findViewById<TextView>(R.id.habit_name)
         awaitCondition { name.text.toString() == default.name }
+    }
+
+    @Test
+    fun withoutAnyHabitItShowsTheHabitList() {
+        repository.ensureFirstRun()
+        repository.deleteHabit(repository.defaultHabit()!!.id)
+        val activity = Robolectric.buildActivity(StatsActivity::class.java).setup().get()
+        awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
+        assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)
+    }
+
+    @Test
+    fun longPressShortcutAlwaysReplacesTheAppsScreens() {
+        // Otherwise an open editor would be brought back instead of the statistics.
+        val flags = Shortcuts.statsShortcutIntent(context, 1).flags
+        assertTrue(flags and Intent.FLAG_ACTIVITY_CLEAR_TASK != 0)
+        assertTrue(flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
     }
 }

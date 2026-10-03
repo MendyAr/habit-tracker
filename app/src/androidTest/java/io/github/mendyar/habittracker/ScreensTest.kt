@@ -59,7 +59,7 @@ class ScreensTest {
 
     /** Two months of a habit that is slowly being cut down, plus two more habits. */
     private fun seed(): Long {
-        val smoking = repository.defaultHabit().copy(name = "Smoking", icon = "smoking", color = HabitColors.ALL[5])
+        val smoking = firstHabit().copy(name = "Smoking", icon = "smoking", color = HabitColors.ALL[5])
         repository.updateHabit(smoking)
         val random = Random(7)
         val now = System.currentTimeMillis()
@@ -233,5 +233,11 @@ class ScreensTest {
             Thread.sleep(50)
         }
         assertTrue("Condition not met within $timeoutMs ms", condition())
+    }
+
+    /** The habit the first run creates for the app icon. */
+    private fun firstHabit() = repository.run {
+        ensureFirstRun()
+        defaultHabit()!!
     }
 }

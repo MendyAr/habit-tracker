@@ -1,7 +1,7 @@
 name: Release
 
 # Publishes a signed, versioned APK as a GitHub release once CI (build, unit
-# tests, lint and device tests) has passed on the default branch and its
+# tests, lint and device tests) has passed on main (or the default branch) and its
 # VERSION_NAME (gradle.properties) has no release yet.
 on:
   workflow_run:
@@ -22,7 +22,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == github.event.repository.default_branch)
+       (github.event.workflow_run.head_branch == 'main' ||
+        github.event.workflow_run.head_branch == github.event.repository.default_branch))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

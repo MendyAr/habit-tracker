@@ -158,10 +158,18 @@ class StatsActivity : Activity() {
     private fun load() {
         val id = requestedHabitId
         Async.load({
-            val h = repository.habitOrDefault(id)
-            Loaded(h, repository.habits(), repository.timestamps(h.id))
+            repository.ensureFirstRun()
+            val all = repository.habits()
+            // The requested habit, else the app icon's, else any; null when there are none.
+            val h = repository.habit(id) ?: repository.defaultHabit() ?: all.firstOrNull()
+            h?.let { Loaded(it, all, repository.timestamps(it.id)) }
         }) { loaded ->
             if (isFinishing) return@load
+            if (loaded == null) {
+                startActivity(Intent(this, HabitsActivity::class.java))
+                finish()
+                return@load
+            }
             val switched = habit?.id != loaded.habit.id
             habit = loaded.habit
             habits = loaded.habits
@@ -387,7 +395,7 @@ class StatsActivity : Activity() {
         selected = timestamp
         Async.load({
             repository.log(h.id, timestamp)
-            LauncherSync.refresh(this)
+            LauncherSync.afterLog(this)
         }) { load() }
     }
 
@@ -398,7 +406,7 @@ class StatsActivity : Activity() {
             .setPositiveButton(R.string.delete) { _, _ ->
                 Async.load({
                     repository.deleteEntry(entry.id)
-                    LauncherSync.refresh(this)
+                    LauncherSync.afterLog(this)
                 }) { load() }
             }
             .setNegativeButton(R.string.cancel, null)

@@ -4,7 +4,7 @@
 
 A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
 meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
-confirmed by a short animation right over the icon, and you stay where you were.
+confirmed by a short animation in the middle of the screen, and you stay where you were.
 Long-press for statistics.
 
 [![CI](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml)
@@ -32,11 +32,11 @@ To update, install the newer APK over the old one; your data stays.
 
 | Do this | To |
 | --- | --- |
-| **Tap** the Habit Tracker icon | Log a timestamp. A check pops over the icon with today's count, and that's it. |
+| **Tap** the Habit Tracker icon | Log a timestamp for the habit the app icon tracks. A check pops up in the middle of the screen with today's count, and that's it. If the app icon tracks no habit, the habit list opens instead. |
 | **Long-press** the icon → *Statistics* | Open the statistics (Android 7.1+). On older Android use the separate *Habit stats* icon. |
-| Long-press → *Habits* → **+** | Add another habit: name it, pick an icon and a colour. |
+| Long-press → *All Habits* → **+** | Add another habit: name it, pick an icon and a colour. Tap a habit in the list for its statistics, or its **+** to log it. |
 | In a habit's settings → *Add icon to home screen* | Give the habit its own icon. Tapping it logs that habit. |
-| In a habit's settings → *Add one-tap widget* | Same, as a 1×1 widget that confirms inside the widget itself. |
+| In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Resize it to any size; each habit can have one. |
 
 The first tap after installing also shows a one-time hint about long-pressing.
 
@@ -66,8 +66,12 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
   workout, walk, run, cycling, sleep, wake up, meditation, reading, medication,
   …), or **your own image** from the gallery.
 - **Colour**: ten accents.
-- **The app icon logs this habit**: choose which habit the main app icon counts.
-- **Delete habit**: removes it, its entries and its home-screen icon.
+- **App Icon Logs This Habit**: choose which habit the main app icon counts, or switch it
+  off so the app icon opens the habit list.
+- **Clear All Entries**: deletes the habit's timestamps (after asking), keeping the habit.
+- **Delete Habit**: removes it and its entries. Android doesn't let apps remove
+  home-screen items, so its icon is greyed out and its widget shows *Habit Deleted*
+  until you long-press them and choose *Remove*.
 
 Renaming or re-iconing a habit updates its home-screen icon and widget too.
 

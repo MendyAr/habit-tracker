@@ -8,16 +8,28 @@ import io.github.mendyar.habittracker.widget.HabitWidgetProvider
 object LauncherSync {
 
     /**
-     * Refreshes long-press shortcuts, pinned shortcuts and widgets. Must be called
-     * off the main thread after habits or entries changed.
+     * After habits were created, edited or deleted: refreshes long-press shortcuts,
+     * pinned shortcuts and every widget. Call off the main thread.
      */
     fun refresh(context: Context) {
         val app = context.applicationContext
+        syncShortcuts(app)
+        HabitWidgetProvider.updateAll(app)
+    }
+
+    /**
+     * After a timestamp was logged: only re-orders the long-press shortcuts. Widgets
+     * look the same, so they are not redrawn (that would make every widget flicker).
+     * Call off the main thread.
+     */
+    fun afterLog(context: Context) {
+        syncShortcuts(context.applicationContext)
+    }
+
+    private fun syncShortcuts(app: Context) {
         val repository = HabitRepository.get(app)
-        repository.defaultHabit()
         val lastLogged = repository.lastLogged()
         val ordered = repository.habits().sortedByDescending { lastLogged[it.id] ?: it.createdAt }
         Shortcuts.sync(app, ordered)
-        HabitWidgetProvider.updateAll(app)
     }
 }

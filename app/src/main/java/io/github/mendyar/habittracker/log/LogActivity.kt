@@ -1,7 +1,7 @@
 package io.github.mendyar.habittracker.log
 
 import android.app.Activity
-import android.graphics.Rect
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -10,6 +10,7 @@ import android.view.WindowManager
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
@@ -18,15 +19,15 @@ import io.github.mendyar.habittracker.ui.Formats
 /**
  * Entry point of the launcher icon and of every pinned habit icon.
  *
- * It records a timestamp, plays [LogAnimationView] over the (still visible)
- * home screen in a transparent window and finishes without any transition, so
- * the user never leaves the screen they tapped on.
+ * It records a timestamp, plays [LogAnimationView] in the middle of the (still
+ * visible) home screen in a transparent window and finishes without any
+ * transition, so the user never leaves the screen they tapped on. When the app
+ * icon has no habit assigned, it opens the habit list instead.
  */
 class LogActivity : Activity() {
 
     private lateinit var animation: LogAnimationView
     private var finishing = false
-    private var anchor: Rect? = null
     private var result: Result? = null
     private var windowShown = false
 
@@ -46,14 +47,22 @@ class LogActivity : Activity() {
         setContentView(animation)
 
         val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
-        anchor = intent.sourceBounds
         val now = System.currentTimeMillis()
         Async.load({ record(habitId, now) }) {
-            result = it
-            startAnimationWhenVisible()
+            if (it == null) {
+                // No habit to log (none chosen for the app icon, or it was deleted): show the list.
+                startActivity(
+                    Intent(this, HabitsActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                )
+                finishQuietly()
+            } else {
+                result = it
+                startAnimationWhenVisible()
+            }
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
-        Async.io { LauncherSync.refresh(applicationContext) }
+        Async.io { LauncherSync.afterLog(applicationContext) }
         // Safety net in case the system never reports the end of the window transition.
         Async.mainDelayed(ENTER_TIMEOUT_MS) {
             windowShown = true
@@ -73,15 +82,19 @@ class LogActivity : Activity() {
         val ready = result ?: return
         if (!windowShown || finishing || animation.isStarted) return
         haptic()
-        animation.start(ready.color, anchor, ready.label, ready.hint)
+        animation.start(ready.color, ready.label, ready.hint)
     }
 
     private class Result(val color: Int, val label: String, val hint: String?)
 
-    /** Runs on the I/O thread. */
-    private fun record(habitId: Long, now: Long): Result {
+    /**
+     * Runs on the I/O thread. Logs [habitId], or the app icon's habit when none is
+     * given; returns null when there is no such habit.
+     */
+    private fun record(habitId: Long, now: Long): Result? {
         val repository = HabitRepository.get(this)
-        val habit = repository.habitOrDefault(habitId)
+        repository.ensureFirstRun()
+        val habit = (if (habitId == -1L) repository.defaultHabit() else repository.habit(habitId)) ?: return null
         repository.log(habit.id, now)
 
         val settings = repository.settings
