@@ -54,11 +54,12 @@ class LogActivityTest {
 
     @Test
     fun pinnedIconLogsItsOwnHabit() {
+        val default = repository.defaultHabit()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
 
         awaitCondition { repository.timestamps(water.id).size == 1 }
-        assertEquals(0, repository.timestamps(repository.defaultHabit().id).size)
+        assertEquals(0, repository.timestamps(default.id).size)
     }
 
     @Test

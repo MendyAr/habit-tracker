@@ -20,14 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Build and test
         run: ./gradlew --stacktrace :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease
@@ -40,14 +40,14 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk "dist/HabitTracker-v${version}-build${GITHUB_RUN_NUMBER}-debug.apk"
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-build-${{ github.run_number }}
           path: dist/*.apk
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-build-${{ github.run_number }}
           path: |
@@ -69,14 +69,14 @@ jobs:
           - api-level: 35 # Android 15
             target: google_apis
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Enable KVM
         run: |
@@ -94,9 +94,20 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: .github/scripts/device-tests.sh
 
+      - name: Print screenshots to the log
+        if: always()
+        run: |
+          # Compact JPEG copies, base64-encoded between markers, for reviewers who cannot download artifacts.
+          find screenshots -name '*.png' | sort | while read -r f; do
+            echo "=====SHOT $(basename "$f" .png)"
+            convert "$f" -resize 640x -quality 82 jpg:- | base64 -w 0
+            echo
+            echo "=====END"
+          done
+
       - name: Upload screenshots and reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: device-api${{ matrix.api-level }}-build${{ github.run_number }}
           path: |

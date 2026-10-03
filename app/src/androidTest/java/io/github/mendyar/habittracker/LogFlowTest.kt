@@ -50,10 +50,11 @@ class LogFlowTest {
 
     @Test
     fun pinnedShortcutIntentLogsItsHabit() {
+        val default = repository.defaultHabit()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         context.startActivity(Shortcuts.logIntent(context, water.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(water.id).size == 1 }
-        assertEquals(0, repository.timestamps(repository.defaultHabit().id).size)
+        assertEquals(0, repository.timestamps(default.id).size)
         waitUntil(timeoutMs = 8_000) { resumedActivities() == 0 }
     }
 
