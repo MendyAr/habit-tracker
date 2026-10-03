@@ -48,8 +48,9 @@ class LogActivityTest {
         val controller = Robolectric.buildActivity(LogActivity::class.java, intent).setup()
 
         awaitCondition { repository.defaultHabit()?.let { repository.timestamps(it.id).size } == 1 }
-        // Let the confirmation animation (well under 4 s, including the first-run hint) play out.
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(4))
+        // Let the confirmation play out: up to 1 s waiting for the window, then ~3.1 s with
+        // the first-run hint.
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(8))
         assertTrue(controller.get().isFinishing)
     }
 

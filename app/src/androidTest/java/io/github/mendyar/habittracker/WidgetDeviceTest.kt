@@ -14,7 +14,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +21,8 @@ import org.junit.runner.RunWith
 /**
  * Widgets on a real system: hosted by an AppWidgetHost exactly as a launcher
  * hosts them, so binding, rendering and taps go through the real AppWidget service.
- * Binding needs `adb shell appwidget grantbind` (done by CI); otherwise the tests skip.
+ * Binding needs `adb shell appwidget grantbind --package io.github.mendyar.habittracker`
+ * (done by .github/scripts/device-tests.sh).
  */
 @RunWith(AndroidJUnit4::class)
 class WidgetDeviceTest {
@@ -55,7 +55,7 @@ class WidgetDeviceTest {
     private fun placeWidget(): Int {
         val id = host.allocateAppWidgetId()
         allocated += id
-        assumeTrue("Widget binding not granted (adb shell appwidget grantbind)", manager.bindAppWidgetIdIfAllowed(id, provider))
+        assertTrue("Widget binding not granted (adb shell appwidget grantbind)", manager.bindAppWidgetIdIfAllowed(id, provider))
         return id
     }
 
