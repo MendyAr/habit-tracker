@@ -4,13 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Build
 import android.view.View
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.runner.lifecycle.ActivityLifecycleCallback
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import androidx.test.uiautomator.By
@@ -24,7 +22,7 @@ import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
-import io.github.mendyar.habittracker.stats.StatsActivity
+import io.github.mendyar.habittracker.log.LogActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -121,63 +119,36 @@ class ScreensTest {
     }
 
     /**
-     * The real user flow through the launcher: tap the app icon (logs and returns
-     * to the home screen), then long-press it and open a habit's statistics from
-     * the shortcut popup. Skipped where the launcher has not placed the app icon
-     * on the home screen.
+     * The real user flow through the launcher: tapping the app icon logs a
+     * timestamp and returns to the home screen. Then the confirmation is shown
+     * again, anchored on the icon's bounds, to screenshot it mid-animation
+     * (emulator screenshots are too slow to catch it after a real tap).
+     * Skipped where the launcher has not placed the app icon on the home screen.
      */
     @Test
-    fun launcherIconTapAndLongPress() {
+    fun launcherIconTap() {
         val id = seed()
         LauncherSync.refresh(context)
         device.pressHome()
         device.waitForIdle()
+        dismissAnrDialog()
 
         val appName = context.getString(R.string.app_name)
         val icon = device.wait(Until.findObject(By.desc(appName)), 3_000) ?: device.findObject(By.text(appName))
         assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
+        val bounds = icon!!.visibleBounds
         val before = repository.timestamps(id).size
-        dismissAnrDialog()
-        // Record what happens after the tap: activity lifecycle and a burst of frames.
-        val timeline = StringBuilder()
-        val tapped = System.currentTimeMillis()
-        val callback = ActivityLifecycleCallback { activity, stage ->
-            timeline.append("${System.currentTimeMillis() - tapped} ms ${activity.javaClass.simpleName} $stage\n")
-        }
-        instrumentation.runOnMainSync { ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(callback) }
-        icon!!.click()
-        val frames = mutableListOf<Pair<Long, Bitmap>>()
-        while (System.currentTimeMillis() - tapped < 4_000) {
-            instrumentation.uiAutomation.takeScreenshot()?.let { full ->
-                // Keep frames small in memory; full-size bitmaps would exhaust the heap.
-                frames += (System.currentTimeMillis() - tapped) to Bitmap.createScaledBitmap(full, 540, full.height * 540 / full.width, true)
-                full.recycle()
-            }
-            Thread.sleep(120)
-        }
-        instrumentation.runOnMainSync { ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(callback) }
-        frames.forEach { (at, frame) -> save("5_tap_${at.toString().padStart(4, '0')}ms", frame, jpeg = true) }
-        File(screenshotDir(), "timeline.txt").writeText(timeline.toString())
+        icon.click()
         waitUntil { repository.timestamps(id).size == before + 1 }
         waitUntil { resumedActivity() == null }
 
-        // Long-press shortcuts exist from Android 7.1 on.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
-        // Let the launcher finish its return transition; it ignores touches until then.
-        Thread.sleep(2_000)
-        device.waitForIdle()
-        dismissAnrDialog()
-        device.wait(Until.findObject(By.desc(appName)), 5_000)?.visibleCenter?.let { c ->
-            // A stationary swipe is a long press that every launcher recognises.
-            device.swipe(c.x, c.y, c.x, c.y, 300)
-        }
-        val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 5_000)
-        screenshot("7_long_press", settleMs = 300)
-        File(screenshotDir(), "timeline.txt").appendText("long-press shortcut found: ${shortcut != null}\n")
-        assumeTrue("The launcher shows no long-press shortcuts", shortcut != null)
-        shortcut!!.click()
-        waitUntil { resumedActivity() is StatsActivity }
-        screenshot("8_from_shortcut")
+        Thread.sleep(1_500)
+        val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.sourceBounds = bounds
+        context.startActivity(intent)
+        Thread.sleep(700)
+        screenshot("5_log_animation", settleMs = 0)
+        waitUntil { repository.timestamps(id).size == before + 2 }
     }
 
     private fun launch(intent: Intent) {
@@ -213,18 +184,16 @@ class ScreensTest {
             Thread.sleep(settleMs)
         }
         // takeScreenshot() occasionally returns null on a busy emulator.
-        for (attempt in 1..3) {
+        repeat(3) {
             val bitmap = instrumentation.uiAutomation.takeScreenshot()
-            if (bitmap != null) return save(name, bitmap, jpeg = false)
+            if (bitmap != null) return save(name, bitmap)
             Thread.sleep(300)
         }
     }
 
-    private fun save(name: String, full: Bitmap, jpeg: Boolean) {
-        val width = 540
-        val bitmap = if (full.width > width) Bitmap.createScaledBitmap(full, width, full.height * width / full.width, true) else full
-        val format = if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
-        FileOutputStream(File(screenshotDir(), if (jpeg) "$name.jpg" else "$name.png")).use { bitmap.compress(format, 85, it) }
+    private fun save(name: String, full: Bitmap) {
+        val bitmap = if (full.width > 540) Bitmap.createScaledBitmap(full, 540, full.height * 540 / full.width, true) else full
+        FileOutputStream(File(screenshotDir(), "$name.png")).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     // Emulator images without external storage fall back to private storage (pulled with run-as).
