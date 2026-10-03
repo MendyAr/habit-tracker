@@ -30,6 +30,9 @@ class LogAnimationView(context: Context) : View(context) {
 
     var onFinished: (() -> Unit)? = null
 
+    /** Whether [start] has been called. */
+    val isStarted: Boolean get() = animator != null
+
     private val density = resources.displayMetrics.density
 
     private val discPaint = Paint(Paint.ANTI_ALIAS_FLAG)

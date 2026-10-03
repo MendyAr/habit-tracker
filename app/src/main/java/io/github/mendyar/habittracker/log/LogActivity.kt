@@ -1,6 +1,7 @@
 package io.github.mendyar.habittracker.log
 
 import android.app.Activity
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -25,6 +26,9 @@ class LogActivity : Activity() {
 
     private lateinit var animation: LogAnimationView
     private var finishing = false
+    private var anchor: Rect? = null
+    private var result: Result? = null
+    private var windowShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,15 +46,34 @@ class LogActivity : Activity() {
         setContentView(animation)
 
         val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
-        val anchor = intent.sourceBounds
+        anchor = intent.sourceBounds
         val now = System.currentTimeMillis()
-        Async.load({ record(habitId, now) }) { result ->
-            if (finishing) return@load
-            haptic()
-            animation.start(result.color, anchor, result.label, result.hint)
+        Async.load({ record(habitId, now) }) {
+            result = it
+            startAnimationWhenVisible()
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
         Async.io { LauncherSync.refresh(applicationContext) }
+        // Safety net in case the system never reports the end of the window transition.
+        Async.mainDelayed(ENTER_TIMEOUT_MS) {
+            windowShown = true
+            startAnimationWhenVisible()
+        }
+    }
+
+    override fun onEnterAnimationComplete() {
+        super.onEnterAnimationComplete()
+        // Launchers animate the opening window; starting earlier would play part of the
+        // confirmation while the window is not yet on screen.
+        windowShown = true
+        startAnimationWhenVisible()
+    }
+
+    private fun startAnimationWhenVisible() {
+        val ready = result ?: return
+        if (!windowShown || finishing || animation.isStarted) return
+        haptic()
+        animation.start(ready.color, anchor, ready.label, ready.hint)
     }
 
     private class Result(val color: Int, val label: String, val hint: String?)
@@ -123,5 +146,9 @@ class LogActivity : Activity() {
         super.onStop()
         // Leaving the screen (home pressed, screen off) ends the confirmation.
         finishQuietly()
+    }
+
+    private companion object {
+        const val ENTER_TIMEOUT_MS = 1_000L
     }
 }
