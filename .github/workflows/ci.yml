@@ -97,10 +97,10 @@ jobs:
       - name: Print screenshots to the log
         if: always()
         run: |
-          # Compact JPEG copies, base64-encoded between markers, for reviewers who cannot download artifacts.
+          # Base64-encoded between markers, for reviewers who cannot download artifacts.
           find screenshots -name '*.png' | sort | while read -r f; do
             echo "=====SHOT $(basename "$f" .png)"
-            convert "$f" -resize 640x -quality 82 jpg:- | base64 -w 0
+            base64 -w 0 "$f"
             echo
             echo "=====END"
           done

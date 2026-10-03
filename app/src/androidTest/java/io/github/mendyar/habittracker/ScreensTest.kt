@@ -142,7 +142,8 @@ class ScreensTest {
         instrumentation.waitForIdleSync()
         Thread.sleep(400)
         val bitmap: Bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
-        val dir = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        // Emulator images without external storage fall back to private storage (pulled with run-as).
+        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "screenshots").apply { mkdirs() }
         FileOutputStream(File(dir, "$name.png")).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
