@@ -4,6 +4,9 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.view.View
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -76,8 +79,19 @@ class WidgetDeviceTest {
         assertTrue(HabitWidgetProvider.bind(context, id, water.id))
         waitUntil { label(id) == "Water" }
 
-        instrumentation.runOnMainSync {
-            host.createView(context, id, manager.getAppWidgetInfo(id)).findViewById<android.view.View>(R.id.widget_root).performClick()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // Tap the hosted widget exactly as a launcher would.
+            instrumentation.runOnMainSync {
+                host.createView(context, id, manager.getAppWidgetInfo(id)).findViewById<View>(R.id.widget_root).performClick()
+            }
+        } else {
+            // Before Android 7 a host view that is not in a window cannot fire its click
+            // PendingIntent, so deliver the broadcast that the tap sends.
+            context.sendBroadcast(
+                Intent(HabitWidgetProvider.ACTION_LOG)
+                    .setClass(context, HabitWidgetProvider::class.java)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+            )
         }
         waitUntil { repository.timestamps(water.id).size == 1 }
         assertEquals(0, repository.timestamps(repository.defaultHabit()!!.id).size)

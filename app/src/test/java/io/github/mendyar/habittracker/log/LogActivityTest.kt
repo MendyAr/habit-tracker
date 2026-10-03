@@ -48,6 +48,8 @@ class LogActivityTest {
         val controller = Robolectric.buildActivity(LogActivity::class.java, intent).setup()
 
         awaitCondition { repository.defaultHabit()?.let { repository.timestamps(it.id).size } == 1 }
+        // The system reports the end of the window transition; Robolectric does not.
+        controller.get().onEnterAnimationComplete()
         // Let the confirmation play out: up to 1 s waiting for the window, then ~3.1 s with
         // the first-run hint.
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(8))
