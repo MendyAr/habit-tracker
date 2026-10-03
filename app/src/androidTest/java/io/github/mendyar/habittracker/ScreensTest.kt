@@ -10,6 +10,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleCallback
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import androidx.test.uiautomator.By
@@ -137,13 +138,26 @@ class ScreensTest {
         assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
         val before = repository.timestamps(id).size
         dismissAnrDialog()
+        // Record what happens after the tap: activity lifecycle and a burst of frames.
+        val timeline = StringBuilder()
         val tapped = System.currentTimeMillis()
-        icon!!.click()
-        // A burst across the ~1.25 s confirmation (emulators start apps slowly).
-        for (at in longArrayOf(400, 800, 1_200, 1_600, 2_000)) {
-            Thread.sleep(maxOf(0, tapped + at - System.currentTimeMillis()))
-            screenshot("5_log_tap_${at}ms", settleMs = 0)
+        val callback = ActivityLifecycleCallback { activity, stage ->
+            timeline.append("${System.currentTimeMillis() - tapped} ms ${activity.javaClass.simpleName} $stage\n")
         }
+        instrumentation.runOnMainSync { ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(callback) }
+        icon!!.click()
+        val frames = mutableListOf<Pair<Long, Bitmap>>()
+        while (System.currentTimeMillis() - tapped < 4_000) {
+            instrumentation.uiAutomation.takeScreenshot()?.let { full ->
+                // Keep frames small in memory; full-size bitmaps would exhaust the heap.
+                frames += (System.currentTimeMillis() - tapped) to Bitmap.createScaledBitmap(full, 270, full.height * 270 / full.width, true)
+                full.recycle()
+            }
+            Thread.sleep(120)
+        }
+        instrumentation.runOnMainSync { ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(callback) }
+        frames.forEach { (at, frame) -> save("5_tap_${at.toString().padStart(4, '0')}ms", frame, jpeg = true) }
+        File(screenshotDir(), "timeline.txt").writeText(timeline.toString())
         waitUntil { repository.timestamps(id).size == before + 1 }
         waitUntil { resumedActivity() == null }
 
@@ -191,16 +205,18 @@ class ScreensTest {
             instrumentation.waitForIdleSync()
             Thread.sleep(settleMs)
         }
-        val full: Bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
-        val bitmap = if (full.width > 540) {
-            Bitmap.createScaledBitmap(full, 540, full.height * 540 / full.width, true)
-        } else {
-            full
-        }
-        // Emulator images without external storage fall back to private storage (pulled with run-as).
-        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "screenshots").apply { mkdirs() }
-        FileOutputStream(File(dir, "$name.png")).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        save(name, instrumentation.uiAutomation.takeScreenshot() ?: return, jpeg = false)
     }
+
+    private fun save(name: String, full: Bitmap, jpeg: Boolean) {
+        val width = if (jpeg) 270 else 540
+        val bitmap = if (full.width > width) Bitmap.createScaledBitmap(full, width, full.height * width / full.width, true) else full
+        val format = if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
+        FileOutputStream(File(screenshotDir(), if (jpeg) "$name.jpg" else "$name.png")).use { bitmap.compress(format, 85, it) }
+    }
+
+    // Emulator images without external storage fall back to private storage (pulled with run-as).
+    private fun screenshotDir() = File(context.getExternalFilesDir(null) ?: context.filesDir, "screenshots").apply { mkdirs() }
 
     private fun waitUntil(timeoutMs: Long = 8_000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs

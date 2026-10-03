@@ -102,8 +102,9 @@ jobs:
         if: always()
         run: |
           # Base64-encoded between markers, for reviewers who cannot download artifacts.
-          find screenshots -name '*.png' | sort | while read -r f; do
-            echo "=====SHOT $(basename "$f" .png)"
+          find screenshots -name '*.txt' -exec cat {} \;
+          find screenshots -name '*.png' -o -name '*.jpg' | sort | while read -r f; do
+            echo "=====SHOT $(basename "$f")"
             base64 -w 0 "$f"
             echo
             echo "=====END"
