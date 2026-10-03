@@ -99,7 +99,7 @@ jobs:
           script: .github/scripts/device-tests.sh
 
       - name: Print screenshots to the log
-        if: always()
+        if: always() && matrix.api-level == 35
         run: |
           # Base64-encoded between markers, for reviewers who cannot download artifacts.
           find screenshots -name '*.png' | sort | while read -r f; do

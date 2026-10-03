@@ -42,8 +42,9 @@ launcher icon / pinned habit icon
 LogActivity  (Theme.HabitTracker.Log: translucent, no window animation, no preview,
              own task affinity, excludeFromRecents, noHistory)
         │ 1. insert entry on the I/O thread
-        │ 2. LogAnimationView draws a disc + check over the tapped icon (Intent.sourceBounds)
-        │    and a pill with the current count; ~1.2 s in total
+        │ 2. once the window is on screen (onEnterAnimationComplete), LogAnimationView draws
+        │    a disc + check over the tapped icon (Intent.sourceBounds) and a pill with the
+        │    current count; ~1.25 s in total
         │ 3. finish() with transitions overridden to none
         ▼
 home screen (it was visible underneath the whole time)
@@ -124,4 +125,4 @@ the main thread. Broadcast receivers use `goAsync()` for the same.
 | --- | --- | --- |
 | `core/src/test` | Period arithmetic incl. DST and week starts, bucketing, statistics, ranges | JVM |
 | `app/src/test` | Repository and settings, `LogActivity` (logs, never twice, closes itself, publishes shortcuts), `StatsActivity`, formatting | JVM via Robolectric |
-| `app/src/androidTest` | Tap flow end to end, launcher sync, every screen with screenshots | Emulators API 21, 29, 35 in CI |
+| `app/src/androidTest` | Tap flow end to end (including a real tap on the launcher icon where the launcher shows it), long-press shortcuts published on the device, every screen with screenshots | Emulators API 21, 29, 35 in CI |
