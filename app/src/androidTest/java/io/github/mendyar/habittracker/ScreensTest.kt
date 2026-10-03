@@ -150,7 +150,7 @@ class ScreensTest {
         while (System.currentTimeMillis() - tapped < 4_000) {
             instrumentation.uiAutomation.takeScreenshot()?.let { full ->
                 // Keep frames small in memory; full-size bitmaps would exhaust the heap.
-                frames += (System.currentTimeMillis() - tapped) to Bitmap.createScaledBitmap(full, 270, full.height * 270 / full.width, true)
+                frames += (System.currentTimeMillis() - tapped) to Bitmap.createScaledBitmap(full, 540, full.height * 540 / full.width, true)
                 full.recycle()
             }
             Thread.sleep(120)
@@ -164,10 +164,10 @@ class ScreensTest {
         // Long-press shortcuts exist from Android 7.1 on.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         dismissAnrDialog()
-        device.wait(Until.findObject(By.desc(appName)), 3_000)?.longClick()
-        val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 3_000)
+        device.wait(Until.findObject(By.desc(appName)), 5_000)?.longClick()
+        val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 5_000)
+        screenshot("7_long_press", settleMs = 300)
         assumeTrue("The launcher shows no long-press shortcuts", shortcut != null)
-        screenshot("7_long_press")
         shortcut!!.click()
         waitUntil { resumedActivity() is StatsActivity }
         screenshot("8_from_shortcut")
@@ -209,7 +209,7 @@ class ScreensTest {
     }
 
     private fun save(name: String, full: Bitmap, jpeg: Boolean) {
-        val width = if (jpeg) 270 else 540
+        val width = 540
         val bitmap = if (full.width > width) Bitmap.createScaledBitmap(full, width, full.height * width / full.width, true) else full
         val format = if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
         FileOutputStream(File(screenshotDir(), if (jpeg) "$name.jpg" else "$name.png")).use { bitmap.compress(format, 85, it) }
