@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static long-press entry; per-habit "statistics" entries are added at runtime (Shortcuts.kt). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_habits"
+        android:shortcutId="habits"
+        android:shortcutLongLabel="@string/shortcut_habits_long"
+        android:shortcutShortLabel="@string/shortcut_habits">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="io.github.mendyar.habittracker.habits.HabitsActivity"
+            android:targetPackage="io.github.mendyar.habittracker" />
+    </shortcut>
+</shortcuts>

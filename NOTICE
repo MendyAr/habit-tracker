@@ -1,0 +1,8 @@
+Habit Tracker
+Copyright (c) 2026 MendyAr — MIT License (see LICENSE).
+
+This product includes icons from Material Symbols by Google
+(https://github.com/google/material-design-icons), licensed under the
+Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
+They are stored as Android vector drawables in app/src/main/res/drawable
+(ic_habit_*.xml and ic_ui_*.xml).

@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Habit Tracker</string>
+    <string name="stats_launcher_name">Habit stats</string>
+    <string name="default_habit_name">Habit</string>
+
+    <!-- Log confirmation -->
+    <string name="logged_label">✓  %1$s</string>
+    <string name="hint_long_press">Long-press the icon for statistics</string>
+    <string name="hint_stats_icon">Open “Habit stats” for statistics</string>
+    <plurals name="count_today">
+        <item quantity="one">%d today</item>
+        <item quantity="other">%d today</item>
+    </plurals>
+    <plurals name="count_this_week">
+        <item quantity="one">%d this week</item>
+        <item quantity="other">%d this week</item>
+    </plurals>
+    <plurals name="count_this_month">
+        <item quantity="one">%d this month</item>
+        <item quantity="other">%d this month</item>
+    </plurals>
+    <plurals name="count_this_year">
+        <item quantity="one">%d this year</item>
+        <item quantity="other">%d this year</item>
+    </plurals>
+
+    <!-- Relative period names -->
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="this_week">This week</string>
+    <string name="last_week">Last week</string>
+    <string name="this_month">This month</string>
+    <string name="this_year">This year</string>
+
+    <!-- Launcher shortcuts and widget -->
+    <string name="shortcut_statistics">Statistics</string>
+    <string name="shortcut_statistics_of">%1$s statistics</string>
+    <string name="shortcut_habits">Habits</string>
+    <string name="shortcut_habits_long">All habits</string>
+    <string name="shortcut_deleted">This habit was deleted</string>
+    <string name="widget_description">Log a habit with one tap, right on your home screen</string>
+    <string name="widget_log_description">Log %1$s</string>
+    <string name="widget_pick_title">Which habit should this widget log?</string>
+
+    <!-- Statistics -->
+    <string name="period_day">Day</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_year">Year</string>
+    <string name="stats_title_day">Daily statistics</string>
+    <string name="stats_title_week">Weekly statistics</string>
+    <string name="stats_title_month">Monthly statistics</string>
+    <string name="stats_title_year">Yearly statistics</string>
+    <string name="stat_average">Average</string>
+    <string name="stat_min">Min</string>
+    <string name="stat_max">Max</string>
+    <string name="stat_std_dev">Std. dev.</string>
+    <string name="stat_variance">Variance</string>
+    <string name="stat_total">Total</string>
+    <string name="stat_empty">–</string>
+    <plurals name="based_on_days">
+        <item quantity="one">Based on %d day</item>
+        <item quantity="other">Based on %d days</item>
+    </plurals>
+    <plurals name="based_on_weeks">
+        <item quantity="one">Based on %d week</item>
+        <item quantity="other">Based on %d weeks</item>
+    </plurals>
+    <plurals name="based_on_months">
+        <item quantity="one">Based on %d month</item>
+        <item quantity="other">Based on %d months</item>
+    </plurals>
+    <plurals name="based_on_years">
+        <item quantity="one">Based on %d year</item>
+        <item quantity="other">Based on %d years</item>
+    </plurals>
+    <string name="excludes_day">today is still running and not included</string>
+    <string name="excludes_week">this week is still running and not included</string>
+    <string name="excludes_month">this month is still running and not included</string>
+    <string name="excludes_year">this year is still running and not included</string>
+    <string name="caption_join">%1$s · %2$s</string>
+    <plurals name="count_entries">
+        <item quantity="one">entry</item>
+        <item quantity="other">entries</item>
+    </plurals>
+    <string name="history">History</string>
+    <string name="range_start">Start</string>
+    <string name="range_today">Today</string>
+    <string name="range_all">All</string>
+    <string name="range_separator">–</string>
+    <string name="range_from_description">Chart start date: %1$s</string>
+    <string name="range_to_description">Chart end date: %1$s</string>
+    <string name="chart_description">Bar chart of %1$d periods, highest %2$d</string>
+    <string name="chart_empty">Nothing logged yet</string>
+    <string name="entries">Entries</string>
+    <string name="entries_empty">Nothing logged</string>
+    <plurals name="entries_more">
+        <item quantity="one">and %d more</item>
+        <item quantity="other">and %d more</item>
+    </plurals>
+    <string name="add_entry">Add entry</string>
+    <string name="delete_entry_title">Delete this entry?</string>
+    <string name="delete_entry_message">Logged %1$s</string>
+    <string name="future_entry">Entries can\'t be in the future</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
+    <string name="pick_date">Pick a date</string>
+
+    <!-- Habits -->
+    <string name="habits">Habits</string>
+    <string name="new_habit">New habit</string>
+    <string name="edit_habit">Edit habit</string>
+    <string name="manage_habits">Manage habits…</string>
+    <string name="switch_habit">Switch habit</string>
+    <string name="habits_tip">Tap + to log. Long-press the app icon for statistics.</string>
+    <string name="app_icon_badge">app icon</string>
+    <string name="habit_subtitle">%1$s · %2$s</string>
+    <string name="log_habit">Log %1$s</string>
+
+    <!-- Editor -->
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="add">Add</string>
+    <string name="not_now">Not now</string>
+    <string name="name_hint">Name, e.g. Smoking</string>
+    <string name="name_required">Enter a name</string>
+    <string name="color">Color</string>
+    <string name="color_description">Color %1$d</string>
+    <string name="icon">Icon</string>
+    <string name="upload_icon">Use your own image</string>
+    <string name="image_failed">That image couldn\'t be used</string>
+    <string name="home_screen">Home screen</string>
+    <string name="add_to_home">Add icon to home screen</string>
+    <string name="add_widget">Add one-tap widget</string>
+    <string name="pin_unsupported">Your launcher doesn\'t support this</string>
+    <string name="pin_legacy_done">Icon sent to your home screen</string>
+    <string name="main_icon_habit">The app icon logs this habit</string>
+    <string name="delete_habit">Delete habit</string>
+    <string name="delete_habit_title">Delete “%1$s”?</string>
+    <plurals name="delete_habit_message">
+        <item quantity="one">Its %d entry will be deleted too. This can\'t be undone.</item>
+        <item quantity="other">All %d entries will be deleted too. This can\'t be undone.</item>
+    </plurals>
+    <string name="add_to_home_title">Add to home screen?</string>
+    <string name="add_to_home_message">Tapping the new icon logs “%1$s” without opening the app.</string>
+
+    <!-- Built-in icon names (content descriptions) -->
+    <string name="icon_check">Check</string>
+    <string name="icon_smoking">Smoking</string>
+    <string name="icon_smoke_free">No smoking</string>
+    <string name="icon_vaping">Vaping</string>
+    <string name="icon_sweets">Sweets</string>
+    <string name="icon_icecream">Ice cream</string>
+    <string name="icon_cake">Cake</string>
+    <string name="icon_pizza">Pizza</string>
+    <string name="icon_food">Food</string>
+    <string name="icon_burger">Fast food</string>
+    <string name="icon_fruit">Fruit</string>
+    <string name="icon_greens">Greens</string>
+    <string name="icon_coffee">Coffee</string>
+    <string name="icon_tea">Tea</string>
+    <string name="icon_drinks">Drinks</string>
+    <string name="icon_beer">Beer</string>
+    <string name="icon_wine">Wine</string>
+    <string name="icon_water">Water</string>
+    <string name="icon_water_glass">Glass of water</string>
+    <string name="icon_workout">Workout</string>
+    <string name="icon_walk">Walk</string>
+    <string name="icon_run">Run</string>
+    <string name="icon_bike">Cycling</string>
+    <string name="icon_swim">Swimming</string>
+    <string name="icon_hike">Hiking</string>
+    <string name="icon_football">Football</string>
+    <string name="icon_basketball">Basketball</string>
+    <string name="icon_meditation">Meditation</string>
+    <string name="icon_selfcare">Self-care</string>
+    <string name="icon_sleep">Sleep</string>
+    <string name="icon_wake">Wake up</string>
+    <string name="icon_alarm">Alarm</string>
+    <string name="icon_read">Reading</string>
+    <string name="icon_journal">Journal</string>
+    <string name="icon_medication">Medication</string>
+    <string name="icon_love">Love</string>
+    <string name="icon_mood">Good mood</string>
+    <string name="icon_bad_mood">Bad mood</string>
+    <string name="icon_phone">Phone</string>
+    <string name="icon_call">Call</string>
+    <string name="icon_tv">TV</string>
+    <string name="icon_gaming">Gaming</string>
+    <string name="icon_music">Music</string>
+    <string name="icon_piano">Instrument</string>
+    <string name="icon_art">Art</string>
+    <string name="icon_photo">Photo</string>
+    <string name="icon_cleaning">Cleaning</string>
+    <string name="icon_shower">Shower</string>
+    <string name="icon_teeth">Teeth</string>
+    <string name="icon_pets">Pets</string>
+    <string name="icon_plants">Plants</string>
+    <string name="icon_savings">Savings</string>
+    <string name="icon_shopping">Shopping</string>
+    <string name="icon_code">Coding</string>
+    <string name="icon_study">Study</string>
+    <string name="icon_language">Language</string>
+    <string name="icon_work">Work</string>
+    <string name="icon_weight">Weight</string>
+    <string name="icon_timer">Timer</string>
+    <string name="icon_star">Star</string>
+    <string name="icon_energy">Energy</string>
+    <string name="icon_mind">Mind</string>
+    <string name="icon_toilet">Toilet</string>
+    <string name="icon_kindness">Kindness</string>
+    <string name="icon_stop">Stop</string>
+</resources>

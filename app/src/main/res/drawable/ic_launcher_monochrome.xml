@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon (Android 13+) variant of the launcher glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,29a25,25 0,1 1,0 50a25,25 0,1 1,0 -50z"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.55"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M54,37a17,17 0,1 1,0 34a17,17 0,1 1,0 -34zM46.5,54.5L51.5,59.5L61.5,49.5L59.4,47.4L51.5,55.3L48.6,52.4z" />
+</vector>

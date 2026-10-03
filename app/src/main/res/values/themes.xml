@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Base.Theme.HabitTracker" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorPrimaryDark">@color/bg</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:colorControlActivated">@color/brand</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:alertDialogTheme">@style/Theme.HabitTracker.Dialog</item>
+        <item name="android:datePickerDialogTheme">@style/Theme.HabitTracker.Dialog</item>
+        <item name="android:timePickerDialogTheme">@style/Theme.HabitTracker.Dialog</item>
+    </style>
+
+    <style name="Theme.HabitTracker" parent="Base.Theme.HabitTracker" />
+
+    <style name="Theme.HabitTracker.Dialog" parent="android:Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:colorPrimary">@color/brand</item>
+    </style>
+
+    <!-- A dialog-styled activity, used to pick the habit of a new widget. -->
+    <style name="Theme.HabitTracker.Picker" parent="android:Theme.Material.Light.Dialog">
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@drawable/bg_dialog</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowMinWidthMajor">80%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
+
+    <!--
+        Fully transparent, animation-free window for LogActivity: the home screen stays
+        visible underneath and only the confirmation animation is drawn on top.
+    -->
+    <style name="Theme.HabitTracker.Log" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

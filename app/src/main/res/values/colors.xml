@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#1E8C7A</color>
+    <color name="brand">#1E8C7A</color>
+    <color name="brand_soft">#261E8C7A</color>
+    <color name="bg">#F6F6F4</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#ECECE9</color>
+    <color name="text_primary">#1C1C1C</color>
+    <color name="text_secondary">#6E6E6B</color>
+    <color name="divider">#E2E2DF</color>
+    <color name="danger">#C93535</color>
+</resources>

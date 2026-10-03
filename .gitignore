@@ -1,0 +1,26 @@
+# Gradle / Android build output
+.gradle/
+build/
+/local.properties
+/captures
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# CI outputs
+/dist/
+/screenshots/
+instrument.log
+
+# Python tooling caches
+__pycache__/

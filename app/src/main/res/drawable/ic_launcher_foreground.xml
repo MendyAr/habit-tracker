@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher glyph: a "button" disc with a check and a pulse ring, echoing the log animation. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,29a25,25 0,1 1,0 50a25,25 0,1 1,0 -50z"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.55"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,37a17,17 0,1 1,0 34a17,17 0,1 1,0 -34z" />
+    <path
+        android:pathData="M46.5,54.5L51.5,59.5L61.5,49.5"
+        android:strokeWidth="4"
+        android:strokeColor="@color/ic_launcher_background"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
