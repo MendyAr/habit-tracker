@@ -164,7 +164,10 @@ class ScreensTest {
         // Long-press shortcuts exist from Android 7.1 on.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         dismissAnrDialog()
-        device.wait(Until.findObject(By.desc(appName)), 5_000)?.longClick()
+        device.wait(Until.findObject(By.desc(appName)), 5_000)?.visibleCenter?.let { c ->
+            // A stationary swipe is a long press that every launcher recognises.
+            device.swipe(c.x, c.y, c.x, c.y, 300)
+        }
         val shortcut = device.wait(Until.findObject(By.textStartsWith("Smoking")), 5_000)
         screenshot("7_long_press", settleMs = 300)
         File(screenshotDir(), "timeline.txt").appendText("long-press shortcut found: ${shortcut != null}\n")
