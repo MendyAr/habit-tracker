@@ -29,21 +29,28 @@ class HabitRepository(
         .query("habits", null, "_id = ?", arrayOf(id.toString()), null, null, null)
         .use { c -> if (c.moveToFirst()) c.toHabit() else null }
 
-    /**
-     * The habit logged by the main launcher icon. Created on first use and
-     * re-assigned to the oldest remaining habit if the default one was deleted.
-     */
-    @Synchronized
-    fun defaultHabit(): Habit {
-        habit(settings.defaultHabitId)?.let { return it }
-        val fallback = habits().firstOrNull()
-            ?: createHabit(defaultHabitName, HabitIcons.DEFAULT, null, HabitColors.DEFAULT)
-        settings.defaultHabitId = fallback.id
-        return fallback
+    /** The habit logged by the main launcher icon, or null when the user chose none. */
+    fun defaultHabit(): Habit? = habit(settings.defaultHabitId)
+
+    /** Makes [id] the habit the main launcher icon logs; null for none. */
+    fun setDefaultHabit(id: Long?) {
+        settings.defaultHabitId = id ?: -1
     }
 
-    /** [id] if it still exists, otherwise the default habit. */
-    fun habitOrDefault(id: Long): Habit = habit(id) ?: defaultHabit()
+    /**
+     * On the very first run, creates one habit for the app icon to log, so the app
+     * works straight after installation. Never creates anything afterwards, even
+     * if the user deletes every habit.
+     */
+    @Synchronized
+    fun ensureFirstRun() {
+        if (settings.initialized) return
+        if (habits().isEmpty()) {
+            val first = createHabit(defaultHabitName, HabitIcons.DEFAULT, null, HabitColors.DEFAULT)
+            settings.defaultHabitId = first.id
+        }
+        settings.initialized = true
+    }
 
     fun createHabit(name: String, icon: String, customIcon: String?, color: Int): Habit {
         val now = System.currentTimeMillis()
@@ -76,6 +83,12 @@ class HabitRepository(
         database.writableDatabase.delete("habits", "_id = ?", arrayOf(id.toString()))
         old.customIcon?.let { File(it).delete() }
         settings.forgetHabit(id)
+        if (settings.defaultHabitId == id) settings.defaultHabitId = -1
+    }
+
+    /** Deletes every timestamp of [habitId]; the habit itself stays. */
+    fun clearEntries(habitId: Long) {
+        database.writableDatabase.delete("entries", "habit_id = ?", arrayOf(habitId.toString()))
     }
 
     /** Records a timestamp for [habitId] and returns the new entry id. */

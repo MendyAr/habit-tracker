@@ -32,12 +32,13 @@ class LogFlowTest {
     fun setUp() {
         HabitRepository.resetForTests()
         context.deleteDatabase("habits.db")
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
     }
 
     @Test
     fun launcherIconLogsAndLeavesNoActivityBehind() {
-        val habit = repository.defaultHabit()
+        val habit = firstHabit()
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .setClass(context, LogActivity::class.java)
@@ -52,7 +53,7 @@ class LogFlowTest {
 
     @Test
     fun pinnedShortcutIntentLogsItsHabit() {
-        val default = repository.defaultHabit()
+        val default = firstHabit()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         context.startActivity(Shortcuts.logIntent(context, water.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(water.id).size == 1 }
@@ -62,7 +63,7 @@ class LogFlowTest {
 
     @Test
     fun launcherSyncRunsOnThisApiLevel() {
-        repository.defaultHabit()
+        firstHabit()
         repository.createHabit("Walk", "walk", null, HabitColors.ALL[8])
         // Publishes shortcuts (Android 7.1+) and redraws widgets; must not throw on any version.
         LauncherSync.refresh(context)
@@ -90,5 +91,11 @@ class LogFlowTest {
             Thread.sleep(50)
         }
         assertTrue("Condition not met within $timeoutMs ms", condition())
+    }
+
+    /** The habit the first run creates for the app icon. */
+    private fun firstHabit() = repository.run {
+        ensureFirstRun()
+        defaultHabit()!!
     }
 }

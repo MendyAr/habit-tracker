@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 1×1 widget: child 0 is the habit icon, child 1 the "logged" confirmation. -->
+<!--
+    Resizable widget: a tile in the habit's colour (widget_bg, tinted at runtime) with the
+    icon in the middle. Flipper child 0 is the habit, child 1 the "logged" confirmation.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="4dp">
+
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_tile"
+        android:tint="@color/ic_launcher_background" />
 
     <ViewFlipper
         android:id="@+id/widget_flipper"
@@ -16,14 +29,17 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="8dp">
 
             <ImageView
                 android:id="@+id/widget_icon"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:importantForAccessibility="no"
-                android:src="@mipmap/ic_launcher_round" />
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_habit_check" />
 
             <TextView
                 android:id="@+id/widget_label"
@@ -35,13 +51,16 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="8dp">
 
             <ImageView
                 android:id="@+id/widget_done"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:importantForAccessibility="no" />
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:importantForAccessibility="no"
+                android:scaleType="centerInside" />
 
             <TextView
                 android:id="@+id/widget_count"

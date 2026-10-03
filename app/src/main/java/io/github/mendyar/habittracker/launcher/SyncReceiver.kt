@@ -8,12 +8,12 @@ import io.github.mendyar.habittracker.ui.Async
 /** Re-publishes shortcuts after an app update or a language change. */
 class SyncReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val pending = goAsync()
+        val pending: PendingResult? = goAsync()
         Async.io {
             try {
                 LauncherSync.refresh(context)
             } finally {
-                pending.finish()
+                pending?.finish()
             }
         }
     }

@@ -3,14 +3,16 @@ package io.github.mendyar.habittracker.log
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutManager
-import android.graphics.Rect
 import android.os.Bundle
 import android.os.Looper
+import android.view.ViewGroup
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -30,6 +32,7 @@ class LogActivityTest {
 
     @Before
     fun setUp() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
@@ -37,24 +40,29 @@ class LogActivityTest {
 
     @After
     fun tearDown() {
+        Async.awaitIdle()
         HabitRepository.resetForTests()
     }
 
     @Test
-    fun launcherTapLogsTheDefaultHabitAndClosesItself() {
-        val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java)
-        intent.sourceBounds = Rect(100, 800, 244, 944)
-        val controller = Robolectric.buildActivity(LogActivity::class.java, intent).setup()
+    fun launcherTapLogsTheAppIconHabitAndShowsTheConfirmation() {
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
 
-        awaitCondition { repository.timestamps(repository.defaultHabit().id).size == 1 }
-        // Let the confirmation animation (well under 4 s, including the first-run hint) play out.
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(4))
-        assertTrue(controller.get().isFinishing)
+        awaitCondition { repository.defaultHabit()?.let { repository.timestamps(it.id).size } == 1 }
+        // The system reports the end of the window transition; Robolectric does not.
+        activity.onEnterAnimationComplete()
+        val confirmation = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as LogAnimationView
+        awaitCondition { confirmation.isStarted }
+
+        // Tapping the confirmation dismisses it at once. (That it also closes by itself is
+        // checked on real devices by LogFlowTest; Robolectric's animation clock is unreliable.)
+        confirmation.performClick()
+        assertTrue(activity.isFinishing)
     }
 
     @Test
     fun pinnedIconLogsItsOwnHabit() {
-        val default = repository.defaultHabit()
+        val default = firstHabit()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
 
@@ -64,7 +72,7 @@ class LogActivityTest {
 
     @Test
     fun aRecreatedActivityNeverLogsTwice() {
-        val habit = repository.defaultHabit()
+        val habit = firstHabit()
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id))
             .setup(Bundle())
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
@@ -74,7 +82,7 @@ class LogActivityTest {
 
     @Test
     fun firstLogShowsTheHintOnlyOnce() {
-        val habit = repository.defaultHabit()
+        val habit = firstHabit()
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
         awaitCondition { repository.settings.hintShown }
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
@@ -83,11 +91,48 @@ class LogActivityTest {
     }
 
     @Test
+    fun launcherTapWithoutAnAppIconHabitOpensTheHabitList() {
+        val habit = firstHabit()
+        repository.setDefaultHabit(null)
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
+
+        awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
+        assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)
+        assertTrue(activity.isFinishing)
+        assertEquals(0, repository.timestamps(habit.id).size)
+    }
+
+    @Test
+    fun launcherTapAfterDeletingEveryHabitCreatesNothing() {
+        repository.deleteHabit(firstHabit().id)
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
+
+        awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
+        assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)
+        assertTrue(repository.habits().isEmpty())
+    }
+
+    @Test
+    fun aDeletedHabitsPinnedIconLogsNothing() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.deleteHabit(water.id)
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
+        awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
+        assertEquals(0, repository.timestamps(water.id).size)
+    }
+
+    @Test
     fun loggingPublishesLongPressStatisticsShortcuts() {
-        val habit = repository.defaultHabit()
+        val habit = firstHabit()
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
         val manager = context.getSystemService(ShortcutManager::class.java)
         awaitCondition { manager.dynamicShortcuts.isNotEmpty() }
         assertEquals(listOf(Shortcuts.statsShortcutId(habit.id)), manager.dynamicShortcuts.map { it.id })
+    }
+
+    /** The habit the first run creates for the app icon. */
+    private fun firstHabit() = repository.run {
+        ensureFirstRun()
+        defaultHabit()!!
     }
 }

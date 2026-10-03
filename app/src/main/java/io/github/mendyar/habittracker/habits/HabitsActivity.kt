@@ -59,7 +59,8 @@ class HabitsActivity : Activity() {
 
     /** Runs on the I/O thread. */
     private fun rows(): List<Row> {
-        val defaultId = repository.defaultHabit().id
+        repository.ensureFirstRun()
+        val defaultId = repository.settings.defaultHabitId
         val now = System.currentTimeMillis()
         val math = PeriodMath()
         return repository.habits().map { habit ->
@@ -76,6 +77,8 @@ class HabitsActivity : Activity() {
 
     private fun render(rows: List<Row>) {
         list.removeAllViews()
+        list.visible = rows.isNotEmpty()
+        findViewById<View>(R.id.habits_empty).visible = rows.isEmpty()
         val inflater = LayoutInflater.from(this)
         for (row in rows) {
             val view = inflater.inflate(R.layout.item_habit, list, false)
@@ -101,7 +104,7 @@ class HabitsActivity : Activity() {
         button.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         Async.load({
             repository.log(habit.id)
-            subtitle(habit, repository.defaultHabit().id, System.currentTimeMillis(), PeriodMath())
+            subtitle(habit, repository.settings.defaultHabitId, System.currentTimeMillis(), PeriodMath())
         }) { text ->
             subtitle.text = text
             Async.mainDelayed(CONFIRM_MS) {
@@ -109,7 +112,7 @@ class HabitsActivity : Activity() {
                 button.isEnabled = true
             }
         }
-        Async.io { LauncherSync.refresh(applicationContext) }
+        Async.io { LauncherSync.afterLog(applicationContext) }
     }
 
     private companion object {

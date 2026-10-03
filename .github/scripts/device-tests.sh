@@ -6,6 +6,8 @@ set -euo pipefail
 
 app=io.github.mendyar.habittracker
 ./gradlew --stacktrace :app:installDebug :app:installDebugAndroidTest
+# Lets WidgetDeviceTest bind widgets to its own AppWidgetHost, as a launcher would.
+adb shell appwidget grantbind --package "$app" || echo "Could not grant widget binding"
 
 adb shell am instrument -w "${app}.test/androidx.test.runner.AndroidJUnitRunner" | tee instrument.log
 

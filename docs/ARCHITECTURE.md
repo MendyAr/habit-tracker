@@ -24,7 +24,7 @@ io.github.mendyar.habittracker
 ├── log/        LogActivity + LogAnimationView: the tap-to-log entry point
 ├── stats/      StatsActivity + BarChartView: statistics screen
 ├── habits/     HabitsActivity (list) and HabitEditActivity (create/edit)
-├── widget/     HabitWidgetProvider (1×1 widget) and its WidgetConfigActivity
+├── widget/     HabitWidgetProvider (resizable, one per habit) and its WidgetConfigActivity
 ├── launcher/   Shortcuts (pinned + long-press shortcuts), LauncherSync, SyncReceiver
 ├── data/       HabitDatabase (SQLite), HabitRepository, Settings (SharedPreferences)
 ├── icons/      Built-in icon catalogue, colours, icon drawable/bitmap rendering
@@ -37,14 +37,15 @@ io.github.mendyar.habittracker
 
 ```
 launcher icon / pinned habit icon
-        │  MAIN or io.github.mendyar.habittracker.action.LOG (+ habit id, + sourceBounds)
+        │  MAIN (app icon) or io.github.mendyar.habittracker.action.LOG (+ habit id)
         ▼
 LogActivity  (Theme.HabitTracker.Log: translucent, no window animation, no preview,
              own task affinity, excludeFromRecents, noHistory)
-        │ 1. insert entry on the I/O thread
+        │ 1. insert entry on the I/O thread (app icon: the habit assigned to it; if there
+        │    is none, open the habit list instead)
         │ 2. once the window is on screen (onEnterAnimationComplete), LogAnimationView draws
-        │    a disc + check over the tapped icon (Intent.sourceBounds) and a pill with the
-        │    current count; ~1.25 s in total
+        │    a disc + check in the middle of the screen and a pill with the current count;
+        │    ~1.25 s in total
         │ 3. finish() with transitions overridden to none
         ▼
 home screen (it was visible underneath the whole time)
@@ -54,12 +55,20 @@ Android has no API that lets an app run code when its launcher icon is tapped
 without starting an activity, so this is the closest possible to "nothing
 opens". The activity's window is fully transparent and has no enter or exit
 animation, so what the user sees is the home screen with the confirmation drawn
-on top of the icon they tapped. If the launcher does not report the icon's
-bounds, the animation is centred on the screen.
+on top. It is always centred: launchers report icon bounds inconsistently (the
+icon may be mid-press-animation), so anchoring on the icon made the position jump
+between taps, and centring keeps app icon and habit icons alike.
 
 The **widget** (`HabitWidgetProvider`) avoids even that: a tap sends a
-broadcast, the entry is written in the background and the widget's `ViewFlipper`
-animates to a check with the count and back. No window is involved at all.
+broadcast, the entry is written in the background and the tapped widget's
+`ViewFlipper` animates to a check with the count and back (a partial update of
+that widget only; others are not redrawn). No window is involved at all.
+
+Each habit has at most one widget. A widget is bound to its habit explicitly
+(picker, or the pin request from the editor) and never falls back to another
+habit: an unbound widget shows *Choose Habit*, one whose habit was deleted shows
+*Habit Deleted*, and tapping either opens the picker. Widgets are resizable and
+fill their space with the habit's colour.
 
 ### Long-press: statistics
 
@@ -76,8 +85,11 @@ Android fixes an app's own launcher icon and label at install time, so habits
 get their own **pinned shortcuts** (`ShortcutManager.requestPinShortcut` on
 Android 8+, the `INSTALL_SHORTCUT` broadcast before that). Their label and icon
 are updated whenever the habit is renamed or re-iconed (`LauncherSync`), and
-they are disabled with a message when the habit is deleted. The main app icon
-logs the "default" habit, which the user can reassign in the editor.
+they are disabled with a message when the habit is deleted (Android has no API
+to remove a pinned shortcut or a widget, so launchers grey them out). The main
+app icon logs the habit assigned to it in the editor, or opens the habit list
+when none is. Only the very first run creates a habit ("Habit"), so the app
+works right after installation; afterwards nothing is created implicitly.
 
 ## Data
 

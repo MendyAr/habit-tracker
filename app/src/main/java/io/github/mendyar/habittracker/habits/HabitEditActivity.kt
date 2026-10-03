@@ -81,6 +81,7 @@ class HabitEditActivity : Activity() {
             setOnClickListener { save(::pinWidget) }
         }
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
+        findViewById<View>(R.id.edit_clear).setOnClickListener { confirmClearEntries() }
 
         buildColorRow()
         buildIconGrid()
@@ -93,7 +94,8 @@ class HabitEditActivity : Activity() {
 
         if (habitId == NEW) {
             title.setText(R.string.new_habit)
-            findViewById<View>(R.id.edit_home_section).visible = false
+            // Pinning, clearing and deleting need a saved habit; the app-icon switch does not.
+            listOf(R.id.edit_add_home, R.id.edit_add_widget, R.id.edit_danger_card).forEach { findViewById<View>(it).visible = false }
             if (savedInstanceState == null) {
                 Async.load({ repository.habits().size }) { count ->
                     color = HabitColors.ALL[count % HabitColors.ALL.size]
@@ -105,7 +107,7 @@ class HabitEditActivity : Activity() {
             title.setText(R.string.edit_habit)
             Async.load({
                 val habit = repository.habit(habitId)
-                Triple(habit, repository.defaultHabit().id == habitId, repository.timestamps(habitId).size)
+                Triple(habit, repository.settings.defaultHabitId == habitId, repository.timestamps(habitId).size)
             }) { (habit, default, count) ->
                 if (habit == null) {
                     finish()
@@ -121,9 +123,7 @@ class HabitEditActivity : Activity() {
                     customIcon = habit.customIcon
                     color = habit.color
                 }
-                mainIconSwitch.isChecked = default
-                // The app icon always logs some habit, so it can only be moved to another one.
-                mainIconSwitch.isEnabled = !default
+                if (savedInstanceState == null) mainIconSwitch.isChecked = default
                 refresh()
             }
         }
@@ -269,7 +269,8 @@ class HabitEditActivity : Activity() {
             nameField.requestFocus()
             return
         }
-        val makeDefault = mainIconSwitch.isChecked && !isDefault
+        val wantsDefault = mainIconSwitch.isChecked
+        val wasDefault = isDefault
         val icon = iconKey
         val custom = customIcon
         val chosenColor = color
@@ -281,16 +282,14 @@ class HabitEditActivity : Activity() {
                 existing.copy(name = name, icon = icon, customIcon = custom, color = chosenColor)
                     .also { repository.updateHabit(it) }
             }
-            if (makeDefault) repository.settings.defaultHabitId = saved.id
+            // Switching it off leaves the app icon without a habit: a tap then opens the list.
+            if (wantsDefault) repository.setDefaultHabit(saved.id) else if (wasDefault) repository.setDefaultHabit(null)
             LauncherSync.refresh(this)
             saved
         }) { saved ->
             original = saved
             habitId = saved.id
-            if (makeDefault) {
-                isDefault = true
-                mainIconSwitch.isEnabled = false
-            }
+            isDefault = wantsDefault
             then(saved)
         }
     }
@@ -323,14 +322,46 @@ class HabitEditActivity : Activity() {
     }
 
     private fun pinWidget(habit: Habit) {
-        if (!HabitWidgetProvider.requestPin(this, habit)) toast(R.string.pin_unsupported)
+        val app = applicationContext
+        Async.load({ HabitWidgetProvider.requestPin(app, habit) }) { result ->
+            when (result) {
+                HabitWidgetProvider.PinResult.ALREADY_EXISTS -> toast(R.string.widget_exists)
+                HabitWidgetProvider.PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
+                HabitWidgetProvider.PinResult.REQUESTED -> Unit
+            }
+        }
+    }
+
+    private fun confirmClearEntries() {
+        val habit = original ?: return
+        if (entryCount == 0) {
+            toast(R.string.clear_entries_nothing)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.clear_entries_title, habit.name))
+            .setMessage(resources.getQuantityString(R.plurals.clear_entries_message, entryCount, entryCount))
+            .setPositiveButton(R.string.clear) { _, _ ->
+                Async.load({
+                    repository.clearEntries(habit.id)
+                    LauncherSync.afterLog(this)
+                }) {
+                    entryCount = 0
+                    toast(R.string.clear_entries_done)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun confirmDelete() {
         val habit = original ?: return
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.delete_habit_title, habit.name))
-            .setMessage(resources.getQuantityString(R.plurals.delete_habit_message, entryCount, entryCount))
+            .setMessage(
+                resources.getQuantityString(R.plurals.delete_habit_message, entryCount, entryCount) +
+                    "\n\n" + getString(R.string.delete_habit_home_note),
+            )
             .setPositiveButton(R.string.delete) { _, _ ->
                 dropCustomIcon()
                 Async.load({

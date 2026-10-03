@@ -30,9 +30,17 @@ object Shortcuts {
     fun logIntent(context: Context, habitId: Long): Intent =
         Intent(ACTION_LOG).setClass(context, LogActivity::class.java).putExtra(EXTRA_HABIT_ID, habitId)
 
-    /** Intent that opens the statistics of [habitId]. */
+    /** Intent that opens the statistics of [habitId] from inside the app. */
     fun statsIntent(context: Context, habitId: Long): Intent =
         Intent(ACTION_STATS).setClass(context, StatsActivity::class.java).putExtra(EXTRA_HABIT_ID, habitId)
+
+    /**
+     * Intent behind the long-press "statistics" shortcut. It replaces whatever the
+     * app's task showed before (e.g. an open editor), so the shortcut always lands
+     * on the statistics it names.
+     */
+    fun statsShortcutIntent(context: Context, habitId: Long): Intent =
+        statsIntent(context, habitId).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
     fun logShortcutId(habitId: Long) = "log_$habitId"
 
@@ -127,7 +135,7 @@ object Shortcuts {
                 else context.getString(R.string.shortcut_statistics_of, habit.name),
             )
             .setIcon(icon(context, habit))
-            .setIntent(statsIntent(context, habit.id))
+            .setIntent(statsShortcutIntent(context, habit.id))
             .setRank(rank)
             .build()
 
