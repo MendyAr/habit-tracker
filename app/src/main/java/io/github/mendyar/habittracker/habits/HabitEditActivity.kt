@@ -7,7 +7,10 @@ import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.MediaStore
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
@@ -22,6 +25,7 @@ import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.icons.HabitIcons
 import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
+import io.github.mendyar.habittracker.launcher.PinResult
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.colorOf
@@ -29,6 +33,7 @@ import io.github.mendyar.habittracker.ui.dp
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
 import io.github.mendyar.habittracker.widget.HabitWidgetProvider
+import io.github.mendyar.habittracker.widget.WidgetSize
 import java.io.File
 
 /**
@@ -46,6 +51,14 @@ class HabitEditActivity : Activity() {
     private var color = HabitColors.DEFAULT
     private var isDefault = false
     private var entryCount = 0
+
+    /** The habit whose widget the launcher is placing, while it asks the user. */
+    private var widgetRequestedFor = NEW
+
+    /** When that widget was placed while this screen was in the background. */
+    private var widgetPlacedAt = 0L
+    private var inForeground = false
+    private val widgetListener: (Long) -> Unit = { widgetPlaced(it) }
 
     private lateinit var title: TextView
     private lateinit var preview: ImageView
@@ -78,8 +91,9 @@ class HabitEditActivity : Activity() {
         findViewById<View>(R.id.edit_add_home).setOnClickListener { save(::pinIcon) }
         findViewById<View>(R.id.edit_add_widget).apply {
             visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-            setOnClickListener { save(::pinWidget) }
+            setOnClickListener { save(::addWidget) }
         }
+        HabitWidgetProvider.onPinned = widgetListener
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
         findViewById<View>(R.id.edit_clear).setOnClickListener { confirmClearEntries() }
 
@@ -127,6 +141,26 @@ class HabitEditActivity : Activity() {
                 refresh()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        inForeground = true
+        // The launcher's "add widget" dialog closed after placing it: show it on the home screen.
+        if (widgetPlacedAt != 0L && SystemClock.elapsedRealtime() - widgetPlacedAt < SHOW_PLACED_WIDGET_MS) {
+            showHomeScreen()
+        }
+        widgetPlacedAt = 0L
+    }
+
+    override fun onPause() {
+        super.onPause()
+        inForeground = false
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (HabitWidgetProvider.onPinned === widgetListener) HabitWidgetProvider.onPinned = null
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -313,23 +347,133 @@ class HabitEditActivity : Activity() {
         }
     }
 
+    /** Asks for the habit's home-screen icon; needs this screen in the foreground. */
     private fun pinIcon(habit: Habit) {
-        if (!Shortcuts.requestPin(this, habit)) {
-            toast(R.string.pin_unsupported)
-        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            toast(R.string.pin_legacy_done)
+        when (Shortcuts.requestPin(this, habit)) {
+            PinResult.ALREADY_EXISTS -> toast(getString(R.string.icon_exists, habit.name))
+            PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
+            PinResult.SENT -> toast(R.string.pin_legacy_done)
+            PinResult.REQUESTED -> Unit
         }
     }
 
-    private fun pinWidget(habit: Habit) {
+    /** Lets the user pick a size for the habit's widget (Android 9+), then asks the launcher for it. */
+    private fun addWidget(habit: Habit) {
         val app = applicationContext
-        Async.load({ HabitWidgetProvider.requestPin(app, habit) }) { result ->
-            when (result) {
-                HabitWidgetProvider.PinResult.ALREADY_EXISTS -> toast(R.string.widget_exists)
-                HabitWidgetProvider.PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
-                HabitWidgetProvider.PinResult.REQUESTED -> Unit
+        Async.load({ HabitWidgetProvider.widgetFor(app, habit.id) != null }) { exists ->
+            when {
+                exists -> toast(getString(R.string.widget_exists, habit.name))
+                HabitWidgetProvider.sizesAvailable(this) -> chooseWidgetSize(habit)
+                else -> pinWidget(habit, WidgetSize.SMALL)
             }
         }
+    }
+
+    private fun chooseWidgetSize(habit: Habit) {
+        val app = applicationContext
+        Async.load({ HabitWidgetProvider.iconBitmap(app, habit) }) { icon ->
+            if (isFinishing) return@load
+            var dialog: AlertDialog? = null
+            val options = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.BOTTOM
+                setPadding(dp(12), dp(16), dp(12), 0)
+            }
+            val ripple = TypedValue().also { theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true) }
+            for (size in WidgetSize.entries) {
+                val option = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+                    setPadding(0, dp(8), 0, dp(8))
+                    setBackgroundResource(ripple.resourceId)
+                    contentDescription = getString(R.string.widget_size_description, size.cells, size.cells)
+                    setOnClickListener {
+                        dialog?.dismiss()
+                        pinWidget(habit, size)
+                    }
+                }
+                // Tiles grow with the size they stand for, like the widget on the home screen.
+                val tileDp = 18 + 10 * size.cells
+                option.addView(
+                    ImageView(this).apply {
+                        background = GradientDrawable().apply {
+                            cornerRadius = dp(4 + 2 * size.cells).toFloat()
+                            setColor(habit.color)
+                        }
+                        setImageBitmap(icon)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        val pad = dp(tileDp) / 5
+                        setPadding(pad, pad, pad, pad)
+                        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    },
+                    LinearLayout.LayoutParams(dp(tileDp), dp(tileDp)),
+                )
+                option.addView(
+                    TextView(this).apply {
+                        text = getString(R.string.widget_size_option, size.cells, size.cells)
+                        setTextColor(colorOf(R.color.text_primary))
+                        textSize = 14f
+                        setPadding(0, dp(8), 0, 0)
+                        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    },
+                )
+                options.addView(option, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            }
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(options)
+                addView(
+                    TextView(this@HabitEditActivity).apply {
+                        setText(R.string.widget_size_hint)
+                        setTextColor(colorOf(R.color.text_secondary))
+                        textSize = 13f
+                        setPadding(dp(24), dp(16), dp(24), dp(4))
+                    },
+                )
+            }
+            dialog = AlertDialog.Builder(this)
+                .setTitle(R.string.widget_size_title)
+                .setView(content)
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun pinWidget(habit: Habit, size: WidgetSize) {
+        val app = applicationContext
+        Async.load({ HabitWidgetProvider.requestPin(app, habit, size) }) { result ->
+            when (result) {
+                PinResult.REQUESTED -> widgetRequestedFor = habit.id
+                PinResult.ALREADY_EXISTS -> toast(getString(R.string.widget_exists, habit.name))
+                PinResult.UNSUPPORTED, PinResult.SENT -> toast(R.string.pin_unsupported)
+            }
+        }
+    }
+
+    /**
+     * The launcher placed the widget asked for. Apps cannot open the launcher's
+     * resize handles, so the next best thing: go to the home screen, where the new
+     * widget is, and say how to resize it.
+     */
+    private fun widgetPlaced(habitId: Long) {
+        if (habitId != widgetRequestedFor) return
+        widgetRequestedFor = NEW
+        if (inForeground) {
+            showHomeScreen()
+        } else {
+            // Still behind the launcher's dialog, or the user placed it by hand and is on
+            // the home screen already.
+            widgetPlacedAt = SystemClock.elapsedRealtime()
+            applicationContext.toast(R.string.widget_added)
+        }
+    }
+
+    private fun showHomeScreen() {
+        val placedWhileAway = widgetPlacedAt != 0L
+        widgetPlacedAt = 0L
+        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        if (!placedWhileAway) applicationContext.toast(R.string.widget_added)
+        finish()
     }
 
     private fun confirmClearEntries() {
@@ -385,6 +529,7 @@ class HabitEditActivity : Activity() {
         private const val STATE_ICON = "icon"
         private const val STATE_CUSTOM = "custom_icon"
         private const val STATE_COLOR = "color"
+        private const val SHOW_PLACED_WIDGET_MS = 5_000L
         const val EXTRA_FOR_WIDGET = "for_widget"
 
         /** Opens the editor for [habitId], or for a new habit when null. */

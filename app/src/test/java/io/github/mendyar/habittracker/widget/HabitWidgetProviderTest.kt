@@ -10,6 +10,7 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitColors
+import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -21,6 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class HabitWidgetProviderTest {
@@ -45,8 +47,8 @@ class HabitWidgetProviderTest {
     }
 
     /** Places a widget on the (simulated) home screen, as the launcher would. */
-    private fun placeWidget(): Int =
-        shadowOf(manager).createWidget(HabitWidgetProvider::class.java, R.layout.widget_habit).also {
+    private fun placeWidget(size: WidgetSize = WidgetSize.SMALL): Int =
+        shadowOf(manager).createWidget(size.provider, R.layout.widget_habit).also {
             // Let the provider's onUpdate finish; Robolectric's widget manager is not thread-safe.
             Async.awaitIdle()
         }
@@ -162,5 +164,50 @@ class HabitWidgetProviderTest {
         )
         Thread.sleep(300)
         assertTrue(repository.habits().all { repository.timestamps(it.id).isEmpty() })
+    }
+
+    @Test
+    fun widgetsAddedInAnySizeAreTheSameWidget() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val large = placeWidget(WidgetSize.EXTRA_LARGE)
+        val small = placeWidget()
+        assertTrue(HabitWidgetProvider.bind(context, large, water.id))
+        assertEquals("Water", label(large))
+        assertEquals(large, HabitWidgetProvider.widgetFor(context, water.id))
+        assertTrue(large in HabitWidgetProvider.widgetIds(context))
+        // Still at most one widget per habit, whatever their sizes.
+        assertFalse(HabitWidgetProvider.bind(context, small, water.id))
+    }
+
+    @Test
+    fun sizedWidgetsAreAvailableOnAndroid9AndNewer() {
+        assertTrue(HabitWidgetProvider.sizesAvailable(context))
+        WidgetSize.entries.forEach { assertTrue(it.cells in 1..4) }
+    }
+
+    @Test
+    @Config(sdk = [27])
+    fun androidBefore9AddsTheStandardWidgetOnly() {
+        assertFalse(HabitWidgetProvider.sizesAvailable(context))
+    }
+
+    @Test
+    fun theEditorIsToldWhenTheLauncherPlacedTheRequestedWidget() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        var placed = -1L
+        HabitWidgetProvider.onPinned = { placed = it }
+        try {
+            val id = placeWidget(WidgetSize.MEDIUM)
+            context.sendBroadcast(
+                Intent(HabitWidgetProvider.ACTION_PINNED)
+                    .setClass(context, HabitWidgetProvider::class.java)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                    .putExtra(Shortcuts.EXTRA_HABIT_ID, water.id),
+            )
+            awaitCondition { placed == water.id }
+            assertEquals(id, HabitWidgetProvider.widgetFor(context, water.id))
+        } finally {
+            HabitWidgetProvider.onPinned = null
+        }
     }
 }

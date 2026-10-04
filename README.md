@@ -35,8 +35,8 @@ To update, install the newer APK over the old one; your data stays.
 | **Tap** the Habit Tracker icon | Log a timestamp for the habit the app icon tracks. A check pops up in the middle of the screen with today's count, and that's it. If the app icon tracks no habit, the habit list opens instead. |
 | **Long-press** the icon → *Statistics* | Open the statistics (Android 7.1+). On older Android use the separate *Habit stats* icon. |
 | Long-press → *All Habits* → **+** | Add another habit: name it, pick an icon and a colour. Tap a habit in the list for its statistics, or its **+** to log it. |
-| In a habit's settings → *Add icon to home screen* | Give the habit its own icon. Tapping it logs that habit. |
-| In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Resize it to any size; each habit can have one. |
+| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. Tapping it logs that habit. If the icon is already there, the app says so. |
+| In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
 
 The first tap after installing also shows a one-time hint about long-pressing.
 
@@ -52,6 +52,11 @@ The first tap after installing also shows a one-time hint about long-pressing.
 - **History chart**: one bar per period. By default it spans all your data; tap
   the start or end date to narrow it, or *All* to reset. Tap or drag across the
   bars to inspect one, which also selects it in the count card.
+- **Time of Day**: how likely you are to do the habit at each moment of the day,
+  over the same window as the history chart. 100% means you logged it around
+  that time on every day, 50% on half of the days, 0% never. It starts on your
+  most likely time ("Most likely around 8:10 AM · 86% of days"); touch or drag
+  across the curve to read any other time. See [how it is calculated](#how-time-of-day-is-calculated).
 - **Entries**: the individual timestamps of the selected period. Tap **+** to add
   one you forgot, or tap an entry to delete an accidental tap.
 
@@ -75,8 +80,28 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
 
 Renaming or re-iconing a habit updates its home-screen icon and widget too.
 
+### How Time of Day is calculated
+
+For every day in the window, each entry draws a bell curve of height 1 centred on
+its time of day: it counts fully at its own minute, half about 25 minutes away and
+hardly at all beyond an hour. Curves of the same day combine as "at least one entry
+around this time" (`1 − (1 − a)(1 − b)…`), so ten entries in one evening still count
+as one day, and the result never exceeds 100%. The chart is the average of these
+daily curves over all days of the window, including days without entries, so its
+height is the share of days on which you logged around that time. It wraps around
+midnight, and today is left out until it is over (unless it is the only day).
+
+This is a histogram of the time of day divided by the number of days, smoothed
+with a bell curve; the two adjustments (a curve of height 1 rather than of area 1,
+and counting each day at most once) keep "every day at 8:00" at exactly 100%.
+
 ## Good to know
 
+- **"Can a new widget open in resize mode?"** Android gives apps no way to open
+  the launcher's resize handles, which is why the app asks for the size first.
+  Some launchers show the handles by themselves when you place a widget by hand:
+  touch & hold its preview in the launcher's dialog and drop it where you want it,
+  instead of tapping *Add*.
 - **"Does anything open when I tap?"** Android can only run an app's code on an
   icon tap by starting a window. Habit Tracker's window is completely
   transparent, has no open or close animation, and closes itself after the

@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-04
+
+### Added
+- **Time of Day** chart in the statistics: how likely you are to log the habit at
+  each moment of the day, from 0% (never around then) to 100% (every day around
+  then), as a smooth curve over the History window. Touch or drag across it to
+  read any time; it starts on the most likely one.
+- *Add One-Tap Widget* first asks for the widget's size (1 × 1 up to 4 × 4,
+  Android 9+), and once the launcher has placed it, takes you to the home screen
+  and tells you how to resize it.
+
+### Changed
+- *Add Icon to Home Screen* says when the habit's icon is already on the home
+  screen, instead of silently doing nothing (Android 8+).
+- *Add One-Tap Widget* says so before asking for a size when the habit already
+  has a widget, and names the habit.
+
 ## [1.1.0] - 2026-10-03
 
 ### Added
@@ -52,5 +69,6 @@ All notable changes to this project are documented here. The format follows
 - Runs on Android 5.0 (API 21) and newer; no internet permission; data is
   included in Android backup and device-to-device transfer.
 
+[1.2.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.1.0
 [1.0.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.0.0

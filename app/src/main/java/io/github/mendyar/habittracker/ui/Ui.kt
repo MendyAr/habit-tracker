@@ -21,6 +21,10 @@ fun Context.toast(message: Int) {
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 }
 
+fun Context.toast(message: String) {
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+}
+
 /** Shows or hides a view without leaving a gap. */
 var View.visible: Boolean
     get() = visibility == View.VISIBLE

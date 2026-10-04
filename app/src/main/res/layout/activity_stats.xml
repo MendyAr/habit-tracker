@@ -277,6 +277,41 @@
                     android:layout_marginTop="16dp" />
             </LinearLayout>
 
+            <!-- How likely the habit is at each time of day, over the same window -->
+            <LinearLayout
+                android:id="@+id/time_card"
+                style="@style/Card">
+
+                <TextView
+                    style="@style/CardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/time_of_day" />
+
+                <TextView
+                    android:id="@+id/time_readout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    tools:text="Most likely around 8:10 AM · 86% of days" />
+
+                <io.github.mendyar.habittracker.stats.DayProfileView
+                    android:id="@+id/time_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="160dp"
+                    android:layout_marginTop="12dp" />
+
+                <TextView
+                    android:id="@+id/time_caption"
+                    style="@style/Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    tools:text="Share of days with an entry around each time, in the History window · based on 42 days" />
+            </LinearLayout>
+
             <!-- Entries of the selected period -->
             <LinearLayout style="@style/Card">
 

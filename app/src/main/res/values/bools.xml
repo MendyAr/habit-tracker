@@ -4,4 +4,6 @@
     <bool name="light_system_bars">true</bool>
     <!-- Android 7.0 and older have no long-press shortcuts, so a separate "Habit stats" launcher entry is shown. -->
     <bool name="needs_stats_launcher">true</bool>
+    <!-- Widgets in a chosen size use extra providers hidden from the widget list, which needs Android 9. -->
+    <bool name="sized_widgets">false</bool>
 </resources>
