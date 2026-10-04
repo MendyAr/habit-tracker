@@ -16,6 +16,10 @@ Long-press for statistics.
 | :---: | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/tap.png" width="160" alt="A check pops up in the middle of the home screen with the text '12 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
 
+| Time of day | Widget: pick a size | …and it's on your home screen |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/time-of-day.png" width="160" alt="Smooth curve of how likely the habit is at each time of day, peaking at 10:10 AM on 72% of days"> | <img src="docs/screenshots/widget-size.png" width="160" alt="Widget Size dialog with 1 × 1, 2 × 2, 3 × 3 and 4 × 4 tiles"> | <img src="docs/screenshots/widget.png" width="160" alt="A 2 × 2 widget in the habit's colour on the home screen"> |
+
 <sub>Screenshots are taken automatically by the instrumented tests on an Android 15 emulator.</sub>
 
 ## Download
