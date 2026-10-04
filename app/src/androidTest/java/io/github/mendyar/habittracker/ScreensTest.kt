@@ -228,7 +228,10 @@ class ScreensTest {
         assertTrue(id in manager.getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider)))
         // The editor closed itself and the home screen, with the widget, is in front.
         waitUntil { editor.isDestroyed }
-        val launcher = device.launcherPackageName
+        // UiDevice.launcherPackageName can name the boot-time fallback home, so ask for the default one.
+        val launcher = device.executeShellCommand(
+            "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME",
+        ).trim().lines().last().substringBefore('/')
         val inFront = device.wait(Until.hasObject(By.pkg(launcher).depth(0)), 8_000)
         assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
         device.wait(Until.findObject(By.text("Walk")), 3_000)
