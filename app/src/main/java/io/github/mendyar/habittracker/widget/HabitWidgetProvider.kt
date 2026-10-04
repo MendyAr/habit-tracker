@@ -55,7 +55,7 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             try {
                 appWidgetIds.forEach { id ->
                     // A widget requested from the editor may appear before its callback arrives.
-                    if (app.settingsHabit(id) == UNBOUND) bindPending(app, id)
+                    if (app.settingsHabit(id) == UNBOUND && bindPending(app, id)) notifyPinned(app.settingsHabit(id))
                     update(app, manager, id)
                 }
             } finally {
@@ -80,9 +80,8 @@ open class HabitWidgetProvider : AppWidgetProvider() {
                 val app = context.applicationContext
                 Async.io {
                     try {
-                        // Usually already bound by onUpdate, through the pending request.
-                        if (app.settingsHabit(widgetId) == UNBOUND) bind(app, widgetId, habitId)
-                        if (app.settingsHabit(widgetId) == habitId) Async.main { onPinned?.invoke(habitId) }
+                        // Usually already bound (and announced) by onUpdate, through the pending request.
+                        if (app.settingsHabit(widgetId) == UNBOUND && bind(app, widgetId, habitId)) notifyPinned(habitId)
                     } finally {
                         pending?.finish()
                     }
@@ -153,6 +152,10 @@ open class HabitWidgetProvider : AppWidgetProvider() {
          */
         @Volatile
         var onPinned: ((habitId: Long) -> Unit)? = null
+
+        private fun notifyPinned(habitId: Long) {
+            Async.main { onPinned?.invoke(habitId) }
+        }
 
         /** Ids of the widgets currently on the home screen, of every size. */
         fun widgetIds(context: Context): IntArray {

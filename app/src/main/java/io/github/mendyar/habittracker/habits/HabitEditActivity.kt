@@ -411,6 +411,7 @@ class HabitEditActivity : Activity() {
                 option.addView(
                     TextView(this).apply {
                         text = getString(R.string.widget_size_option, size.cells, size.cells)
+                        gravity = Gravity.CENTER_HORIZONTAL
                         setTextColor(colorOf(R.color.text_primary))
                         textSize = 14f
                         setPadding(0, dp(8), 0, 0)

@@ -226,12 +226,11 @@ class ScreensTest {
         val id = HabitWidgetProvider.widgetFor(context, walk.id)!!
         val manager = AppWidgetManager.getInstance(context)
         assertTrue(id in manager.getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider)))
-        // Back on the home screen, which shows the widget.
-        val launcher = context.packageManager.resolveActivity(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
-            0,
-        )!!.activityInfo.packageName
-        waitUntil { device.currentPackageName == launcher }
+        // The editor closed itself and the home screen, with the widget, is in front.
+        waitUntil { editor.isDestroyed }
+        val launcher = device.launcherPackageName
+        val inFront = device.wait(Until.hasObject(By.pkg(launcher).depth(0)), 8_000)
+        assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
         device.wait(Until.findObject(By.text("Walk")), 3_000)
         screenshot("8_widget_added")
     }
