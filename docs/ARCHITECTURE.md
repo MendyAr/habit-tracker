@@ -8,7 +8,7 @@ the design follows from that and from supporting Android 5.0 (2014) onwards.
 
 | Module | What it is | Depends on |
 | --- | --- | --- |
-| `core` | Pure Kotlin/JVM: period arithmetic (`PeriodMath`), bucketing and statistics (`StatsEngine`). No Android types, so it is unit-tested on the JVM in milliseconds. | Kotlin stdlib |
+| `core` | Pure Kotlin/JVM: period arithmetic (`PeriodMath`), bucketing and statistics (`StatsEngine`), the time-of-day profile (`DayProfile`). No Android types, so it is unit-tested on the JVM in milliseconds. | Kotlin stdlib |
 | `app` | The Android application. | `core`, Android framework only |
 
 The app uses **no AndroidX or other runtime libraries**, only the Android
@@ -22,10 +22,10 @@ test-only dependencies.
 ```
 io.github.mendyar.habittracker
 ├── log/        LogActivity + LogAnimationView: the tap-to-log entry point
-├── stats/      StatsActivity + BarChartView: statistics screen
+├── stats/      StatsActivity, BarChartView and DayProfileView: statistics screen
 ├── habits/     HabitsActivity (list) and HabitEditActivity (create/edit)
-├── widget/     HabitWidgetProvider (resizable, one per habit) and its WidgetConfigActivity
-├── launcher/   Shortcuts (pinned + long-press shortcuts), LauncherSync, SyncReceiver
+├── widget/     HabitWidgetProvider (resizable, one per habit, in four default sizes) and WidgetConfigActivity
+├── launcher/   Shortcuts (pinned + long-press shortcuts), PinResult, LauncherSync, SyncReceiver
 ├── data/       HabitDatabase (SQLite), HabitRepository, Settings (SharedPreferences)
 ├── icons/      Built-in icon catalogue, colours, icon drawable/bitmap rendering
 └── ui/         Async (serial I/O thread), Formats (locale-aware text), small helpers
@@ -91,6 +91,30 @@ app icon logs the habit assigned to it in the editor, or opens the habit list
 when none is. Only the very first run creates a habit ("Habit"), so the app
 works right after installation; afterwards nothing is created implicitly.
 
+Launchers silently ignore a request to pin a shortcut that is already pinned, so
+`Shortcuts.requestPin` first checks `ShortcutManager.getPinnedShortcuts()`
+(launchers unpin a shortcut when the user removes its icon) and reports
+`PinResult.ALREADY_EXISTS`. Before Android 8 the legacy broadcast gives no way
+to know.
+
+### Adding a widget from the app
+
+`AppWidgetManager.requestPinAppWidget` (Android 8+) cannot set a size and apps
+cannot open a launcher's resize handles. Launchers do use the provider's
+default size, though, so the widget exists as four providers:
+`HabitWidgetProvider` (1 × 1, the one in the launcher's widget list) and the
+nested `Medium`, `Large` and `ExtraLarge` (2 × 2 to 4 × 4, `hide_from_picker`).
+They share all code and are freely resizable; the extra ones are enabled only
+on Android 9+ (`@bool/sized_widgets`), where `hide_from_picker` exists.
+
+The editor asks for a size (`WidgetSize`), remembers the habit as the pending
+widget, and asks the launcher. The new widget is bound to the habit either by
+`onUpdate` (the pending request) or by the pin callback, whichever comes first.
+The callback also notifies the editor (`HabitWidgetProvider.onPinned`), which
+then opens the home screen and explains how to resize. If the user placed the
+widget by hand (and is on the home screen already), the editor only shows that
+hint.
+
 ## Data
 
 SQLite, two tables:
@@ -125,6 +149,19 @@ For the chosen period (day/week/month/year) and chart window:
 (For a single series, covariance with itself equals the variance, which is
 what the statistics card shows next to the standard deviation.)
 
+The **time-of-day profile** (`DayProfile`) uses the same window, split into
+local days (the day in progress is left out unless it is the only one). For
+each day, every entry contributes a Gaussian bump of height 1 and σ = 20 min
+around its local wall-clock time; the bumps of one day combine as
+`1 − Π(1 − bump)`, the chance of "at least one entry around this time" if each
+bump were an independent chance. The profile is the mean of these daily curves
+over all days, sampled every 5 minutes on a circular 24-hour axis. So 1.0 means
+"around this time every day", it cannot exceed 1 however many entries a day
+has, and days without entries pull it down as they should. A plain smoothed
+histogram divided by the number of days would instead lower the peak of an
+every-day-at-8:00 habit below 1 (a density kernel of area 1) and exceed 1 for
+bursts.
+
 ## Threading
 
 All database work runs on one serial background thread (`ui/Async`), so writes
@@ -135,6 +172,6 @@ the main thread. Broadcast receivers use `goAsync()` for the same.
 
 | Where | What | Runs |
 | --- | --- | --- |
-| `core/src/test` | Period arithmetic incl. DST and week starts, bucketing, statistics, ranges | JVM |
-| `app/src/test` | Repository and settings, `LogActivity` (logs, never twice, closes itself, publishes shortcuts), `StatsActivity`, formatting | JVM via Robolectric |
-| `app/src/androidTest` | Tap flow end to end (including a real tap on the launcher icon where the launcher shows it), long-press shortcuts published on the device, every screen with screenshots | Emulators API 21, 29, 35 in CI |
+| `core/src/test` | Period arithmetic incl. DST and week starts, bucketing, statistics, ranges, time-of-day profile | JVM |
+| `app/src/test` | Repository and settings, `LogActivity` (logs, never twice, closes itself, publishes shortcuts), `StatsActivity`, the editor (app-icon switch, clearing, "already on the home screen", widget size and return home), widgets of every size, formatting | JVM via Robolectric |
+| `app/src/androidTest` | Tap flow end to end (including a real tap on the launcher icon where the launcher shows it), long-press shortcuts published on the device, widgets hosted by a real `AppWidgetHost`, adding a widget through the real launcher dialog, every screen with screenshots | Emulators API 21, 29, 35 in CI |

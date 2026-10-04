@@ -56,6 +56,12 @@ class PeriodMath(
     /** Exclusive end of the period containing [millis]. */
     fun endOf(period: Period, millis: Long): Long = shift(period, millis, 1)
 
+    /** Local wall-clock time of [millis] in minutes after midnight, e.g. 08:30:30 = 510.5. */
+    fun minuteOfDay(millis: Long): Double {
+        cal.timeInMillis = millis
+        return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE) + cal.get(Calendar.SECOND) / 60.0
+    }
+
     /** Whether [a] and [b] fall into the same [period]. */
     fun samePeriod(period: Period, a: Long, b: Long): Boolean = startOf(period, a) == startOf(period, b)
 }

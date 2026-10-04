@@ -2,9 +2,12 @@ package io.github.mendyar.habittracker
 
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
@@ -26,7 +29,10 @@ import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.log.LogActivity
 import io.github.mendyar.habittracker.log.LogAnimationView
+import io.github.mendyar.habittracker.widget.HabitWidgetProvider
+import io.github.mendyar.habittracker.widget.WidgetSize
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -35,6 +41,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Random
+import java.util.regex.Pattern
 
 /**
  * Opens every screen with realistic data, checks it renders, and saves a
@@ -64,9 +71,17 @@ class ScreensTest {
         val random = Random(7)
         val now = System.currentTimeMillis()
         val day = 24 * 3_600_000L
+        val math = PeriodMath()
+        // Cigarettes cluster around the same moments of the day: after waking up, coffee
+        // breaks, lunch, the commute and the evening.
+        val usual = doubleArrayOf(7.4, 10.2, 12.9, 15.6, 18.1, 20.4, 22.3, 11.5, 17.0, 21.3, 9.0, 14.3, 16.4, 19.2, 23.0)
         for (d in 60 downTo 1) {
+            val midnight = math.startOf(Period.DAY, now - d * day)
             val perDay = 4 + d / 6 + random.nextInt(3)
-            repeat(perDay) { repository.log(smoking.id, now - d * day + random.nextInt(14) * 3_600_000L) }
+            for (i in 0 until minOf(perDay, usual.size)) {
+                val hours = usual[i] + random.nextGaussian() * 0.35
+                repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
+            }
         }
         repeat(5) { repository.log(smoking.id, now - it * 1_800_000L) }
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
@@ -92,6 +107,15 @@ class ScreensTest {
             scroll.scrollTo(0, activity.findViewById<View>(R.id.stats_caption).bottom)
         }
         screenshot("2_statistics_history")
+
+        // Scroll to the time-of-day chart, which peaks at one of the usual times.
+        val readout = activity.findViewById<TextView>(R.id.time_readout)
+        waitUntil { readout.text.isNotEmpty() }
+        instrumentation.runOnMainSync {
+            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
+            scroll.scrollTo(0, activity.findViewById<View>(R.id.time_card).top - 24)
+        }
+        screenshot("9_time_of_day")
 
         instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.period_week).performClick() }
         instrumentation.waitForIdleSync()
@@ -137,7 +161,9 @@ class ScreensTest {
         dismissAnrDialog()
 
         val appName = context.getString(R.string.app_name)
-        val icon = device.wait(Until.findObject(By.desc(appName)), 3_000) ?: device.findObject(By.text(appName))
+        // The icon, not a widget (launchers describe widgets by the app's name too).
+        val iconSelector = By.desc(appName).clazz("android.widget.TextView")
+        val icon = device.wait(Until.findObject(iconSelector), 3_000) ?: device.findObject(By.text(appName))
         assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
         val bounds = icon!!.visibleBounds
         val before = repository.timestamps(id).size
@@ -167,6 +193,49 @@ class ScreensTest {
         screenshot("5_log_animation", settleMs = 0)
         waitUntil { repository.timestamps(id).size == before + 2 }
         instrumentation.runOnMainSync { view!!.skip() }
+    }
+
+    /**
+     * The real "Add One-Tap Widget" flow with the system launcher: choose a size,
+     * accept the launcher's dialog, and land on the home screen with the widget.
+     * Skipped where adding widgets from apps is not supported (before Android 9 the
+     * size cannot be chosen).
+     */
+    @Test
+    fun addingAWidgetInAChosenSize() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+        assumeTrue(AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported)
+        seed()
+        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
+        launch(HabitEditActivity.intent(context, walk.id))
+        val editor = waitForActivity()
+        waitUntil { editor.findViewById<TextView>(R.id.edit_name).text.toString() == "Walk" }
+        instrumentation.runOnMainSync { editor.findViewById<View>(R.id.edit_add_widget).performClick() }
+
+        val medium = device.wait(Until.findObject(By.desc(context.getString(R.string.widget_size_description, 2, 2))), 5_000)
+        assertNotNull("No widget size dialog", medium)
+        screenshot("7_widget_size")
+        medium!!.click()
+
+        // The launcher's own confirmation ("Add to home screen" / "Add automatically").
+        val add = device.wait(Until.findObject(By.clickable(true).text(Pattern.compile("(?i)add( to home screen| automatically)?"))), 8_000)
+        assertNotNull("No launcher confirmation; screen shows ${device.currentPackageName}", add)
+        add!!.click()
+
+        waitUntil(timeoutMs = 15_000) { HabitWidgetProvider.widgetFor(context, walk.id) != null }
+        val id = HabitWidgetProvider.widgetFor(context, walk.id)!!
+        val manager = AppWidgetManager.getInstance(context)
+        assertTrue(id in manager.getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider)))
+        // The editor closed itself and the home screen, with the widget, is in front.
+        waitUntil { editor.isDestroyed }
+        // UiDevice.launcherPackageName can name the boot-time fallback home, so ask for the default one.
+        val launcher = device.executeShellCommand(
+            "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME",
+        ).trim().lines().last().substringBefore('/')
+        val inFront = device.wait(Until.hasObject(By.pkg(launcher).depth(0)), 8_000)
+        assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
+        device.wait(Until.findObject(By.text("Walk")), 3_000)
+        screenshot("8_widget_added")
     }
 
     /** Pauses [view]'s private animator at [atMs] (debug builds are not obfuscated). */

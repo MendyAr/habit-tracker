@@ -18,6 +18,7 @@ import android.widget.TextView
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.Bucket
 import io.github.mendyar.habittracker.core.DateRange
+import io.github.mendyar.habittracker.core.DayProfile
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.core.StatsEngine
@@ -38,7 +39,8 @@ import java.util.Calendar
 /**
  * Statistics of one habit: the count of a chosen day/week/month/year, average,
  * min, max, standard deviation and variance per period, a bar chart over a
- * user-defined window, and the individual entries (which can be added or removed).
+ * user-defined window, how likely the habit is at each time of day over that
+ * window, and the individual entries (which can be added or removed).
  *
  * The chosen period and chart window are remembered per habit.
  */
@@ -55,6 +57,7 @@ class StatsActivity : Activity() {
     private var period = Period.DAY
     private var range = DateRange.ALL
     private var buckets: List<Bucket> = emptyList()
+    private var profile: DayProfile? = null
 
     /** Any instant inside the period whose count is shown. */
     private var selected = System.currentTimeMillis()
@@ -72,6 +75,9 @@ class StatsActivity : Activity() {
     private lateinit var rangeFrom: TextView
     private lateinit var rangeTo: TextView
     private lateinit var chart: BarChartView
+    private lateinit var timeReadout: TextView
+    private lateinit var timeChart: DayProfileView
+    private lateinit var timeCaption: TextView
     private lateinit var entriesTitle: TextView
     private lateinit var entriesList: LinearLayout
     private lateinit var entriesFooter: TextView
@@ -94,6 +100,9 @@ class StatsActivity : Activity() {
         rangeFrom = findViewById(R.id.range_from)
         rangeTo = findViewById(R.id.range_to)
         chart = findViewById(R.id.chart)
+        timeReadout = findViewById(R.id.time_readout)
+        timeChart = findViewById(R.id.time_chart)
+        timeCaption = findViewById(R.id.time_caption)
         entriesTitle = findViewById(R.id.entries_title)
         entriesList = findViewById(R.id.entries_list)
         entriesFooter = findViewById(R.id.entries_footer)
@@ -121,6 +130,9 @@ class StatsActivity : Activity() {
         rangeFrom.setOnClickListener { pickRangeStart() }
         rangeTo.setOnClickListener { pickRangeEnd() }
         chart.axisLabel = { formats.axisLabel(period, it) }
+        timeChart.hourLabel = formats::hourLabel
+        timeChart.percentLabel = formats::percent
+        timeChart.onSelect = ::renderTimeReadout
         chart.onSelect = { index ->
             buckets.getOrNull(index)?.let { bucket ->
                 val now = System.currentTimeMillis()
@@ -259,6 +271,38 @@ class StatsActivity : Activity() {
         rangeTo.contentDescription = getString(R.string.range_to_description, to)
 
         chart.setData(buckets, selectedBucketIndex(), h.color)
+        renderTimeOfDay(bounds, now, h.color)
+    }
+
+    /** The time-of-day profile over the same window as the history chart. */
+    private fun renderTimeOfDay(bounds: LongRange, now: Long, color: Int) {
+        val p = DayProfile.of(timestamps, bounds.first, bounds.last, now, math)
+        profile = p
+        val empty = p.peak <= 0.0
+        timeChart.setData(p, if (empty) -1 else p.peakIndex, color)
+        timeReadout.visible = !empty
+        timeCaption.visible = !empty
+        val peakTime = formats.timeOfDay(p.minuteAt(p.peakIndex))
+        timeChart.contentDescription = if (empty) {
+            getString(R.string.chart_empty)
+        } else {
+            getString(R.string.time_chart_description, peakTime, formats.percent(p.peak))
+        }
+        if (!empty) timeReadout.text = getString(R.string.time_peak, peakTime, formats.percent(p.peak))
+        val basedOn = resources.getQuantityString(R.plurals.based_on_days, p.days, p.days)
+        val days = if (p.excludesToday) getString(R.string.caption_join, basedOn, getString(R.string.excludes_day)) else basedOn
+        timeCaption.text = getString(R.string.time_explained) + "\n" + days
+    }
+
+    /** Shows the share at the time of day the user touched. */
+    private fun renderTimeReadout(index: Int) {
+        val p = profile ?: return
+        val share = formats.percent(p.values[index])
+        timeReadout.text = if (index == p.peakIndex) {
+            getString(R.string.time_peak, formats.timeOfDay(p.minuteAt(index)), share)
+        } else {
+            getString(R.string.time_at, formats.timeOfDay(p.minuteAt(index)), share)
+        }
     }
 
     /** The count card and the entry list for [selected]. */

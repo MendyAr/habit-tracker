@@ -8,6 +8,7 @@ import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -25,6 +26,7 @@ class Formats(private val context: Context) {
     private val monthFormat = pattern("MMMMyyyy")
     private val shortMonthFormat = pattern("MMMyy")
     private val yearFormat = pattern("yyyy")
+    private val percent = NumberFormat.getPercentInstance(locale)
     private val decimal = NumberFormat.getNumberInstance(locale).apply {
         maximumFractionDigits = 2
         minimumFractionDigits = 0
@@ -90,6 +92,16 @@ class Formats(private val context: Context) {
     fun dateTime(millis: Long): String =
         "${shortDayFormat.format(Date(millis))} · ${time(millis)}"
 
+    /** A time of day given in minutes after midnight, in the user's 12/24-hour style. */
+    fun timeOfDay(minute: Int): String = time(clockAt(minute))
+
+    /** Compact axis label for a whole [hour] from 0 to 24, e.g. "18:00" or "6 PM". */
+    fun hourLabel(hour: Int): String =
+        pattern(if (DateFormat.is24HourFormat(context)) "Hm" else "ha").format(Date(clockAt(hour * 60)))
+
+    /** A share between 0 and 1 as a whole percentage, e.g. "86%". */
+    fun percent(value: Double): String = percent.format(value)
+
     fun number(value: Double): String = decimal.format(value)
 
     fun number(value: Int): String = NumberFormat.getIntegerInstance(locale).format(value.toLong())
@@ -106,6 +118,14 @@ class Formats(private val context: Context) {
         }
         return if (cursor == target) offset else Int.MIN_VALUE
     }
+
+    /** Today at [minute] after midnight (24:00 wraps to 00:00). */
+    private fun clockAt(minute: Int): Long = Calendar.getInstance(locale).apply {
+        set(Calendar.HOUR_OF_DAY, (minute / 60) % 24)
+        set(Calendar.MINUTE, minute % 60)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     private fun sameYear(a: Long, b: Long) = math.samePeriod(Period.YEAR, a, b)
 

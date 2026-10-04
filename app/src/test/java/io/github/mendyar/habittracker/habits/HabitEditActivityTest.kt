@@ -1,8 +1,13 @@
 package io.github.mendyar.habittracker.habits
 
 import android.app.AlertDialog
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
+import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
@@ -11,7 +16,10 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitColors
+import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
+import io.github.mendyar.habittracker.widget.HabitWidgetProvider
+import io.github.mendyar.habittracker.widget.WidgetSize
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,7 +29,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowAlertDialog
+import org.robolectric.shadows.ShadowToast
 
 @RunWith(RobolectricTestRunner::class)
 class HabitEditActivityTest {
@@ -130,5 +140,69 @@ class HabitEditActivityTest {
         assertEquals("All Habits", context.getString(R.string.shortcut_habits_long))
         assertEquals("Daily Statistics", context.getString(R.string.stats_title_day))
         assertEquals("Clear All Entries", context.getString(R.string.clear_entries))
+    }
+
+    @Test
+    fun addingTheIconAgainSaysItIsAlreadyOnTheHomeScreen() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+        val addIcon = activity.findViewById<TextView>(R.id.edit_add_home)
+
+        addIcon.performClick()
+        awaitCondition { Shortcuts.isPinned(context, water.id) }
+        ShadowToast.reset()
+
+        addIcon.performClick()
+        awaitCondition { ShadowToast.getTextOfLatestToast() == context.getString(R.string.icon_exists, "Water") }
+    }
+
+    @Test
+    fun addingAWidgetAgainSaysItIsAlreadyOnTheHomeScreen() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val id = shadowOf(AppWidgetManager.getInstance(context)).createWidget(HabitWidgetProvider::class.java, R.layout.widget_habit)
+        Async.awaitIdle()
+        Async.io { HabitWidgetProvider.bind(context, id, water.id) }
+        Async.awaitIdle()
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+
+        activity.findViewById<TextView>(R.id.edit_add_widget).performClick()
+        awaitCondition { ShadowToast.getTextOfLatestToast() == context.getString(R.string.widget_exists, "Water") }
+    }
+
+    @Test
+    fun aWidgetIsAddedInTheChosenSizeThenTheHomeScreenShowsIt() {
+        shadowOf(AppWidgetManager.getInstance(context)).setRequestPinAppWidgetSupported(true)
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+
+        activity.findViewById<TextView>(R.id.edit_add_widget).performClick()
+        awaitCondition { ShadowAlertDialog.getLatestAlertDialog()?.isShowing == true }
+        val dialog = ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
+        val option = findByDescription(dialog.window!!.decorView, context.getString(R.string.widget_size_description, 2, 2))
+        option!!.performClick()
+
+        // Robolectric's launcher places the widget at once and reports back, like
+        // "Add to home screen" in the launcher's dialog: the app then shows the home screen.
+        awaitCondition { activity.isFinishing }
+        val home = shadowOf(activity).nextStartedActivity
+        assertEquals(Intent.ACTION_MAIN, home.action)
+        assertTrue(home.hasCategory(Intent.CATEGORY_HOME))
+        assertEquals(context.getString(R.string.widget_added), ShadowToast.getTextOfLatestToast())
+
+        // In the chosen size, showing this habit.
+        val id = HabitWidgetProvider.widgetFor(context, water.id)!!
+        val medium = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider))
+        assertTrue(id in medium)
+    }
+
+    private fun findByDescription(view: View, description: String): View? {
+        if (view.contentDescription == description) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) findByDescription(view.getChildAt(i), description)?.let { return it }
+        }
+        return null
     }
 }

@@ -93,6 +93,11 @@
     <string name="range_to_description">Chart end date: %1$s</string>
     <string name="chart_description">Bar chart of %1$d periods, highest %2$d</string>
     <string name="chart_empty">Nothing logged yet</string>
+    <string name="time_of_day">Time of Day</string>
+    <string name="time_peak">Most likely around %1$s · %2$s of days</string>
+    <string name="time_at">At %1$s · %2$s of days</string>
+    <string name="time_explained">Share of days with an entry around each time, in the History window</string>
+    <string name="time_chart_description">Time of day chart. Most likely around %1$s, on %2$s of days.</string>
     <string name="entries">Entries</string>
     <string name="entries_empty">Nothing logged</string>
     <plurals name="entries_more">
@@ -151,7 +156,13 @@
     <string name="habits_empty">No habits yet.\nTap + to add one.</string>
     <string name="widget_choose">Choose Habit</string>
     <string name="widget_deleted">Habit Deleted</string>
-    <string name="widget_exists">This habit already has a widget</string>
+    <string name="widget_exists">%1$s already has a widget on your home screen</string>
+    <string name="icon_exists">%1$s already has an icon on your home screen</string>
+    <string name="widget_size_title">Widget Size</string>
+    <string name="widget_size_option">%1$d × %2$d</string>
+    <string name="widget_size_description">%1$d by %2$d cells</string>
+    <string name="widget_size_hint">You can resize it any time: touch &amp; hold the widget on your home screen.</string>
+    <string name="widget_added">Widget added. Touch &amp; hold it to resize.</string>
     <string name="widget_none_free">Every Habit Already Has a Widget</string>
     <string name="clear">Clear</string>
     <string name="clear_entries">Clear All Entries</string>

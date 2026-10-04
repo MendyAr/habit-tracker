@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The one-tap widget, added from the app at 3 x 3 cells; hidden from the widget list. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="io.github.mendyar.habittracker.widget.WidgetConfigActivity"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_habit"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:previewImage="@mipmap/ic_launcher_round"
+    android:previewLayout="@layout/widget_habit"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|hide_from_picker" />

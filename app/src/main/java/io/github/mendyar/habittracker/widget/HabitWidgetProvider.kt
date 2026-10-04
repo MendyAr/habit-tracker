@@ -19,6 +19,7 @@ import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitIconDrawable
 import io.github.mendyar.habittracker.icons.HabitIcons
 import io.github.mendyar.habittracker.launcher.LauncherSync
+import io.github.mendyar.habittracker.launcher.PinResult
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.Formats
@@ -31,8 +32,21 @@ import io.github.mendyar.habittracker.ui.colorOf
  *
  * A widget whose habit is not chosen yet, or was deleted, says so and opens the
  * habit picker when tapped. It never silently switches to another habit.
+ *
+ * The nested subclasses are the same widget with a larger default size (see
+ * [WidgetSize]); they are only used when the app adds a widget, and hidden from
+ * the launcher's widget list.
  */
-class HabitWidgetProvider : AppWidgetProvider() {
+open class HabitWidgetProvider : AppWidgetProvider() {
+
+    /** The widget added at 2 × 2 cells. */
+    class Medium : HabitWidgetProvider()
+
+    /** The widget added at 3 × 3 cells. */
+    class Large : HabitWidgetProvider()
+
+    /** The widget added at 4 × 4 cells. */
+    class ExtraLarge : HabitWidgetProvider()
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         val pending: PendingResult? = goAsync()
@@ -41,7 +55,7 @@ class HabitWidgetProvider : AppWidgetProvider() {
             try {
                 appWidgetIds.forEach { id ->
                     // A widget requested from the editor may appear before its callback arrives.
-                    if (app.settingsHabit(id) == UNBOUND) bindPending(app, id)
+                    if (app.settingsHabit(id) == UNBOUND && bindPending(app, id)) notifyPinned(app.settingsHabit(id))
                     update(app, manager, id)
                 }
             } finally {
@@ -66,7 +80,8 @@ class HabitWidgetProvider : AppWidgetProvider() {
                 val app = context.applicationContext
                 Async.io {
                     try {
-                        if (app.settingsHabit(widgetId) == UNBOUND) bind(app, widgetId, habitId)
+                        // Usually already bound (and announced) by onUpdate, through the pending request.
+                        if (app.settingsHabit(widgetId) == UNBOUND && bind(app, widgetId, habitId)) notifyPinned(habitId)
                     } finally {
                         pending?.finish()
                     }
@@ -122,23 +137,36 @@ class HabitWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    /** Outcome of [requestPin]. */
-    enum class PinResult { REQUESTED, ALREADY_EXISTS, UNSUPPORTED }
-
     companion object {
         internal const val ACTION_LOG = "io.github.mendyar.habittracker.action.WIDGET_LOG"
-        private const val ACTION_PINNED = "io.github.mendyar.habittracker.action.WIDGET_PINNED"
+        internal const val ACTION_PINNED = "io.github.mendyar.habittracker.action.WIDGET_PINNED"
         private const val CONFIRM_MS = 1400L
         private const val UNBOUND = -1L
         private const val NEUTRAL_TILE = 0xFF8A8F8C.toInt()
 
         private fun Context.settingsHabit(widgetId: Int) = HabitRepository.get(this).settings.widgetHabit(widgetId)
 
-        /** Ids of the widgets currently on the home screen. */
+        /**
+         * Told on the main thread when a widget requested with [requestPin] has been
+         * placed on the home screen and shows its habit.
+         */
+        @Volatile
+        var onPinned: ((habitId: Long) -> Unit)? = null
+
+        private fun notifyPinned(habitId: Long) {
+            Async.main { onPinned?.invoke(habitId) }
+        }
+
+        /** Ids of the widgets currently on the home screen, of every size. */
         fun widgetIds(context: Context): IntArray {
             val manager = AppWidgetManager.getInstance(context) ?: return IntArray(0)
-            return manager.getAppWidgetIds(ComponentName(context, HabitWidgetProvider::class.java))
+            return WidgetSize.entries.flatMap { size ->
+                manager.getAppWidgetIds(ComponentName(context, size.provider)).asList()
+            }.toIntArray()
         }
+
+        /** Whether widgets can be added in a chosen [WidgetSize] (Android 9+). */
+        fun sizesAvailable(context: Context): Boolean = context.resources.getBoolean(R.bool.sized_widgets)
 
         /** The widget showing [habitId], if any (there is at most one). */
         fun widgetFor(context: Context, habitId: Long): Int? {
@@ -174,10 +202,10 @@ class HabitWidgetProvider : AppWidgetProvider() {
         }
 
         /**
-         * Asks the launcher to place a widget for [habit] (Android 8+), unless the
-         * habit already has one. Call off the main thread.
+         * Asks the launcher to place a widget for [habit] (Android 8+) at [size],
+         * unless the habit already has one. Call off the main thread.
          */
-        fun requestPin(context: Context, habit: Habit): PinResult {
+        fun requestPin(context: Context, habit: Habit, size: WidgetSize = WidgetSize.SMALL): PinResult {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return PinResult.UNSUPPORTED
             if (widgetFor(context, habit.id) != null) return PinResult.ALREADY_EXISTS
             val manager = context.getSystemService(AppWidgetManager::class.java) ?: return PinResult.UNSUPPORTED
@@ -190,8 +218,9 @@ class HabitWidgetProvider : AppWidgetProvider() {
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
             val pending = PendingIntent.getBroadcast(context, habit.id.toInt(), callback, flags)
+            val provider = if (sizesAvailable(context)) size.provider else HabitWidgetProvider::class.java
             val requested = manager.requestPinAppWidget(
-                ComponentName(context, HabitWidgetProvider::class.java),
+                ComponentName(context, provider),
                 Bundle(),
                 pending,
             )
@@ -238,7 +267,7 @@ class HabitWidgetProvider : AppWidgetProvider() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
         /** The habit's glyph in white, or its own image cropped to a circle. */
-        private fun iconBitmap(context: Context, habit: Habit): Bitmap =
+        internal fun iconBitmap(context: Context, habit: Habit): Bitmap =
             if (habit.customIcon != null) {
                 render(context, HabitIconDrawable(null, android.graphics.BitmapFactory.decodeFile(habit.customIcon), habit.color))
             } else {
