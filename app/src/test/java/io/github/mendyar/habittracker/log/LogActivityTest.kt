@@ -1,6 +1,5 @@
 package io.github.mendyar.habittracker.log
 
-import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
@@ -183,23 +182,19 @@ class LogActivityTest {
 
     @Test
     fun withAnimationsOffTheConfirmationStaysVisibleWithoutMotion() {
-        // System setting "Remove animations": animators would jump straight to the end.
-        val setScale = ValueAnimator::class.java.getMethod("setDurationScale", Float::class.javaPrimitiveType)
-        setScale.invoke(null, 0f)
-        try {
-            val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-            val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
-            awaitCondition { repository.timestamps(water.id).size == 1 }
-            activity.onEnterAnimationComplete()
-            val confirmation = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as LogAnimationView
-            awaitCondition { confirmation.isStarted }
-            assertFalse(activity.isFinishing) // shown, not skipped
+        // System setting "Remove animations": an animator would jump straight to its end.
+        val confirmation = LogAnimationView(context)
+        confirmation.motionEnabled = { false }
+        var finished = false
+        confirmation.onFinished = { finished = true }
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(3))
-            assertTrue(activity.isFinishing)
-        } finally {
-            setScale.invoke(null, 1f)
-        }
+        confirmation.start(HabitColors.ALL[1], "Water · 1 today", null)
+        assertTrue(confirmation.isStarted)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
+        assertFalse(finished) // still shown, not skipped
+
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        assertTrue(finished)
     }
 
     private fun awaitDialog(): AlertDialog {

@@ -12,6 +12,8 @@ import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.View
@@ -74,6 +76,10 @@ class LogAnimationView(context: Context) : View(context) {
     private var animator: ValueAnimator? = null
     private var started = false
     private val finishStill = Runnable { onFinished?.invoke() }
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** Whether system animations are on; replaceable in tests. */
+    internal var motionEnabled: () -> Boolean = ::animationsEnabled
 
     /** Starts the animation in the colour of the logged habit. */
     fun start(color: Int, label: String, hint: String?) {
@@ -87,11 +93,11 @@ class LogAnimationView(context: Context) : View(context) {
         holdMs = if (hint != null) HOLD_WITH_HINT_MS else HOLD_MS
         announceForAccessibility(if (hint != null) "$label. $hint" else label)
         val total = (holdMs + EXIT_MS).toFloat()
-        if (!animationsEnabled()) {
+        if (!motionEnabled()) {
             // Reduced motion: the fully shown confirmation, still, for as long as usual.
             elapsed = SHOWN_AT_MS
             invalidate()
-            postDelayed(finishStill, total.toLong())
+            handler.postDelayed(finishStill, total.toLong())
             return
         }
         animator = ValueAnimator.ofFloat(0f, total).apply {
@@ -116,7 +122,7 @@ class LogAnimationView(context: Context) : View(context) {
         if (running != null) {
             running.end()
         } else {
-            removeCallbacks(finishStill)
+            handler.removeCallbacks(finishStill)
             onFinished?.invoke()
         }
     }
@@ -128,7 +134,7 @@ class LogAnimationView(context: Context) : View(context) {
     }
 
     override fun onDetachedFromWindow() {
-        removeCallbacks(finishStill)
+        handler.removeCallbacks(finishStill)
         animator?.removeAllListeners()
         animator?.cancel()
         super.onDetachedFromWindow()
