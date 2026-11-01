@@ -17,6 +17,7 @@ import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
+import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.visible
 
@@ -95,7 +96,19 @@ class HabitsActivity : Activity() {
         }
     }
 
+    /** Logs [habit] from its + button, asking first if it was logged moments ago. */
     private fun log(habit: Habit, button: ImageButton, subtitle: TextView) {
+        val now = System.currentTimeMillis()
+        Async.load({ repository.recentDuplicate(habit.id, now) }) { previous ->
+            if (previous == null) {
+                logNow(habit, button, subtitle)
+            } else {
+                DuplicateDialog.recent(this, habit, previous, now, onLog = { logNow(habit, button, subtitle) }, onCancel = {})
+            }
+        }
+    }
+
+    private fun logNow(habit: Habit, button: ImageButton, subtitle: TextView) {
         button.isEnabled = false
         button.setImageResource(R.drawable.ic_ui_check)
         button.scaleX = 0.6f

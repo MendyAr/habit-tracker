@@ -4,7 +4,8 @@
 
 A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
 meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
-confirmed by a short animation in the middle of the screen, and you stay where you were.
+confirmed by a short animation in the middle of the screen that shows the habit and
+today's count, and you stay where you were.
 Long-press for statistics.
 
 [![CI](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml)
@@ -14,7 +15,7 @@ Long-press for statistics.
 
 | Tap: logged in place | Long-press: statistics | History & entries | Your habits | Make it yours |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/tap.png" width="160" alt="A check pops up in the middle of the home screen with the text '12 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
+| <img src="docs/screenshots/tap.png" width="160" alt="A large check pops up in the middle of the home screen with the text 'Smoking · 7 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
 
 | Time of day | Widget: pick a size | …and it's on your home screen |
 | :---: | :---: | :---: |
@@ -61,6 +62,9 @@ The first tap after installing also shows a one-time hint about long-pressing.
   that time on every day, 50% on half of the days, 0% never. It starts on your
   most likely time ("Most likely around 8:10 AM · 86% of days"); touch or drag
   across the curve to read any other time. See [how it is calculated](#how-time-of-day-is-calculated).
+  On the **Week**, **Month** and **Year** tabs it becomes **Day of Week**, **Day of
+  Month** and **Month of Year**: bars showing the share of Mondays, of 15ths, of
+  Marches… on which you logged it at least once.
 - **Entries**: the individual timestamps of the selected period. Tap **+** to add
   one you forgot, or tap an entry to delete an accidental tap.
 
@@ -73,7 +77,8 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
 - **Name**, e.g. "Smoking tracker".
 - **Icon**: 65 built-in icons (cigarette, no-smoking, sweets, food, coffee, water,
   workout, walk, run, cycling, sleep, wake up, meditation, reading, medication,
-  …), or **your own image** from the gallery.
+  …), or **your own image** from the gallery: tap *Use Your Own Image* above the
+  icons. Change or remove it the same way.
 - **Colour**: ten accents.
 - **App Icon Logs This Habit**: choose which habit the main app icon counts, or switch it
   off so the app icon opens the habit list.
@@ -101,6 +106,9 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
 
 ## Good to know
 
+- **Double taps**: logging the same habit again within a minute asks *Log Again?*
+  first (a widget wants a second tap instead). Choose *Don't Ask Again* for habits
+  you really do log in quick succession.
 - **"Can a new widget open in resize mode?"** Android gives apps no way to open
   the launcher's resize handles, which is why the app asks for the size first.
   Some launchers show the handles by themselves when you place a widget by hand:

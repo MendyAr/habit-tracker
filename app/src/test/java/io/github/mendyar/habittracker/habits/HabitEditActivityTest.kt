@@ -1,11 +1,16 @@
 package io.github.mendyar.habittracker.habits
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
+import android.provider.MediaStore
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -30,8 +35,11 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowAlertDialog
 import org.robolectric.shadows.ShadowToast
+import java.io.File
+import java.io.FileOutputStream
 
 @RunWith(RobolectricTestRunner::class)
 class HabitEditActivityTest {
@@ -196,6 +204,55 @@ class HabitEditActivityTest {
         val id = HabitWidgetProvider.widgetFor(context, water.id)!!
         val medium = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider))
         assertTrue(id in medium)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun yourOwnImageIsALabelledOptionThatBecomesTheIcon() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+        val own = activity.findViewById<TextView>(R.id.edit_own_image)
+        val remove = activity.findViewById<TextView>(R.id.edit_own_image_remove)
+        assertEquals(context.getString(R.string.upload_icon), own.text.toString())
+        assertEquals(View.VISIBLE, own.visibility)
+        assertEquals(View.GONE, remove.visibility)
+
+        own.performClick()
+        val pick = shadowOf(activity).nextStartedActivityForResult
+        assertTrue(pick.intent.action in setOf(MediaStore.ACTION_PICK_IMAGES, Intent.ACTION_GET_CONTENT))
+
+        // The user picks a photo.
+        val photo = File(context.cacheDir, "photo.png")
+        FileOutputStream(photo).use {
+            Bitmap.createBitmap(300, 200, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+                .compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+        shadowOf(activity).receiveResult(pick.intent, Activity.RESULT_OK, Intent().setData(Uri.fromFile(photo)))
+        awaitCondition { own.text.toString() == context.getString(R.string.change_image) }
+        assertEquals(View.VISIBLE, remove.visibility)
+
+        activity.findViewById<TextView>(R.id.save_button).performClick()
+        awaitCondition { repository.habit(water.id)?.customIcon != null }
+        assertTrue(File(repository.habit(water.id)!!.customIcon!!).exists())
+    }
+
+    @Test
+    fun removingYourImageGoesBackToTheBuiltInIcon() {
+        val image = File(context.filesDir, "own.png").apply { writeBytes(ByteArray(1)) }
+        val water = repository.createHabit("Water", "water", image.path, HabitColors.ALL[1])
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+        val own = activity.findViewById<TextView>(R.id.edit_own_image)
+        val remove = activity.findViewById<TextView>(R.id.edit_own_image_remove)
+        assertEquals(context.getString(R.string.change_image), own.text.toString())
+
+        remove.performClick()
+        assertEquals(context.getString(R.string.upload_icon), own.text.toString())
+        assertEquals(View.GONE, remove.visibility)
+        activity.findViewById<TextView>(R.id.save_button).performClick()
+        awaitCondition { repository.habit(water.id)?.customIcon == null }
+        assertEquals("water", repository.habit(water.id)?.icon)
     }
 
     private fun findByDescription(view: View, description: String): View? {

@@ -41,6 +41,13 @@ class Settings(private val prefs: SharedPreferences) {
         prefs.edit().putString("period_$habitId", period.name).apply()
     }
 
+    /** Whether logging [habitId] again right after an entry asks first (on unless turned off). */
+    fun confirmDuplicates(habitId: Long): Boolean = prefs.getBoolean("confirm_dup_$habitId", true)
+
+    fun setConfirmDuplicates(habitId: Long, confirm: Boolean) {
+        prefs.edit().putBoolean("confirm_dup_$habitId", confirm).apply()
+    }
+
     fun range(habitId: Long): DateRange = DateRange(
         fromDay = prefs.getLong("range_from_$habitId", NONE).takeIf { it != NONE },
         toDay = prefs.getLong("range_to_$habitId", NONE).takeIf { it != NONE },
@@ -83,6 +90,7 @@ class Settings(private val prefs: SharedPreferences) {
             .remove("period_$habitId")
             .remove("range_from_$habitId")
             .remove("range_to_$habitId")
+            .remove("confirm_dup_$habitId")
             .apply()
     }
 

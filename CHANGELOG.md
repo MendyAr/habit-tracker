@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-11-01
+
+### Added
+- Logging a habit again within a minute of its last entry asks first ("Log Again?"),
+  since it is usually a double tap. A widget asks for a second tap instead. Adding an
+  entry by hand in a minute that already has one asks too. *Don't Ask Again* turns
+  this off for that habit (#19).
+- The Week, Month and Year tabs now change the Time of Day card too: it becomes
+  *Day of Week*, *Day of Month* or *Month of Year*, with bars for the share of each
+  weekday, day of the month or month on which the habit was logged (#20).
+
+### Changed
+- Home-screen screenshots in the README use a plain background (#15).
+- A clearer, livelier confirmation when logging: a larger disc, two ripples and a
+  burst of dots in the habit's colour, a light dim behind it so it stands out on any
+  wallpaper, the habit's name with the count ("Water · 3 today"), and it stays a
+  little longer. With system animations turned off it now shows a still
+  confirmation instead of none, and TalkBack reads it (#22).
+- *Use Your Own Image* is now a clearly labelled option above the built-in icons
+  (it used to be an unlabelled first cell of the icon grid). With an image chosen,
+  it offers *Change Image* and *Remove* (#14).
+
 ## [1.2.0] - 2026-10-04
 
 ### Added
@@ -69,6 +91,7 @@ All notable changes to this project are documented here. The format follows
 - Runs on Android 5.0 (API 21) and newer; no internet permission; data is
   included in Android backup and device-to-device transfer.
 
+[1.3.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.1.0
 [1.0.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.0.0

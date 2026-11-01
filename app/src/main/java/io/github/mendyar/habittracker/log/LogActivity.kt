@@ -1,6 +1,7 @@
 package io.github.mendyar.habittracker.log
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -9,11 +10,13 @@ import android.view.View
 import android.view.WindowManager
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
+import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
+import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 
 /**
@@ -22,7 +25,8 @@ import io.github.mendyar.habittracker.ui.Formats
  * It records a timestamp, plays [LogAnimationView] in the middle of the (still
  * visible) home screen in a transparent window and finishes without any
  * transition, so the user never leaves the screen they tapped on. When the app
- * icon has no habit assigned, it opens the habit list instead.
+ * icon has no habit assigned, it opens the habit list instead. A tap moments after
+ * the habit's last entry asks first, since it is usually a double tap.
  */
 class LogActivity : Activity() {
 
@@ -30,6 +34,7 @@ class LogActivity : Activity() {
     private var finishing = false
     private var result: Result? = null
     private var windowShown = false
+    private var dialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,17 +53,21 @@ class LogActivity : Activity() {
 
         val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
         val now = System.currentTimeMillis()
-        Async.load({ record(habitId, now) }) {
-            if (it == null) {
+        Async.load({ record(habitId, now) }) { outcome ->
+            when (outcome) {
                 // No habit to log (none chosen for the app icon, or it was deleted): show the list.
-                startActivity(
-                    Intent(this, HabitsActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
-                )
-                finishQuietly()
-            } else {
-                result = it
-                startAnimationWhenVisible()
+                null -> {
+                    startActivity(
+                        Intent(this, HabitsActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                    )
+                    finishQuietly()
+                }
+                is Outcome.Duplicate -> askAboutDuplicate(outcome)
+                is Outcome.Logged -> {
+                    result = outcome.result
+                    startAnimationWhenVisible()
+                }
             }
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
@@ -87,21 +96,36 @@ class LogActivity : Activity() {
 
     private class Result(val color: Int, val label: String, val hint: String?)
 
+    private sealed class Outcome {
+        class Logged(val result: Result) : Outcome()
+
+        /** Not logged: the habit was logged moments ago, at [previous]. */
+        class Duplicate(val habit: Habit, val previous: Long, val now: Long) : Outcome()
+    }
+
     /**
      * Runs on the I/O thread. Logs [habitId], or the app icon's habit when none is
-     * given; returns null when there is no such habit.
+     * given, unless that looks like an accidental second tap; returns null when
+     * there is no such habit.
      */
-    private fun record(habitId: Long, now: Long): Result? {
+    private fun record(habitId: Long, now: Long): Outcome? {
         val repository = HabitRepository.get(this)
         repository.ensureFirstRun()
         val habit = (if (habitId == -1L) repository.defaultHabit() else repository.habit(habitId)) ?: return null
+        repository.recentDuplicate(habit.id, now)?.let { return Outcome.Duplicate(habit, it, now) }
+        return Outcome.Logged(log(habit, now))
+    }
+
+    /** Runs on the I/O thread: logs [habit] at [now] and describes the confirmation. */
+    private fun log(habit: Habit, now: Long): Result {
+        val repository = HabitRepository.get(this)
         repository.log(habit.id, now)
 
         val settings = repository.settings
         val period = settings.period(habit.id)
         val math = PeriodMath()
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-        val label = getString(R.string.logged_label, Formats(this).countPhrase(period, count))
+        val label = getString(R.string.logged_label, habit.name, Formats(this).countPhrase(period, count))
         val hint = if (!settings.hintShown) {
             settings.hintShown = true
             getString(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) R.string.hint_long_press else R.string.hint_stats_icon)
@@ -111,6 +135,25 @@ class LogActivity : Activity() {
 
         Shortcuts.reportUsed(this, habit.id)
         return Result(habit.color, label, hint)
+    }
+
+    /** Asks over the home screen whether a second log moments after the last one is intended. */
+    private fun askAboutDuplicate(duplicate: Outcome.Duplicate) {
+        if (finishing) return
+        val habit = duplicate.habit
+        dialog = DuplicateDialog.recent(
+            this,
+            habit,
+            duplicate.previous,
+            duplicate.now,
+            onLog = {
+                Async.load({ log(habit, System.currentTimeMillis()) }) {
+                    result = it
+                    startAnimationWhenVisible()
+                }
+            },
+            onCancel = ::finishQuietly,
+        )
     }
 
     private fun haptic() {
@@ -148,6 +191,7 @@ class LogActivity : Activity() {
     private fun finishQuietly() {
         if (finishing) return
         finishing = true
+        dialog?.dismiss()
         finish()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             @Suppress("DEPRECATION")

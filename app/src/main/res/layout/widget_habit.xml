@@ -64,7 +64,10 @@
 
             <TextView
                 android:id="@+id/widget_count"
-                style="@style/WidgetLabel" />
+                style="@style/WidgetLabel"
+                android:gravity="center"
+                android:maxLines="2"
+                android:singleLine="false" />
         </LinearLayout>
     </ViewFlipper>
 </FrameLayout>

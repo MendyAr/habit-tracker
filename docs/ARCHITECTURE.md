@@ -162,6 +162,14 @@ histogram divided by the number of days would instead lower the peak of an
 every-day-at-8:00 habit below 1 (a density kernel of area 1) and exceed 1 for
 bursts.
 
+On the Week, Month and Year tabs the same card shows a **position profile**
+(`PositionProfile`): for every weekday, day of the month (1–31) or month, the
+share of those days (months, on the Year tab) in the window that had at least
+one entry. Each one counts once however many entries it had, days without
+entries count, and the day (month) still running is left out unless it is the
+only one. Dividing by how many times each position occurs makes uneven months
+fair: the 31st is compared with the months that have one.
+
 ## Threading
 
 All database work runs on one serial background thread (`ui/Async`), so writes

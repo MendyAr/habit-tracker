@@ -21,6 +21,7 @@ import io.github.mendyar.habittracker.core.DateRange
 import io.github.mendyar.habittracker.core.DayProfile
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
+import io.github.mendyar.habittracker.core.PositionProfile
 import io.github.mendyar.habittracker.core.StatsEngine
 import io.github.mendyar.habittracker.data.Entry
 import io.github.mendyar.habittracker.data.Habit
@@ -31,6 +32,7 @@ import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
+import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
@@ -58,6 +60,7 @@ class StatsActivity : Activity() {
     private var range = DateRange.ALL
     private var buckets: List<Bucket> = emptyList()
     private var profile: DayProfile? = null
+    private var positions: PositionProfile? = null
 
     /** Any instant inside the period whose count is shown. */
     private var selected = System.currentTimeMillis()
@@ -75,6 +78,7 @@ class StatsActivity : Activity() {
     private lateinit var rangeFrom: TextView
     private lateinit var rangeTo: TextView
     private lateinit var chart: BarChartView
+    private lateinit var timeTitle: TextView
     private lateinit var timeReadout: TextView
     private lateinit var timeChart: DayProfileView
     private lateinit var timeCaption: TextView
@@ -100,6 +104,7 @@ class StatsActivity : Activity() {
         rangeFrom = findViewById(R.id.range_from)
         rangeTo = findViewById(R.id.range_to)
         chart = findViewById(R.id.chart)
+        timeTitle = findViewById(R.id.time_title)
         timeReadout = findViewById(R.id.time_readout)
         timeChart = findViewById(R.id.time_chart)
         timeCaption = findViewById(R.id.time_caption)
@@ -274,8 +279,25 @@ class StatsActivity : Activity() {
         renderTimeOfDay(bounds, now, h.color)
     }
 
-    /** The time-of-day profile over the same window as the history chart. */
+    /**
+     * When the habit usually happens, over the same window as the history chart:
+     * by time of day on the Day tab, by weekday, day of the month or month on the
+     * others.
+     */
     private fun renderTimeOfDay(bounds: LongRange, now: Long, color: Int) {
+        timeTitle.setText(
+            when (period) {
+                Period.DAY -> R.string.time_of_day
+                Period.WEEK -> R.string.day_of_week
+                Period.MONTH -> R.string.day_of_month
+                Period.YEAR -> R.string.month_of_year
+            },
+        )
+        if (period != Period.DAY) {
+            renderPositions(bounds, now, color)
+            return
+        }
+        positions = null
         val p = DayProfile.of(timestamps, bounds.first, bounds.last, now, math)
         profile = p
         val empty = p.peak <= 0.0
@@ -294,8 +316,65 @@ class StatsActivity : Activity() {
         timeCaption.text = getString(R.string.time_explained) + "\n" + days
     }
 
-    /** Shows the share at the time of day the user touched. */
+    /** Weekday, day-of-month or month bars for the Week, Month and Year tabs. */
+    private fun renderPositions(bounds: LongRange, now: Long, color: Int) {
+        val p = PositionProfile.of(timestamps, period, bounds.first, bounds.last, now, math)
+        positions = p
+        profile = null
+        val empty = p.peak <= 0.0
+        val labels = p.positions.mapIndexed { i, position ->
+            when (period) {
+                Period.WEEK -> formats.weekday(position, short = true)
+                Period.MONTH -> if (i % 7 == 0) position.toString() else ""
+                else -> formats.month(position, short = true)
+            }
+        }
+        timeChart.setBars(p.values, labels, if (empty) -1 else p.peakIndex, color)
+        timeReadout.visible = !empty
+        timeCaption.visible = !empty
+        val peakName = positionName(p, p.peakIndex)
+        timeChart.contentDescription = if (empty) {
+            getString(R.string.chart_empty)
+        } else {
+            getString(R.string.time_chart_description_position, timeTitle.text, peakName, formats.percent(p.peak))
+        }
+        if (!empty) timeReadout.text = getString(R.string.time_peak_position, peakName, formats.percent(p.peak))
+
+        val months = period == Period.YEAR
+        val basedOn = resources.getQuantityString(if (months) R.plurals.based_on_months else R.plurals.based_on_days, p.units, p.units)
+        val counted = if (p.excludesCurrent) {
+            getString(R.string.caption_join, basedOn, getString(if (months) R.string.excludes_month else R.string.excludes_day))
+        } else {
+            basedOn
+        }
+        val explained = getString(
+            when (period) {
+                Period.WEEK -> R.string.time_explained_week
+                Period.MONTH -> R.string.time_explained_month
+                else -> R.string.time_explained_year
+            },
+        )
+        val rough = if (p.minSamples < ROUGH_BELOW) "\n" + getString(R.string.time_little_data) else ""
+        timeCaption.text = explained + "\n" + counted + rough
+    }
+
+    private fun positionName(p: PositionProfile, index: Int): String {
+        val position = p.positions[index]
+        return when (p.period) {
+            Period.WEEK -> formats.weekday(position, short = false)
+            Period.MONTH -> getString(R.string.time_day_of_month, position)
+            else -> formats.month(position, short = false)
+        }
+    }
+
+    /** Shows the share at the point of the chart the user touched. */
     private fun renderTimeReadout(index: Int) {
+        positions?.let { p ->
+            val share = formats.percent(p.values[index])
+            val name = positionName(p, index)
+            timeReadout.text = getString(if (index == p.peakIndex) R.string.time_peak_position else R.string.time_at_position, name, share)
+            return
+        }
         val p = profile ?: return
         val share = formats.percent(p.values[index])
         timeReadout.text = if (index == p.peakIndex) {
@@ -434,7 +513,15 @@ class StatsActivity : Activity() {
         ).show()
     }
 
+    /** Adds a manual entry, asking first if that minute already has one. */
     private fun insertEntry(timestamp: Long) {
+        val h = habit ?: return
+        Async.load({ repository.settings.confirmDuplicates(h.id) && repository.hasEntryInMinute(h.id, timestamp) }) { exists ->
+            if (exists) DuplicateDialog.sameMinute(this, h, timestamp) { saveEntry(timestamp) } else saveEntry(timestamp)
+        }
+    }
+
+    private fun saveEntry(timestamp: Long) {
         val h = habit ?: return
         selected = timestamp
         Async.load({
@@ -501,5 +588,8 @@ class StatsActivity : Activity() {
         private const val STATE_SELECTED = "selected"
         private const val ENTRY_LIMIT = 100
         private const val MENU_MANAGE = 10_000
+
+        /** Below this many samples per bar, the Week/Month/Year chart says it is rough. */
+        private const val ROUGH_BELOW = 4
     }
 }

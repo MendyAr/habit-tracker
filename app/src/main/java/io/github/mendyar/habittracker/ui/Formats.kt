@@ -99,6 +99,14 @@ class Formats(private val context: Context) {
     fun hourLabel(hour: Int): String =
         pattern(if (DateFormat.is24HourFormat(context)) "Hm" else "ha").format(Date(clockAt(hour * 60)))
 
+    private val symbols = java.text.DateFormatSymbols.getInstance(locale)
+
+    /** Name of a [Calendar.DAY_OF_WEEK] value, e.g. "Saturday", or short "Sat". */
+    fun weekday(day: Int, short: Boolean): String = (if (short) symbols.shortWeekdays else symbols.weekdays)[day]
+
+    /** Name of a [Calendar.MONTH] value (0 to 11), e.g. "March", or short "Mar". */
+    fun month(month: Int, short: Boolean): String = (if (short) symbols.shortMonths else symbols.months)[month]
+
     /** A share between 0 and 1 as a whole percentage, e.g. "86%". */
     fun percent(value: Double): String = percent.format(value)
 

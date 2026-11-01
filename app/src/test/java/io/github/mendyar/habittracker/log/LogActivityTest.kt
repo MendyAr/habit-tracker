@@ -1,6 +1,8 @@
 package io.github.mendyar.habittracker.log
 
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ShortcutManager
 import android.os.Bundle
@@ -15,6 +17,8 @@ import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -22,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowAlertDialog
 import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
@@ -83,6 +88,8 @@ class LogActivityTest {
     @Test
     fun firstLogShowsTheHintOnlyOnce() {
         val habit = firstHabit()
+        // Two logs in a row: don't stop at the double-tap question here.
+        repository.settings.setConfirmDuplicates(habit.id, false)
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
         awaitCondition { repository.settings.hintShown }
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
@@ -128,6 +135,71 @@ class LogActivityTest {
         val manager = context.getSystemService(ShortcutManager::class.java)
         awaitCondition { manager.dynamicShortcuts.isNotEmpty() }
         assertEquals(listOf(Shortcuts.statsShortcutId(habit.id)), manager.dynamicShortcuts.map { it.id })
+    }
+
+    @Test
+    fun aTapMomentsAfterTheLastEntryAsksFirst() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.log(water.id, System.currentTimeMillis() - 20_000)
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
+
+        val dialog = awaitDialog()
+        assertEquals(1, repository.timestamps(water.id).size) // nothing logged while asking
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        awaitCondition { repository.timestamps(water.id).size == 2 }
+        assertFalse(activity.isFinishing) // the confirmation plays next
+    }
+
+    @Test
+    fun cancellingTheQuestionLogsNothing() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.log(water.id, System.currentTimeMillis() - 5_000)
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
+
+        awaitDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        awaitCondition { activity.isFinishing }
+        assertEquals(1, repository.timestamps(water.id).size)
+    }
+
+    @Test
+    fun dontAskAgainLogsAndStopsAskingForThatHabit() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.log(water.id, System.currentTimeMillis() - 5_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
+
+        awaitDialog().getButton(DialogInterface.BUTTON_NEUTRAL).performClick()
+        awaitCondition { repository.timestamps(water.id).size == 2 && !repository.settings.confirmDuplicates(water.id) }
+        assertNull(repository.recentDuplicate(water.id, System.currentTimeMillis()))
+    }
+
+    @Test
+    fun aTapAMinuteAfterTheLastEntryLogsRightAway() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.log(water.id, System.currentTimeMillis() - HabitRepository.DUPLICATE_WINDOW_MS - 1_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
+        awaitCondition { repository.timestamps(water.id).size == 2 }
+    }
+
+    @Test
+    fun withAnimationsOffTheConfirmationStaysVisibleWithoutMotion() {
+        // System setting "Remove animations": an animator would jump straight to its end.
+        val confirmation = LogAnimationView(context)
+        confirmation.motionEnabled = { false }
+        var finished = false
+        confirmation.onFinished = { finished = true }
+
+        confirmation.start(HabitColors.ALL[1], "Water · 1 today", null)
+        assertTrue(confirmation.isStarted)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
+        assertFalse(finished) // still shown, not skipped
+
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        assertTrue(finished)
+    }
+
+    private fun awaitDialog(): AlertDialog {
+        awaitCondition { (ShadowAlertDialog.getLatestAlertDialog() as? AlertDialog)?.isShowing == true }
+        return ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
     }
 
     /** The habit the first run creates for the app icon. */

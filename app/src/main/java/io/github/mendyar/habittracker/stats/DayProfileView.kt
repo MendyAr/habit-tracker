@@ -14,8 +14,9 @@ import io.github.mendyar.habittracker.ui.colorOf
 
 /**
  * A smooth area chart of a [DayProfile]: the time of day across, the share of
- * days with an entry around that time up. Touching or dragging across it
- * selects a time and reports it through [onSelect].
+ * days with an entry around that time up. With [setBars] it shows separate bars
+ * instead (weekdays, days of the month, months). Touching or dragging across it
+ * selects a point and reports it through [onSelect].
  */
 class DayProfileView @JvmOverloads constructor(
     context: Context,
@@ -52,6 +53,8 @@ class DayProfileView @JvmOverloads constructor(
         color = context.colorOf(R.color.text_secondary)
         textSize = sp(11f)
     }
+    private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rect = android.graphics.RectF()
     private val line = Path()
     private val area = Path()
 
@@ -61,16 +64,32 @@ class DayProfileView @JvmOverloads constructor(
     private var hourLabels = HOURS.map(hourLabel)
     private var axisLabels = listOf("", "", "")
 
+    /** Labels under each bar in bar mode (blank ones are skipped); null for the curve. */
+    private var barLabels: List<String>? = null
+
     /** Shows [profile] in [color], with [selected] highlighted (-1 for none). */
     fun setData(profile: DayProfile, selected: Int, color: Int) {
-        values = profile.values
+        barLabels = null
+        show(profile.values, profile.peak, selected, color)
+    }
+
+    /** Shows one bar per value (shares 0 to 1) with [labels] under them. */
+    fun setBars(values: DoubleArray, labels: List<String>, selected: Int, color: Int) {
+        barLabels = labels
+        show(values, values.maxOrNull() ?: 0.0, selected, color)
+    }
+
+    private fun show(values: DoubleArray, peak: Double, selected: Int, color: Int) {
+        this.values = values
         this.selected = selected
-        axisMax = AXIS_STEPS.firstOrNull { it >= profile.peak } ?: 1.0
+        axisMax = AXIS_STEPS.firstOrNull { it >= peak } ?: 1.0
         axisLabels = (0..2).map { percentLabel(axisMax * it / 2) }
         linePaint.color = color
         markerPaint.color = color
         fillPaint.color = color
         fillPaint.alpha = 56
+        barPaint.color = color
+        barPaint.alpha = 110
         invalidate()
     }
 
@@ -99,8 +118,14 @@ class DayProfileView @JvmOverloads constructor(
             canvas.drawText(axisLabels[step], paddingLeft.toFloat(), y + labelPaint.textSize / 3f, labelPaint)
         }
 
-        // Hours along the bottom, every six hours.
         val baseline = height - paddingBottom - 2 * density
+        val bars = barLabels
+        if (bars != null) {
+            drawBars(canvas, bars, left, plotWidth, top, bottom, baseline)
+            return
+        }
+
+        // Hours along the bottom, every six hours.
         HOURS.forEachIndexed { i, hour ->
             val x = left + plotWidth * hour / 24f
             labelPaint.textAlign = when (hour) {
@@ -138,6 +163,29 @@ class DayProfileView @JvmOverloads constructor(
             canvas.drawLine(sx, top, sx, bottom, markerPaint)
             canvas.drawCircle(sx, sy, 5 * density, dotRingPaint)
             canvas.drawCircle(sx, sy, 3.5f * density, markerPaint)
+        }
+    }
+
+    private fun drawBars(canvas: Canvas, labels: List<String>, left: Float, plotWidth: Float, top: Float, bottom: Float, baseline: Float) {
+        val slot = plotWidth / values.size
+        labelPaint.textAlign = Paint.Align.CENTER
+        labels.forEachIndexed { i, label ->
+            if (label.isNotEmpty()) canvas.drawText(label, left + slot * (i + 0.5f), baseline, labelPaint)
+        }
+        labelPaint.textAlign = Paint.Align.LEFT
+        if (isEmpty) {
+            labelPaint.textAlign = Paint.Align.CENTER
+            canvas.drawText(context.getString(R.string.chart_empty), left + plotWidth / 2f, (top + bottom) / 2f, labelPaint)
+            labelPaint.textAlign = Paint.Align.LEFT
+            return
+        }
+        val gap = if (slot > 6 * density) slot * 0.25f else density * 0.5f
+        val corner = minOf((slot - gap) / 2f, 4 * density)
+        values.forEachIndexed { i, value ->
+            val h = (bottom - top) * (value / axisMax).toFloat()
+            if (h <= 0f && i != selected) return@forEachIndexed
+            rect.set(left + slot * i + gap / 2f, bottom - maxOf(h, density * 2), left + slot * (i + 1) - gap / 2f, bottom)
+            canvas.drawRoundRect(rect, corner, corner, if (i == selected) markerPaint else barPaint)
         }
     }
 

@@ -100,6 +100,27 @@ class HabitRepository(
         return database.writableDatabase.insertOrThrow("entries", null, values)
     }
 
+    /**
+     * The entry that makes logging [habitId] at [at] look like a mistake: one in the
+     * last [DUPLICATE_WINDOW_MS], or null when there is none or the user turned the
+     * question off for this habit.
+     */
+    fun recentDuplicate(habitId: Long, at: Long): Long? {
+        if (!settings.confirmDuplicates(habitId)) return null
+        return database.readableDatabase
+            .rawQuery(
+                "SELECT MAX(ts) FROM entries WHERE habit_id = ? AND ts > ? AND ts <= ?",
+                arrayOf(habitId.toString(), (at - DUPLICATE_WINDOW_MS).toString(), at.toString()),
+            )
+            .use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null }
+    }
+
+    /** Whether [habitId] already has an entry in the same minute as [timestamp] (manual entries). */
+    fun hasEntryInMinute(habitId: Long, timestamp: Long): Boolean {
+        val minute = timestamp - Math.floorMod(timestamp, MINUTE_MS)
+        return count(habitId, minute, minute + MINUTE_MS) > 0
+    }
+
     fun deleteEntry(entryId: Long) {
         database.writableDatabase.delete("entries", "_id = ?", arrayOf(entryId.toString()))
     }
@@ -145,6 +166,10 @@ class HabitRepository(
     )
 
     companion object {
+        /** A second log of the same habit within this time asks first (see [recentDuplicate]). */
+        const val DUPLICATE_WINDOW_MS = 60_000L
+        private const val MINUTE_MS = 60_000L
+
         @Volatile
         private var instance: HabitRepository? = null
 

@@ -102,4 +102,31 @@ class StatsActivityTest {
         assertTrue(flags and Intent.FLAG_ACTIVITY_CLEAR_TASK != 0)
         assertTrue(flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
     }
+
+    @Test
+    fun periodTabsChangeTheWhenChart() {
+        val habit = repository.createHabit("Smoking", "smoking", null, HabitColors.DEFAULT)
+        val day = 24 * 3_600_000L
+        val now = System.currentTimeMillis()
+        listOf(3, 10, 17, 40).forEach { repository.log(habit.id, now - it * day) }
+        val activity = Robolectric.buildActivity(StatsActivity::class.java, Shortcuts.statsIntent(context, habit.id))
+            .setup().get()
+        val title = activity.findViewById<TextView>(R.id.time_title)
+        val readout = activity.findViewById<TextView>(R.id.time_readout)
+        awaitCondition { activity.findViewById<TextView>(R.id.habit_name).text.toString() == "Smoking" }
+        assertEquals(context.getString(R.string.time_of_day), title.text.toString())
+
+        val tabs = mapOf(
+            R.id.period_week to R.string.day_of_week,
+            R.id.period_month to R.string.day_of_month,
+            R.id.period_year to R.string.month_of_year,
+        )
+        for ((tab, expected) in tabs) {
+            activity.findViewById<TextView>(tab).performClick()
+            assertEquals(context.getString(expected), title.text.toString())
+            assertTrue(readout.text.toString(), readout.text.startsWith("Most likely: "))
+        }
+        activity.findViewById<TextView>(R.id.period_day).performClick()
+        assertEquals(context.getString(R.string.time_of_day), title.text.toString())
+    }
 }

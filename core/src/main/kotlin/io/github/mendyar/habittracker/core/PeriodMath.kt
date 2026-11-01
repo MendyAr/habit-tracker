@@ -62,6 +62,15 @@ class PeriodMath(
         return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE) + cal.get(Calendar.SECOND) / 60.0
     }
 
+    /** The [Calendar] field (e.g. [Calendar.DAY_OF_WEEK]) of [millis] in this time zone. */
+    fun field(millis: Long, field: Int): Int {
+        cal.timeInMillis = millis
+        return cal.get(field)
+    }
+
+    /** The first day of the week ([Calendar.SUNDAY] to [Calendar.SATURDAY]). */
+    val firstDayOfWeek: Int get() = cal.firstDayOfWeek
+
     /** Whether [a] and [b] fall into the same [period]. */
     fun samePeriod(period: Period, a: Long, b: Long): Boolean = startOf(period, a) == startOf(period, b)
 }

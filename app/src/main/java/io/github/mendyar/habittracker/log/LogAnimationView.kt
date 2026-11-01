@@ -11,6 +11,10 @@ import android.graphics.Path
 import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -18,10 +22,12 @@ import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
 
 /**
- * The confirmation shown when a timestamp is logged: a coloured disc with a check
- * pops up in the middle of the screen, a ring ripples outwards and a small pill
- * with the current count floats below it. Everything then fades away and
- * [onFinished] is invoked.
+ * The confirmation shown when a timestamp is logged: the screen dims slightly, a
+ * large disc in the habit's colour pops up in the middle with a check that draws
+ * itself, two rings ripple outwards with a burst of small dots, and a pill with the
+ * habit's name and count floats below it. Everything then fades away and
+ * [onFinished] is invoked. With system animations turned off it shows the same
+ * confirmation without motion, for the same time.
  *
  * It is always drawn in the same place, whichever icon or widget was tapped. The
  * view is transparent everywhere else, so the home screen stays visible.
@@ -31,7 +37,7 @@ class LogAnimationView(context: Context) : View(context) {
     var onFinished: (() -> Unit)? = null
 
     /** Whether [start] has been called. */
-    val isStarted: Boolean get() = animator != null
+    val isStarted: Boolean get() = started
 
     private val density = resources.displayMetrics.density
 
@@ -43,10 +49,12 @@ class LogAnimationView(context: Context) : View(context) {
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
+    private val scrimPaint = Paint().apply { color = Color.BLACK }
+    private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PILL }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = WHITE
-        textSize = sp(14f)
+        textSize = sp(16f)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -66,16 +74,32 @@ class LogAnimationView(context: Context) : View(context) {
     private var holdMs = HOLD_MS
     private var elapsed = 0f
     private var animator: ValueAnimator? = null
+    private var started = false
+    private val finishStill = Runnable { onFinished?.invoke() }
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** Whether system animations are on; replaceable in tests. */
+    internal var motionEnabled: () -> Boolean = ::animationsEnabled
 
     /** Starts the animation in the colour of the logged habit. */
     fun start(color: Int, label: String, hint: String?) {
-        if (animator != null) return
+        if (started) return
+        started = true
         discPaint.color = color
         ringPaint.color = color
+        dotPaint.color = color
         this.label = label
         this.hint = hint
         holdMs = if (hint != null) HOLD_WITH_HINT_MS else HOLD_MS
+        announceForAccessibility(if (hint != null) "$label. $hint" else label)
         val total = (holdMs + EXIT_MS).toFloat()
+        if (!motionEnabled()) {
+            // Reduced motion: the fully shown confirmation, still, for as long as usual.
+            elapsed = SHOWN_AT_MS
+            invalidate()
+            handler.postDelayed(finishStill, total.toLong())
+            return
+        }
         animator = ValueAnimator.ofFloat(0f, total).apply {
             duration = total.toLong()
             interpolator = LinearInterpolator()
@@ -95,17 +119,29 @@ class LogAnimationView(context: Context) : View(context) {
     /** Ends the animation immediately, e.g. when the user taps the screen. */
     fun skip() {
         val running = animator
-        if (running != null) running.end() else onFinished?.invoke()
+        if (running != null) {
+            running.end()
+        } else {
+            handler.removeCallbacks(finishStill)
+            onFinished?.invoke()
+        }
+    }
+
+    private fun animationsEnabled(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        ValueAnimator.areAnimatorsEnabled()
+    } else {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
     }
 
     override fun onDetachedFromWindow() {
+        handler.removeCallbacks(finishStill)
         animator?.removeAllListeners()
         animator?.cancel()
         super.onDetachedFromWindow()
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (animator == null) return
+        if (!started) return
         val cx = width / 2f
         val cy = height / 2f
         val radius = DISC_RADIUS_DP * density
@@ -113,12 +149,24 @@ class LogAnimationView(context: Context) : View(context) {
         val exit = progress(holdMs.toFloat(), EXIT_MS.toFloat())
         val fade = 1f - ease.getInterpolation(exit)
 
-        // Ripple ring.
-        val ring = progress(0f, 700f)
-        if (ring < 1f) {
-            ringPaint.strokeWidth = (4f - 3f * ring) * density
-            ringPaint.alpha = (180 * (1f - ring)).toInt()
-            canvas.drawCircle(cx, cy, radius * (1f + 0.9f * ease.getInterpolation(ring)), ringPaint)
+        // A light dim, so the confirmation stands out on any wallpaper.
+        scrimPaint.alpha = (SCRIM_ALPHA * ease.getInterpolation(progress(0f, 200f)) * fade).toInt()
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scrimPaint)
+
+        // Two ripple rings, the second a little later.
+        drawRing(canvas, cx, cy, radius, progress(0f, 750f))
+        drawRing(canvas, cx, cy, radius, progress(180f, 750f))
+
+        // A burst of small dots in the habit's colour.
+        val burst = progress(60f, 650f)
+        if (burst in 0.001f..0.999f) {
+            val travel = radius * (1.05f + 0.75f * ease.getInterpolation(burst))
+            dotPaint.alpha = (255 * (1f - burst)).toInt()
+            for (i in 0 until DOTS) {
+                val angle = Math.toRadians(i * 360.0 / DOTS - 90.0)
+                val dotRadius = (if (i % 2 == 0) 4.5f else 3f) * density * (1f - 0.5f * burst)
+                canvas.drawCircle(cx + travel * Math.cos(angle).toFloat(), cy + travel * Math.sin(angle).toFloat(), dotRadius, dotPaint)
+            }
         }
 
         // Disc with a check that draws itself.
@@ -131,6 +179,13 @@ class LogAnimationView(context: Context) : View(context) {
         }
 
         drawPill(canvas, cx, cy, radius, progress(160f, 300f), fade)
+    }
+
+    private fun drawRing(canvas: Canvas, cx: Float, cy: Float, radius: Float, ring: Float) {
+        if (ring <= 0f || ring >= 1f) return
+        ringPaint.strokeWidth = (5f - 4f * ring) * density
+        ringPaint.alpha = (200 * (1f - ring)).toInt()
+        canvas.drawCircle(cx, cy, radius * (1f + 1.1f * ease.getInterpolation(ring)), ringPaint)
     }
 
     private fun drawCheck(canvas: Canvas, cx: Float, cy: Float, r: Float, amount: Float, fade: Float) {
@@ -182,10 +237,15 @@ class LogAnimationView(context: Context) : View(context) {
     private fun progress(start: Float, duration: Float): Float = ((elapsed - start) / duration).coerceIn(0f, 1f)
 
     private companion object {
-        const val DISC_RADIUS_DP = 44
-        const val HOLD_MS = 950L
+        const val DISC_RADIUS_DP = 60
+        const val HOLD_MS = 1700L
         const val HOLD_WITH_HINT_MS = 2800L
-        const val EXIT_MS = 300L
+        const val EXIT_MS = 350L
+
+        /** Elapsed time at which everything is fully shown (used without motion). */
+        const val SHOWN_AT_MS = 900f
+        const val SCRIM_ALPHA = 70
+        const val DOTS = 10
         const val WHITE = 0xFFFFFFFF.toInt()
         const val PILL = 0xE6202423.toInt()
     }
