@@ -11,7 +11,6 @@ All notable changes to this project are documented here. The format follows
   since it is usually a double tap. A widget asks for a second tap instead. Adding an
   entry by hand in a minute that already has one asks too. *Don't Ask Again* turns
   this off for that habit (#19).
-
 - The Week, Month and Year tabs now change the Time of Day card too: it becomes
   *Day of Week*, *Day of Month* or *Month of Year*, with bars for the share of each
   weekday, day of the month or month on which the habit was logged (#20).
