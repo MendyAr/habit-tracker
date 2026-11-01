@@ -104,6 +104,17 @@
     <string name="chart_description">Bar chart of %1$d periods, highest %2$d</string>
     <string name="chart_empty">Nothing logged yet</string>
     <string name="time_of_day">Time of Day</string>
+    <string name="day_of_week">Day of Week</string>
+    <string name="day_of_month">Day of Month</string>
+    <string name="month_of_year">Month of Year</string>
+    <string name="time_peak_position">Most likely: %1$s · %2$s of the time</string>
+    <string name="time_at_position">%1$s · %2$s of the time</string>
+    <string name="time_explained_week">Share of each weekday with an entry, in the History window</string>
+    <string name="time_explained_month">Share of each day of the month with an entry, in the History window</string>
+    <string name="time_explained_year">Share of each month with an entry, in the History window</string>
+    <string name="time_day_of_month">Day %1$d</string>
+    <string name="time_chart_description_position">%1$s chart. Most likely: %2$s, %3$s of the time.</string>
+    <string name="time_little_data">Little data so far, so this is still rough; it gets more reliable over time.</string>
     <string name="time_peak">Most likely around %1$s · %2$s of days</string>
     <string name="time_at">At %1$s · %2$s of days</string>
     <string name="time_explained">Share of days with an entry around each time, in the History window</string>

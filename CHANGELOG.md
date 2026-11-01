@@ -12,6 +12,10 @@ All notable changes to this project are documented here. The format follows
   entry by hand in a minute that already has one asks too. *Don't Ask Again* turns
   this off for that habit (#19).
 
+- The Week, Month and Year tabs now change the Time of Day card too: it becomes
+  *Day of Week*, *Day of Month* or *Month of Year*, with bars for the share of each
+  weekday, day of the month or month on which the habit was logged (#20).
+
 ### Changed
 - *Use Your Own Image* is now a clearly labelled option above the built-in icons
   (it used to be an unlabelled first cell of the icon grid). With an image chosen,

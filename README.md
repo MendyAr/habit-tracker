@@ -61,6 +61,9 @@ The first tap after installing also shows a one-time hint about long-pressing.
   that time on every day, 50% on half of the days, 0% never. It starts on your
   most likely time ("Most likely around 8:10 AM · 86% of days"); touch or drag
   across the curve to read any other time. See [how it is calculated](#how-time-of-day-is-calculated).
+  On the **Week**, **Month** and **Year** tabs it becomes **Day of Week**, **Day of
+  Month** and **Month of Year**: bars showing the share of Mondays, of 15ths, of
+  Marches… on which you logged it at least once.
 - **Entries**: the individual timestamps of the selected period. Tap **+** to add
   one you forgot, or tap an entry to delete an accidental tap.
 
