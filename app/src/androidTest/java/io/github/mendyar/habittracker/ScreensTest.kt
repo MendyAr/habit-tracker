@@ -2,6 +2,7 @@ package io.github.mendyar.habittracker
 
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.WallpaperManager
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
@@ -156,6 +157,7 @@ class ScreensTest {
     fun launcherIconTap() {
         val id = seed()
         LauncherSync.refresh(context)
+        usePlainWallpaper()
         device.pressHome()
         device.waitForIdle()
         dismissAnrDialog()
@@ -206,6 +208,7 @@ class ScreensTest {
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
         assumeTrue(AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported)
         seed()
+        usePlainWallpaper()
         val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
         launch(HabitEditActivity.intent(context, walk.id))
         val editor = waitForActivity()
@@ -236,6 +239,21 @@ class ScreensTest {
         assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
         device.wait(Until.findObject(By.text("Walk")), 3_000)
         screenshot("8_widget_added")
+    }
+
+    /**
+     * Puts a plain wallpaper in the app's background colour behind the home screen, so
+     * screenshots of it show the app rather than the emulator's busy default wallpaper.
+     * (The permission is in the debug manifest only.)
+     */
+    private fun usePlainWallpaper() {
+        try {
+            val plain = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(PLAIN_WALLPAPER) }
+            WallpaperManager.getInstance(context).setBitmap(plain)
+            Thread.sleep(500)
+        } catch (e: Exception) {
+            // Screenshots are only nicer with it; the tests don't depend on it.
+        }
     }
 
     /** Pauses [view]'s private animator at [atMs] (debug builds are not obfuscated). */
@@ -308,5 +326,10 @@ class ScreensTest {
     private fun firstHabit() = repository.run {
         ensureFirstRun()
         defaultHabit()!!
+    }
+
+    private companion object {
+        /** The app's light background (`@color/bg`). */
+        const val PLAIN_WALLPAPER = 0xFFF6F6F4.toInt()
     }
 }
