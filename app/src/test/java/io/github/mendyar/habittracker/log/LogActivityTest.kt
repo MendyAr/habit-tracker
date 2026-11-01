@@ -1,5 +1,6 @@
 package io.github.mendyar.habittracker.log
 
+import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
@@ -178,6 +179,27 @@ class LogActivityTest {
         repository.log(water.id, System.currentTimeMillis() - HabitRepository.DUPLICATE_WINDOW_MS - 1_000)
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
         awaitCondition { repository.timestamps(water.id).size == 2 }
+    }
+
+    @Test
+    fun withAnimationsOffTheConfirmationStaysVisibleWithoutMotion() {
+        // System setting "Remove animations": animators would jump straight to the end.
+        val setScale = ValueAnimator::class.java.getMethod("setDurationScale", Float::class.javaPrimitiveType)
+        setScale.invoke(null, 0f)
+        try {
+            val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+            val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
+            awaitCondition { repository.timestamps(water.id).size == 1 }
+            activity.onEnterAnimationComplete()
+            val confirmation = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as LogAnimationView
+            awaitCondition { confirmation.isStarted }
+            assertFalse(activity.isFinishing) // shown, not skipped
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(3))
+            assertTrue(activity.isFinishing)
+        } finally {
+            setScale.invoke(null, 1f)
+        }
     }
 
     private fun awaitDialog(): AlertDialog {

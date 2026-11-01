@@ -125,7 +125,7 @@ class LogActivity : Activity() {
         val period = settings.period(habit.id)
         val math = PeriodMath()
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-        val label = getString(R.string.logged_label, Formats(this).countPhrase(period, count))
+        val label = getString(R.string.logged_label, habit.name, Formats(this).countPhrase(period, count))
         val hint = if (!settings.hintShown) {
             settings.hintShown = true
             getString(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) R.string.hint_long_press else R.string.hint_stats_icon)

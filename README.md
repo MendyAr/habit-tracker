@@ -4,7 +4,8 @@
 
 A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
 meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
-confirmed by a short animation in the middle of the screen, and you stay where you were.
+confirmed by a short animation in the middle of the screen that shows the habit and
+today's count, and you stay where you were.
 Long-press for statistics.
 
 [![CI](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml)

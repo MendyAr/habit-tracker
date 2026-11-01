@@ -17,6 +17,11 @@ All notable changes to this project are documented here. The format follows
   weekday, day of the month or month on which the habit was logged (#20).
 
 ### Changed
+- A clearer, livelier confirmation when logging: a larger disc, two ripples and a
+  burst of dots in the habit's colour, a light dim behind it so it stands out on any
+  wallpaper, the habit's name with the count ("Water · 3 today"), and it stays a
+  little longer. With system animations turned off it now shows a still
+  confirmation instead of none, and TalkBack reads it (#22).
 - *Use Your Own Image* is now a clearly labelled option above the built-in icons
   (it used to be an unlabelled first cell of the icon grid). With an image chosen,
   it offers *Change Image* and *Remove* (#14).
