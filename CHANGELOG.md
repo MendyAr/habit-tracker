@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- *Use Your Own Image* is now a clearly labelled option above the built-in icons
+  (it used to be an unlabelled first cell of the icon grid). With an image chosen,
+  it offers *Change Image* and *Remove* (#14).
+
 ## [1.2.0] - 2026-10-04
 
 ### Added

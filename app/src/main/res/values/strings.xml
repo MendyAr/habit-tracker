@@ -135,7 +135,10 @@
     <string name="color">Color</string>
     <string name="color_description">Color %1$d</string>
     <string name="icon">Icon</string>
-    <string name="upload_icon">Use your own image</string>
+    <string name="upload_icon">Use Your Own Image</string>
+    <string name="change_image">Change Image</string>
+    <string name="remove_image">Remove</string>
+    <string name="remove_image_description">Remove your image and use a built-in icon</string>
     <string name="image_failed">That image couldn\'t be used</string>
     <string name="home_screen">Home Screen</string>
     <string name="add_to_home">Add Icon to Home Screen</string>

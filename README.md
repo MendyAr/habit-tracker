@@ -73,7 +73,8 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
 - **Name**, e.g. "Smoking tracker".
 - **Icon**: 65 built-in icons (cigarette, no-smoking, sweets, food, coffee, water,
   workout, walk, run, cycling, sleep, wake up, meditation, reading, medication,
-  …), or **your own image** from the gallery.
+  …), or **your own image** from the gallery: tap *Use Your Own Image* above the
+  icons. Change or remove it the same way.
 - **Colour**: ten accents.
 - **App Icon Logs This Habit**: choose which habit the main app icon counts, or switch it
   off so the app icon opens the habit list.

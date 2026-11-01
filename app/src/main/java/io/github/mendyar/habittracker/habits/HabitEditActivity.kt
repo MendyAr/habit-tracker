@@ -67,7 +67,8 @@ class HabitEditActivity : Activity() {
     private lateinit var iconGrid: LinearLayout
     private lateinit var mainIconSwitch: Switch
     private val iconCells = mutableMapOf<String, View>()
-    private lateinit var uploadCell: ImageView
+    private lateinit var ownImage: TextView
+    private lateinit var ownImageRemove: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,6 +82,14 @@ class HabitEditActivity : Activity() {
         colorRow = findViewById(R.id.edit_colors)
         iconGrid = findViewById(R.id.edit_icons)
         mainIconSwitch = findViewById(R.id.edit_main_icon)
+        ownImage = findViewById(R.id.edit_own_image)
+        ownImageRemove = findViewById(R.id.edit_own_image_remove)
+        ownImage.setOnClickListener { pickImage() }
+        ownImageRemove.contentDescription = getString(R.string.remove_image_description)
+        ownImageRemove.setOnClickListener {
+            dropCustomIcon()
+            refresh()
+        }
 
         findViewById<View>(R.id.back_button).setOnClickListener { discardAndFinish() }
         findViewById<View>(R.id.save_button).setOnClickListener { save { finishSaved(it) } }
@@ -201,12 +210,6 @@ class HabitEditActivity : Activity() {
         val columns = (widthDp / 60).coerceIn(5, 10)
         val cells = mutableListOf<View>()
 
-        uploadCell = iconCell().apply {
-            setImageResource(R.drawable.ic_ui_add_photo_alternate)
-            contentDescription = getString(R.string.upload_icon)
-            setOnClickListener { pickImage() }
-        }
-        cells += uploadCell
         for (icon in HabitIcons.ALL) {
             cells += iconCell().apply {
                 setImageDrawable(getDrawable(icon.drawable)?.mutate()?.apply { setTint(colorOf(R.color.text_primary)) })
@@ -249,14 +252,17 @@ class HabitEditActivity : Activity() {
             )
         }
         iconCells.forEach { (key, cell) -> cell.isSelected = customIcon == null && key == iconKey }
-        uploadCell.isSelected = customIcon != null
-        if (customIcon != null) {
-            uploadCell.setPadding(dp(6), dp(6), dp(6), dp(6))
-            uploadCell.setImageDrawable(IconFactory.drawable(this, iconKey, customIcon, color))
+        // With an image chosen, the row shows it and offers to change or remove it.
+        val custom = customIcon != null
+        val start = if (custom) {
+            IconFactory.drawable(this, iconKey, customIcon, color)
         } else {
-            uploadCell.setPadding(dp(12), dp(12), dp(12), dp(12))
-            uploadCell.setImageResource(R.drawable.ic_ui_add_photo_alternate)
+            getDrawable(R.drawable.ic_ui_add_photo_alternate)
         }
+        start?.setBounds(0, 0, dp(24), dp(24))
+        ownImage.setCompoundDrawablesRelative(start, null, null, null)
+        ownImage.setText(if (custom) R.string.change_image else R.string.upload_icon)
+        ownImageRemove.visible = custom
     }
 
     private fun pickImage() {
