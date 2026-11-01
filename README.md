@@ -102,6 +102,9 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
 
 ## Good to know
 
+- **Double taps**: logging the same habit again within a minute asks *Log Again?*
+  first (a widget wants a second tap instead). Choose *Don't Ask Again* for habits
+  you really do log in quick succession.
 - **"Can a new widget open in resize mode?"** Android gives apps no way to open
   the launcher's resize handles, which is why the app asks for the size first.
   Some launchers show the handles by themselves when you place a widget by hand:

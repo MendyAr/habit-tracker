@@ -210,4 +210,25 @@ class HabitWidgetProviderTest {
             HabitWidgetProvider.onPinned = null
         }
     }
+
+    @Test
+    fun aWidgetTapMomentsAfterTheLastEntryNeedsASecondTap() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.log(water.id, System.currentTimeMillis() - 10_000)
+        val id = placeWidget()
+        HabitWidgetProvider.bind(context, id, water.id)
+        val tap = Intent(HabitWidgetProvider.ACTION_LOG)
+            .setClass(context, HabitWidgetProvider::class.java)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+
+        context.sendBroadcast(tap)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        Async.awaitIdle()
+        assertEquals(1, repository.timestamps(water.id).size) // the widget asks for a second tap
+
+        context.sendBroadcast(tap)
+        awaitCondition { repository.timestamps(water.id).size == 2 }
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(5))
+        Async.awaitIdle()
+    }
 }

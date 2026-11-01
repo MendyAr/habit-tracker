@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.icons.HabitColors
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -135,5 +136,29 @@ class HabitRepositoryTest {
         repository.updateHabit(updated)
         assertEquals(updated, repository.habit(habit.id))
         assertTrue(!oldIcon.exists())
+    }
+
+    @Test
+    fun recentDuplicatesAreFoundWithinAMinuteUnlessTurnedOff() {
+        val habit = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val other = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
+        val now = 1_000_000_000L
+        repository.log(habit.id, now - 30_000)
+        assertEquals(now - 30_000, repository.recentDuplicate(habit.id, now))
+        assertNull(repository.recentDuplicate(other.id, now))
+        assertNull(repository.recentDuplicate(habit.id, now + HabitRepository.DUPLICATE_WINDOW_MS))
+        repository.settings.setConfirmDuplicates(habit.id, false)
+        assertNull(repository.recentDuplicate(habit.id, now))
+    }
+
+    @Test
+    fun manualEntriesInTheSameMinuteAreDetected() {
+        val habit = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val minute = 1_000_020_000L // a whole minute
+        repository.log(habit.id, minute + 15_000)
+        assertTrue(repository.hasEntryInMinute(habit.id, minute))
+        assertTrue(repository.hasEntryInMinute(habit.id, minute + 59_000))
+        assertFalse(repository.hasEntryInMinute(habit.id, minute + 60_000))
+        assertFalse(repository.hasEntryInMinute(habit.id, minute - 1))
     }
 }

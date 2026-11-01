@@ -84,7 +84,7 @@ class ScreensTest {
                 repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
             }
         }
-        repeat(5) { repository.log(smoking.id, now - it * 1_800_000L) }
+        repeat(5) { repository.log(smoking.id, now - (it + 1) * 1_800_000L) }
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         repeat(6) { repository.log(water.id, now - it * 3_000_000L) }
         repository.createHabit("Meditation", "meditation", null, HabitColors.ALL[3])
@@ -174,6 +174,8 @@ class ScreensTest {
         waitUntil { resumedActivity() == null }
 
         Thread.sleep(1_500)
+        // A second log seconds later would ask whether it's a mistake; this one is on purpose.
+        repository.settings.setConfirmDuplicates(id, false)
         val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.sourceBounds = bounds
         context.startActivity(intent)

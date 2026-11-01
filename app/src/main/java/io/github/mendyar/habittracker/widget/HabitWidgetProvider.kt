@@ -103,35 +103,72 @@ open class HabitWidgetProvider : AppWidgetProvider() {
                 return@io
             }
             val now = System.currentTimeMillis()
+            // Only the tapped widget changes; the others are left alone.
+            val manager = AppWidgetManager.getInstance(app)
+            val tap = (taps[widgetId] ?: 0) + 1
+            taps[widgetId] = tap
+
+            // A tap moments after the last entry is usually a double tap: log only if the
+            // user taps again while the widget asks.
+            val armed = (armedUntil[widgetId] ?: 0L) > now
+            if (!armed && repository.recentDuplicate(habit.id, now) != null) {
+                armedUntil[widgetId] = now + ASK_AGAIN_MS
+                manager.partiallyUpdateAppWidget(
+                    widgetId,
+                    RemoteViews(app.packageName, R.layout.widget_habit).apply {
+                        setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(R.drawable.ic_ui_add)))
+                        setTextViewText(R.id.widget_count, app.getString(R.string.widget_tap_again))
+                        setDisplayedChild(R.id.widget_flipper, 1)
+                    },
+                )
+                flipBackLater(app, manager, widgetId, tap, ASK_AGAIN_MS, pending)
+                return@io
+            }
+            armedUntil.remove(widgetId)
+
             repository.log(habit.id, now)
             val period = repository.settings.period(habit.id)
             val math = PeriodMath()
             val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-
-            // Only the tapped widget changes; the others are left alone.
-            val manager = AppWidgetManager.getInstance(app)
             manager.partiallyUpdateAppWidget(
                 widgetId,
                 RemoteViews(app.packageName, R.layout.widget_habit).apply {
+                    setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(R.drawable.ic_ui_check)))
                     setTextViewText(R.id.widget_count, Formats(app).countPhrase(period, count))
                     setDisplayedChild(R.id.widget_flipper, 1)
                 },
             )
             Shortcuts.reportUsed(app, habit.id)
             LauncherSync.afterLog(app)
+            flipBackLater(app, manager, widgetId, tap, CONFIRM_MS, pending)
+        }
+    }
 
-            Async.mainDelayed(CONFIRM_MS) {
-                Async.io {
-                    try {
+    /**
+     * Shows the widget's icon again after [delayMs], unless the widget was tapped again
+     * meanwhile (that tap shows its own confirmation and flips back itself).
+     */
+    private fun flipBackLater(
+        app: Context,
+        manager: AppWidgetManager,
+        widgetId: Int,
+        tap: Int,
+        delayMs: Long,
+        pending: PendingResult?,
+    ) {
+        Async.mainDelayed(delayMs) {
+            Async.io {
+                try {
+                    if (taps[widgetId] == tap) {
                         manager.partiallyUpdateAppWidget(
                             widgetId,
                             RemoteViews(app.packageName, R.layout.widget_habit).apply {
                                 setDisplayedChild(R.id.widget_flipper, 0)
                             },
                         )
-                    } finally {
-                        pending?.finish()
                     }
+                } finally {
+                    pending?.finish()
                 }
             }
         }
@@ -141,6 +178,13 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         internal const val ACTION_LOG = "io.github.mendyar.habittracker.action.WIDGET_LOG"
         internal const val ACTION_PINNED = "io.github.mendyar.habittracker.action.WIDGET_PINNED"
         private const val CONFIRM_MS = 1400L
+        private const val ASK_AGAIN_MS = 4000L
+
+        /** Per widget: number of taps so far, so only the latest one flips the widget back. */
+        private val taps = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+
+        /** Per widget: until when a tap logs despite a recent entry (the user tapped twice). */
+        private val armedUntil = java.util.concurrent.ConcurrentHashMap<Int, Long>()
         private const val UNBOUND = -1L
         private const val NEUTRAL_TILE = 0xFF8A8F8C.toInt()
 

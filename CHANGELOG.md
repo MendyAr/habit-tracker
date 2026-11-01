@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Logging a habit again within a minute of its last entry asks first ("Log Again?"),
+  since it is usually a double tap. A widget asks for a second tap instead. Adding an
+  entry by hand in a minute that already has one asks too. *Don't Ask Again* turns
+  this off for that habit (#19).
+
 ### Changed
 - *Use Your Own Image* is now a clearly labelled option above the built-in icons
   (it used to be an unlabelled first cell of the icon grid). With an image chosen,

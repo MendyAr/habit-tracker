@@ -31,6 +31,7 @@ import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
+import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
@@ -434,7 +435,15 @@ class StatsActivity : Activity() {
         ).show()
     }
 
+    /** Adds a manual entry, asking first if that minute already has one. */
     private fun insertEntry(timestamp: Long) {
+        val h = habit ?: return
+        Async.load({ repository.settings.confirmDuplicates(h.id) && repository.hasEntryInMinute(h.id, timestamp) }) { exists ->
+            if (exists) DuplicateDialog.sameMinute(this, h, timestamp) { saveEntry(timestamp) } else saveEntry(timestamp)
+        }
+    }
+
+    private fun saveEntry(timestamp: Long) {
         val h = habit ?: return
         selected = timestamp
         Async.load({
