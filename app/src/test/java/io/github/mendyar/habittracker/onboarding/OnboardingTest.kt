@@ -49,7 +49,8 @@ class OnboardingTest {
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
         ).setup().get()
         awaitCondition { activity.isFinishing }
-        return generateSequence { shadowOf(activity).nextStartedActivity }.toList()
+        // Robolectric hands back started activities newest first; return them in start order.
+        return generateSequence { shadowOf(activity).nextStartedActivity }.toList().reversed()
     }
 
     @Test

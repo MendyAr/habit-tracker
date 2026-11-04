@@ -15,6 +15,7 @@ import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.onboarding.Onboarding
 import io.github.mendyar.habittracker.stats.StatsActivity
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
@@ -43,6 +44,8 @@ class LogActivityTest {
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
+        // The tutorial is tested in OnboardingTest; here the app icon should open the app directly.
+        repository.settings.lastSeenVersion = Onboarding.versionCode(context).coerceAtLeast(1)
     }
 
     @After
