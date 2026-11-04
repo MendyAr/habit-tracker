@@ -16,10 +16,12 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.icons.HabitIcons
 import io.github.mendyar.habittracker.icons.IconFactory
@@ -130,6 +132,7 @@ class HabitEditActivity : Activity() {
             refresh()
         } else {
             title.setText(R.string.edit_habit)
+            findViewById<View>(R.id.edit_type_section).visible = false
             Async.load({
                 val habit = repository.habit(habitId)
                 habit to repository.timestamps(habitId).size
@@ -314,9 +317,10 @@ class HabitEditActivity : Activity() {
         val chosenColor = color
         val existing = original
         val chosenStats = statsConfig
+        val type = if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
         Async.load({
             val saved = if (existing == null) {
-                repository.createHabit(name, icon, custom, chosenColor)
+                repository.createHabit(name, icon, custom, chosenColor, type)
             } else {
                 existing.copy(name = name, icon = icon, customIcon = custom, color = chosenColor)
                     .also { repository.updateHabit(it) }
@@ -334,7 +338,9 @@ class HabitEditActivity : Activity() {
     /** The optional statistics setup: which statistics and charts this habit shows. */
     private fun customizeStatistics() {
         val current = statsConfig ?: StatsConfig.decode(original?.let { repository.settings.statsConfig(it.id) })
-        StatsCustomizeDialog.show(this, current) { chosen -> statsConfig = chosen }
+        val type = original?.type
+            ?: if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
+        StatsCustomizeDialog.show(this, current, type) { chosen -> statsConfig = chosen }
     }
 
     private fun finishSaved(saved: Habit) {

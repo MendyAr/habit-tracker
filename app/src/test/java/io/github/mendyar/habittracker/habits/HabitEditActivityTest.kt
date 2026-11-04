@@ -235,6 +235,19 @@ class HabitEditActivityTest {
         assertEquals(null, repository.settings.statsConfig(id))
     }
 
+    @Test
+    fun aNewHabitCanBeADurationTracker() {
+        val activity = open(null)
+        activity.findViewById<EditText>(R.id.edit_name).setText("Box breathing")
+        activity.findViewById<android.widget.RadioButton>(R.id.edit_type_duration).isChecked = true
+        activity.findViewById<TextView>(R.id.save_button).performClick()
+        awaitCondition { repository.habits().any { it.name == "Box breathing" } }
+        assertEquals(
+            io.github.mendyar.habittracker.data.HabitType.DURATION,
+            repository.habits().first { it.name == "Box breathing" }.type,
+        )
+    }
+
     private fun findByDescription(view: View, description: String): View? {
         if (view.contentDescription == description) return view
         if (view is ViewGroup) {

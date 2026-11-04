@@ -2,6 +2,8 @@
 <!--
     Resizable widget: a tile in the habit's colour (widget_bg, tinted at runtime) with the
     icon in the middle. Flipper child 0 is the habit, child 1 the "logged" confirmation.
+    Duration trackers add a stopwatch badge in the corner and, while a session runs, a
+    live timer under the name.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -45,6 +47,12 @@
                 android:id="@+id/widget_label"
                 style="@style/WidgetLabel"
                 android:text="@string/widget_preview_name" />
+
+            <Chronometer
+                android:id="@+id/widget_timer"
+                style="@style/WidgetLabel"
+                android:textSize="14sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout
@@ -70,4 +78,13 @@
                 android:singleLine="false" />
         </LinearLayout>
     </ViewFlipper>
+
+    <ImageView
+        android:id="@+id/widget_badge"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
 </FrameLayout>

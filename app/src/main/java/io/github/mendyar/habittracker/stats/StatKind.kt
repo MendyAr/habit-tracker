@@ -1,6 +1,7 @@
 package io.github.mendyar.habittracker.stats
 
 import io.github.mendyar.habittracker.R
+import io.github.mendyar.habittracker.data.HabitType
 
 /**
  * Every statistic the statistics card can show, with its label and a one- or
@@ -8,7 +9,7 @@ import io.github.mendyar.habittracker.R
  * research-backed set for habits with occasional unusual days, such as smoking;
  * the rest can be added per tracker. See docs/STATISTICS.md.
  */
-enum class StatKind(val label: Int, val help: Int, val byDefault: Boolean) {
+enum class StatKind(val label: Int, val help: Int, val byDefault: Boolean, val forDuration: Boolean = false) {
     MEDIAN(R.string.stat_median, R.string.help_median, true),
     TRIMMED_MEAN(R.string.stat_trimmed_mean, R.string.help_trimmed_mean, true),
     IQR(R.string.stat_iqr, R.string.help_iqr, true),
@@ -26,37 +27,55 @@ enum class StatKind(val label: Int, val help: Int, val byDefault: Boolean) {
     WITHIN_TARGET(R.string.stat_within_target, R.string.help_within_target, false),
     MEDIAN_GAP(R.string.stat_median_gap, R.string.help_median_gap, false),
     LAST_ENTRY(R.string.stat_last_entry, R.string.help_last_entry, false),
+
+    // Duration trackers: statistics of the session lengths in the window.
+    DUR_MEDIAN(R.string.stat_dur_median, R.string.help_dur_median, true, forDuration = true),
+    DUR_IQR(R.string.stat_iqr, R.string.help_dur_iqr, true, forDuration = true),
+    DUR_RANGE(R.string.stat_range, R.string.help_dur_range, true, forDuration = true),
+    SESSIONS(R.string.stat_sessions, R.string.help_sessions, true, forDuration = true),
+    UNDER_TARGET(R.string.stat_under_target, R.string.help_under_target, true, forDuration = true),
+    DUR_MEAN(R.string.stat_average, R.string.help_dur_mean, false, forDuration = true),
+    DUR_TOTAL(R.string.stat_total_time, R.string.help_total_time, false, forDuration = true),
     ;
 
     companion object {
-        val DEFAULTS: List<StatKind> = entries.filter { it.byDefault }
+        /** Every statistic available to a habit of [type]. */
+        fun available(type: HabitType): List<StatKind> = entries.filter { it.forDuration == (type == HabitType.DURATION) }
+
+        /** The default set for a habit of [type]. */
+        fun defaults(type: HabitType): List<StatKind> = available(type).filter { it.byDefault }
 
         fun fromName(name: String): StatKind? = entries.firstOrNull { it.name == name }
     }
 }
 
 /** The cards of the statistics screen that a tracker can hide. */
-enum class StatsCard { HISTORY, WHEN, ENTRIES }
+enum class StatsCard { HISTORY, DURATIONS, WHEN, ENTRIES }
 
 /**
  * What a tracker's statistics screen shows. The default is used until the user
  * customises it, and [isDefault] tells whether they did.
  *
- * @property target a per-period target for [StatKind.WITHIN_TARGET], or null.
+ * @property stats the chosen statistics, or null for the default of the habit's type.
+ * @property target a per-period target for [StatKind.WITHIN_TARGET] (count habits) or a
+ *   number of minutes for [StatKind.UNDER_TARGET] (duration habits), or null.
  * @property dayStartHour where the time-of-day axis starts and after which an entry
  *   counts as the first of the day; null for the default (axis at 0:00, first after 5:00).
  */
 data class StatsConfig(
-    val stats: List<StatKind> = StatKind.DEFAULTS,
+    val stats: List<StatKind>? = null,
     val hiddenCards: Set<StatsCard> = emptySet(),
     val target: Int? = null,
     val dayStartHour: Int? = null,
 ) {
     val isDefault: Boolean get() = this == StatsConfig()
 
+    /** The statistics to show for a habit of [type]. */
+    fun statsFor(type: HabitType): List<StatKind> = stats ?: StatKind.defaults(type)
+
     /** Compact text form for Settings, e.g. `s=MEDIAN,IQR;h=WHEN;t=8;d=4`. */
     fun encode(): String = listOf(
-        "s=" + stats.joinToString(",") { it.name },
+        "s=" + (stats?.joinToString(",") { it.name } ?: "*"),
         "h=" + hiddenCards.joinToString(",") { it.name },
         "t=" + (target ?: ""),
         "d=" + (dayStartHour ?: ""),
@@ -70,7 +89,7 @@ data class StatsConfig(
                 part.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] }
             }.toMap()
             return StatsConfig(
-                stats = parts["s"]?.split(",")?.mapNotNull { StatKind.fromName(it) } ?: StatKind.DEFAULTS,
+                stats = parts["s"]?.takeIf { it != "*" }?.split(",")?.mapNotNull { StatKind.fromName(it) },
                 hiddenCards = parts["h"]?.split(",")?.mapNotNull { n -> StatsCard.entries.firstOrNull { it.name == n } }?.toSet()
                     ?: emptySet(),
                 target = parts["t"]?.toIntOrNull(),

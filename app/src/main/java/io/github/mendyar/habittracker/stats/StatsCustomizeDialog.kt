@@ -11,6 +11,7 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.colorOf
 import io.github.mendyar.habittracker.ui.dp
@@ -22,7 +23,7 @@ import io.github.mendyar.habittracker.ui.dp
  */
 object StatsCustomizeDialog {
 
-    fun show(activity: Activity, current: StatsConfig, onChosen: (StatsConfig) -> Unit): AlertDialog {
+    fun show(activity: Activity, current: StatsConfig, type: HabitType, onChosen: (StatsConfig) -> Unit): AlertDialog {
         val formats = Formats(activity)
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -38,10 +39,11 @@ object StatsCustomizeDialog {
         )
 
         section(R.string.customize_stats)
-        val statBoxes = StatKind.entries.associateWith { kind ->
+        val shown = current.statsFor(type)
+        val statBoxes = StatKind.available(type).associateWith { kind ->
             CheckBox(activity).apply {
                 setText(kind.label)
-                isChecked = kind in current.stats
+                isChecked = kind in shown
                 content.addView(this)
             }
         }
@@ -49,10 +51,12 @@ object StatsCustomizeDialog {
         section(R.string.customize_cards)
         val cardLabels = mapOf(
             StatsCard.HISTORY to R.string.history,
+            StatsCard.DURATIONS to R.string.durations,
             StatsCard.WHEN to R.string.time_of_day,
             StatsCard.ENTRIES to R.string.entries,
         )
-        val cardBoxes = StatsCard.entries.associateWith { card ->
+        val cards = StatsCard.entries.filter { it != StatsCard.DURATIONS || type == HabitType.DURATION }
+        val cardBoxes = cards.associateWith { card ->
             CheckBox(activity).apply {
                 setText(cardLabels.getValue(card))
                 isChecked = card !in current.hiddenCards
@@ -60,7 +64,7 @@ object StatsCustomizeDialog {
             }
         }
 
-        section(R.string.customize_target)
+        section(if (type == HabitType.DURATION) R.string.customize_target_duration else R.string.customize_target)
         val target = EditText(activity).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
             setHint(R.string.customize_target_hint)
@@ -82,8 +86,8 @@ object StatsCustomizeDialog {
             .setPositiveButton(R.string.save) { _, _ ->
                 onChosen(
                     StatsConfig(
-                        stats = StatKind.entries.filter { statBoxes.getValue(it).isChecked },
-                        hiddenCards = StatsCard.entries.filterNot { cardBoxes.getValue(it).isChecked }.toSet(),
+                        stats = statBoxes.keys.filter { statBoxes.getValue(it).isChecked }.takeIf { it != StatKind.defaults(type) },
+                        hiddenCards = cards.filterNot { cardBoxes.getValue(it).isChecked }.toSet(),
                         target = target.text.toString().toIntOrNull()?.takeIf { it >= 0 },
                         dayStartHour = (dayStart.selectedItemPosition - 1).takeIf { it >= 0 },
                     ),

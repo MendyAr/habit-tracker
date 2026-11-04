@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
@@ -216,6 +217,29 @@ class HabitWidgetProviderTest {
         context.sendBroadcast(tap)
         awaitCondition { repository.timestamps(water.id).size == 2 }
         shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(5))
+        Async.awaitIdle()
+    }
+
+    @Test
+    fun aDurationWidgetStartsAndFinishesSessionsAndShowsItsBadge() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        val id = placeWidget()
+        HabitWidgetProvider.bind(context, id, breathing.id)
+        val badge = HabitWidgetProvider.views(context, id).apply(context, FrameLayout(context)).findViewById<android.view.View>(R.id.widget_badge)
+        assertEquals(android.view.View.VISIBLE, badge.visibility)
+        val tap = Intent(HabitWidgetProvider.ACTION_LOG)
+            .setClass(context, HabitWidgetProvider::class.java)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+
+        context.sendBroadcast(tap)
+        awaitCondition { repository.running(breathing.id) != null }
+        // Make the session a minute old, then finish it with a second tap.
+        val session = repository.running(breathing.id)!!
+        repository.deleteEntry(session.id)
+        repository.log(breathing.id, System.currentTimeMillis() - 60_000)
+        context.sendBroadcast(tap)
+        awaitCondition { repository.sessions(breathing.id).size == 1 }
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
         Async.awaitIdle()
     }
 }

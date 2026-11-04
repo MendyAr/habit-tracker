@@ -43,6 +43,27 @@ To update, install the newer APK over the old one; your data stays.
 | In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. If the icon is already there, the app says so. |
 | In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
 
+### Duration trackers
+
+Some habits are about *how long*, not *how often*: for example **Box Breathing**,
+where you want to see how long it takes you to calm down. When you add a habit,
+choose **Duration** instead of **Count**:
+
+- **Tap its icon or widget to start**: a stopwatch sweeps round (*Box Breathing ·
+  started*). **Tap again when you're done**: a check shows the time it took
+  (*Box Breathing · 4:32*). A second tap within a few seconds doesn't stop it.
+- Its icon and widget carry a small **stopwatch badge**, and while a session runs
+  the widget **counts up live**.
+- Forgot to stop it? A tap on a session that has run for hours asks whether to
+  **finish it now or discard it** (a widget asks for a second tap). In the
+  statistics you can also tap a running session to finish or discard it, or add a
+  session by hand.
+- Its statistics describe the session lengths: the typical (median) session, the
+  middle half, the range, the number of sessions and, with a target, the share
+  under it. A **Durations** chart shows every session from shortest to longest.
+
+There is a built-in **Box breathing** icon (a square with an arrow on each side).
+
 ### Statistics
 
 - **Day / Week / Month / Year**: the period everything below is grouped by.
@@ -78,7 +99,7 @@ Your choice of period and chart window is remembered for each habit.
 Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
 
 - **Name**, e.g. "Smoking tracker".
-- **Icon**: 65 built-in icons (cigarette, no-smoking, sweets, food, coffee, water,
+- **Icon**: 66 built-in icons (cigarette, no-smoking, box breathing, sweets, food, coffee, water,
   workout, walk, run, cycling, sleep, wake up, meditation, reading, medication,
   …), or **your own image** from the gallery: tap *Use Your Own Image* above the
   icons. Change or remove it the same way.

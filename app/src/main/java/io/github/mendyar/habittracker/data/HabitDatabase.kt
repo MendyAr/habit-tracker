@@ -21,7 +21,8 @@ class HabitDatabase(context: Context, name: String? = NAME) :
                 icon TEXT NOT NULL,
                 custom_icon TEXT,
                 color INTEGER NOT NULL,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                type INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent(),
         )
@@ -30,7 +31,8 @@ class HabitDatabase(context: Context, name: String? = NAME) :
             CREATE TABLE entries (
                 _id INTEGER PRIMARY KEY AUTOINCREMENT,
                 habit_id INTEGER NOT NULL REFERENCES habits(_id) ON DELETE CASCADE,
-                ts INTEGER NOT NULL
+                ts INTEGER NOT NULL,
+                duration INTEGER
             )
             """.trimIndent(),
         )
@@ -38,11 +40,16 @@ class HabitDatabase(context: Context, name: String? = NAME) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the first schema; future migrations go here, one step per version.
+        // One step per version; existing habits and entries keep their meaning.
+        if (oldVersion < 2) {
+            // Duration trackers: a habit type (0 = count) and a session length (null = count entry).
+            db.execSQL("ALTER TABLE habits ADD COLUMN type INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE entries ADD COLUMN duration INTEGER")
+        }
     }
 
     companion object {
         const val NAME = "habits.db"
-        const val VERSION = 1
+        const val VERSION = 2
     }
 }

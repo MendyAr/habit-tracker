@@ -34,6 +34,9 @@ import android.view.animation.OvershootInterpolator
  */
 class LogAnimationView(context: Context) : View(context) {
 
+    /** What the disc shows: a check (logged or finished) or a starting stopwatch (session started). */
+    enum class Mark { CHECK, STOPWATCH }
+
     var onFinished: (() -> Unit)? = null
 
     /** Whether [start] has been called. */
@@ -70,6 +73,7 @@ class LogAnimationView(context: Context) : View(context) {
     private val ease = DecelerateInterpolator(1.6f)
 
     private var label = ""
+    private var mark = Mark.CHECK
     private var hint: String? = null
     private var holdMs = HOLD_MS
     private var elapsed = 0f
@@ -82,9 +86,10 @@ class LogAnimationView(context: Context) : View(context) {
     internal var motionEnabled: () -> Boolean = ::animationsEnabled
 
     /** Starts the animation in the colour of the logged habit. */
-    fun start(color: Int, label: String, hint: String?) {
+    fun start(color: Int, label: String, hint: String?, mark: Mark = Mark.CHECK) {
         if (started) return
         started = true
+        this.mark = mark
         discPaint.color = color
         ringPaint.color = color
         dotPaint.color = color
@@ -175,7 +180,11 @@ class LogAnimationView(context: Context) : View(context) {
         if (discRadius > 0f) {
             discPaint.alpha = (245 * fade).toInt()
             canvas.drawCircle(cx, cy, discRadius, discPaint)
-            drawCheck(canvas, cx, cy, discRadius, progress(120f, 280f), fade)
+            if (mark == Mark.CHECK) {
+                drawCheck(canvas, cx, cy, discRadius, progress(120f, 280f), fade)
+            } else {
+                drawStopwatch(canvas, cx, cy, discRadius, progress(120f, 900f), fade)
+            }
         }
 
         drawPill(canvas, cx, cy, radius, progress(160f, 300f), fade)
@@ -200,6 +209,20 @@ class LogAnimationView(context: Context) : View(context) {
         checkPaint.strokeWidth = maxOf(2f * density, r * 0.16f)
         checkPaint.alpha = (255 * fade).toInt()
         canvas.drawPath(partialCheck, checkPaint)
+    }
+
+    /** A stopwatch face whose hand sweeps once around: a session has started. */
+    private fun drawStopwatch(canvas: Canvas, cx: Float, cy: Float, r: Float, amount: Float, fade: Float) {
+        if (amount <= 0f) return
+        checkPaint.strokeWidth = maxOf(2f * density, r * 0.1f)
+        checkPaint.alpha = (255 * fade).toInt()
+        val face = r * 0.5f
+        val faceY = cy + r * 0.06f
+        canvas.drawCircle(cx, faceY, face, checkPaint)
+        canvas.drawLine(cx, faceY - face, cx, faceY - face - r * 0.14f, checkPaint)
+        val angle = Math.toRadians(-90.0 + 360.0 * ease.getInterpolation(amount))
+        val hand = face * 0.72f
+        canvas.drawLine(cx, faceY, cx + hand * Math.cos(angle).toFloat(), faceY + hand * Math.sin(angle).toFloat(), checkPaint)
     }
 
     private fun drawPill(canvas: Canvas, cx: Float, cy: Float, radius: Float, amount: Float, fade: Float) {

@@ -107,6 +107,15 @@ class Formats(private val context: Context) {
     /** Name of a [Calendar.MONTH] value (0 to 11), e.g. "March", or short "Mar". */
     fun month(month: Int, short: Boolean): String = (if (short) symbols.shortMonths else symbols.months)[month]
 
+    /** A stopwatch reading of [ms], e.g. "4:32" or "1:05:09". */
+    fun elapsed(ms: Long): String {
+        val seconds = (ms / 1000).coerceAtLeast(0)
+        val h = seconds / 3600
+        val m = seconds % 3600 / 60
+        val s = seconds % 60
+        return if (h > 0) String.format(locale, "%d:%02d:%02d", h, m, s) else String.format(locale, "%d:%02d", m, s)
+    }
+
     /** A length of time given in minutes, e.g. "45 min", "2 h 15 min" or "3 d 4 h". */
     fun duration(minutes: Double): String {
         val total = Math.round(minutes).toInt().coerceAtLeast(0)

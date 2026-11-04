@@ -27,6 +27,7 @@ import io.github.mendyar.habittracker.core.RobustStats
 import io.github.mendyar.habittracker.data.Entry
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitEditActivity
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.IconFactory
@@ -35,6 +36,7 @@ import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
+import io.github.mendyar.habittracker.widget.HabitWidgetProvider
 import io.github.mendyar.habittracker.ui.dp
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
@@ -63,6 +65,7 @@ class StatsActivity : Activity() {
     private var buckets: List<Bucket> = emptyList()
     private var profile: DayProfile? = null
     private var config = StatsConfig()
+    private var sessions: List<Entry> = emptyList()
     private var positions: PositionProfile? = null
 
     /** Any instant inside the period whose count is shown. */
@@ -83,6 +86,8 @@ class StatsActivity : Activity() {
     private lateinit var chart: BarChartView
     private lateinit var timeTitle: TextView
     private lateinit var statsGrid: LinearLayout
+    private lateinit var durationsCard: View
+    private lateinit var durationsChart: DurationsChartView
     private lateinit var historyCard: View
     private lateinit var timeCard: View
     private lateinit var entriesCard: View
@@ -113,6 +118,10 @@ class StatsActivity : Activity() {
         chart = findViewById(R.id.chart)
         timeTitle = findViewById(R.id.time_title)
         statsGrid = findViewById(R.id.stats_grid)
+        durationsCard = findViewById(R.id.durations_card)
+        durationsChart = findViewById(R.id.durations_chart)
+        durationsChart.lengthLabel = formats::elapsed
+        findViewById<View>(R.id.durations_title).setOnClickListener { explain(R.string.durations, R.string.help_durations) }
         historyCard = findViewById(R.id.history_card)
         timeCard = findViewById(R.id.time_card)
         entriesCard = findViewById(R.id.entries_card)
@@ -189,7 +198,7 @@ class StatsActivity : Activity() {
         outState.putLong(STATE_SELECTED, selected)
     }
 
-    private class Loaded(val habit: Habit, val habits: List<Habit>, val timestamps: LongArray)
+    private class Loaded(val habit: Habit, val habits: List<Habit>, val timestamps: LongArray, val sessions: List<Entry>)
 
     /** Reloads the habit and its timestamps; entries may have been logged from the home screen. */
     private fun load() {
@@ -198,7 +207,7 @@ class StatsActivity : Activity() {
             val all = repository.habits()
             // The requested habit, else any; null when there are none.
             val h = repository.habit(id) ?: all.firstOrNull()
-            h?.let { Loaded(it, all, repository.timestamps(it.id)) }
+            h?.let { Loaded(it, all, repository.timestamps(it.id), repository.sessions(it.id)) }
         }) { loaded ->
             if (isFinishing) return@load
             if (loaded == null) {
@@ -210,6 +219,7 @@ class StatsActivity : Activity() {
             habit = loaded.habit
             habits = loaded.habits
             timestamps = loaded.timestamps
+            sessions = loaded.sessions
             requestedHabitId = loaded.habit.id
             repository.settings.lastViewedHabitId = loaded.habit.id
             config = StatsConfig.decode(repository.settings.statsConfig(loaded.habit.id))
@@ -250,7 +260,10 @@ class StatsActivity : Activity() {
                 Period.YEAR -> R.string.stats_title_year
             },
         )
-        renderStats(StatValues(this, formats, timestamps, buckets, bounds, now, math, config))
+        // Duration habits: the finished sessions that started in the window.
+        val durations = sessions.filter { it.timestamp in bounds }.map { it.duration ?: 0L }.toLongArray()
+        renderStats(StatValues(this, formats, timestamps, buckets, bounds, now, math, config, durations))
+        durationsChart.setData(durations, h.color)
 
         statsCaption.visible = summary != null
         if (summary != null) {
@@ -412,7 +425,10 @@ class StatsActivity : Activity() {
         val count = StatsEngine.countBetween(timestamps, start, end)
         selectedLabel.text = formats.periodTitle(period, selected, now)
         selectedCount.text = formats.number(count)
-        selectedCaption.text = resources.getQuantityString(R.plurals.count_entries, count)
+        selectedCaption.text = resources.getQuantityString(
+            if (h.type == HabitType.DURATION) R.plurals.count_sessions else R.plurals.count_entries,
+            count,
+        )
         val canGoForward = start < math.startOf(period, now)
         nextButton.isEnabled = canGoForward
         nextButton.alpha = if (canGoForward) 1f else 0.3f
@@ -431,14 +447,21 @@ class StatsActivity : Activity() {
         val color = habit?.color ?: 0
         for (entry in entries) {
             val row = inflater.inflate(R.layout.item_entry, entriesList, false)
-            val label = if (period == Period.DAY) formats.time(entry.timestamp) else formats.dateTime(entry.timestamp)
+            val time = if (period == Period.DAY) formats.time(entry.timestamp) else formats.dateTime(entry.timestamp)
+            val label = when {
+                habit?.type != HabitType.DURATION -> time
+                entry.duration == null -> getString(R.string.entry_running, time)
+                else -> getString(R.string.entry_with_duration, time, formats.elapsed(entry.duration))
+            }
             row.findViewById<TextView>(R.id.entry_time).text = label
             row.findViewById<View>(R.id.entry_dot).background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(color)
             }
             row.contentDescription = getString(R.string.delete_entry_message, label)
-            row.setOnClickListener { confirmDelete(entry, label) }
+            row.setOnClickListener {
+                if (habit?.type == HabitType.DURATION && entry.duration == null) finishOrDiscard(entry, label) else confirmDelete(entry, label)
+            }
             entriesList.addView(row)
         }
         entriesFooter.visible = entries.isEmpty() || total > entries.size
@@ -453,7 +476,7 @@ class StatsActivity : Activity() {
     private fun renderStats(values: StatValues) {
         statsGrid.removeAllViews()
         val inflater = LayoutInflater.from(this)
-        config.stats.chunked(STATS_PER_ROW).forEach { chunk ->
+        config.statsFor(habit?.type ?: HabitType.COUNT).chunked(STATS_PER_ROW).forEach { chunk ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, dp(12), 0, 0)
@@ -484,7 +507,7 @@ class StatsActivity : Activity() {
     /** Lets the user choose this tracker's statistics; applies them right away. */
     private fun customize() {
         val h = habit ?: return
-        StatsCustomizeDialog.show(this, config) { chosen ->
+        StatsCustomizeDialog.show(this, config, h.type) { chosen ->
             config = chosen
             repository.settings.setStatsConfig(h.id, chosen.takeUnless { it.isDefault }?.encode())
             render()
@@ -495,6 +518,7 @@ class StatsActivity : Activity() {
         historyCard.visible = StatsCard.HISTORY !in config.hiddenCards
         timeCard.visible = StatsCard.WHEN !in config.hiddenCards
         entriesCard.visible = StatsCard.ENTRIES !in config.hiddenCards
+        durationsCard.visible = habit?.type == HabitType.DURATION && StatsCard.DURATIONS !in config.hiddenCards
     }
 
     private fun selectedBucketIndex(): Int = buckets.indexOfFirst { selected >= it.start && selected < it.end }
@@ -566,7 +590,11 @@ class StatsActivity : Activity() {
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)
                 }.timeInMillis
-                if (timestamp > System.currentTimeMillis()) toast(R.string.future_entry) else insertEntry(timestamp)
+                when {
+                    timestamp > System.currentTimeMillis() -> toast(R.string.future_entry)
+                    habit?.type == HabitType.DURATION -> askSessionLength(timestamp)
+                    else -> insertEntry(timestamp)
+                }
             },
             if (isToday) now.get(Calendar.HOUR_OF_DAY) else 12,
             if (isToday) now.get(Calendar.MINUTE) else 0,
@@ -599,6 +627,46 @@ class StatsActivity : Activity() {
                 Async.load({
                     repository.deleteEntry(entry.id)
                     LauncherSync.afterLog(this)
+                }) { load() }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** A session added by hand: its start was picked, now its length in minutes. */
+    private fun askSessionLength(start: Long) {
+        val h = habit ?: return
+        val minutes = android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setHint(R.string.add_session_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_session_title)
+            .setView(minutes)
+            .setPositiveButton(R.string.add) { _, _ ->
+                val length = minutes.text.toString().toLongOrNull()?.takeIf { it > 0 } ?: return@setPositiveButton
+                selected = start
+                Async.load({ repository.addSession(h.id, start, length * 60_000L) }) { load() }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** A running session in the list: finish it now, or discard it. */
+    private fun finishOrDiscard(entry: Entry, label: String) {
+        val h = habit ?: return
+        AlertDialog.Builder(this)
+            .setTitle(label)
+            .setPositiveButton(R.string.finish_now) { _, _ ->
+                Async.load({
+                    repository.finish(entry.id, System.currentTimeMillis())
+                    HabitWidgetProvider.updateFor(applicationContext, h.id)
+                }) { load() }
+            }
+            .setNeutralButton(R.string.discard) { _, _ ->
+                Async.load({
+                    repository.deleteEntry(entry.id)
+                    HabitWidgetProvider.updateFor(applicationContext, h.id)
                 }) { load() }
             }
             .setNegativeButton(R.string.cancel, null)

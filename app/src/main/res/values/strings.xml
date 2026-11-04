@@ -4,6 +4,12 @@
 
     <!-- Log confirmation -->
     <string name="logged_label">%1$s · %2$s</string>
+    <string name="logged_started">%1$s · started</string>
+    <string name="logged_running">%1$s · running for %2$s</string>
+    <string name="long_running_title">Still Running?</string>
+    <string name="long_running_message">%1$s has been running for %2$s. Finish it now, or discard it if you forgot to stop it?</string>
+    <string name="finish_now">Finish Now</string>
+    <string name="discard">Discard</string>
     <string name="duplicate_title">Log Again?</string>
     <string name="duplicate_message">%1$s was already logged at %2$s (%3$s). Log it again?</string>
     <plurals name="seconds_ago">
@@ -13,6 +19,8 @@
     <string name="duplicate_manual_message">%1$s already has an entry at %2$s. Add another one?</string>
     <string name="log_again">Log Again</string>
     <string name="dont_ask_again">Don\'t Ask Again</string>
+    <string name="widget_started">Started</string>
+    <string name="widget_finish_long">Running %1$s.\nTap again to finish.</string>
     <string name="widget_tap_again">Just logged.\nTap again to log again.</string>
     <plurals name="count_today">
         <item quantity="one">%d today</item>
@@ -75,6 +83,30 @@
     <string name="stat_zero_periods">With none</string>
     <string name="stat_within_target">Within target</string>
     <string name="stat_median_gap">Usual gap</string>
+    <string name="stat_dur_median">Typical session</string>
+    <string name="stat_sessions">Sessions</string>
+    <string name="stat_under_target">Under target</string>
+    <string name="stat_total_time">Total time</string>
+    <string name="help_dur_median">Your typical session length: half are shorter, half longer. One slow session doesn\'t move it.</string>
+    <string name="help_dur_iqr">The range your middle half of sessions fall in.</string>
+    <string name="help_dur_range">Your shortest and longest session in the window.</string>
+    <string name="help_sessions">How many finished sessions the window has.</string>
+    <string name="help_under_target">The share of sessions that took no longer than your target (set in Customize, in minutes).</string>
+    <string name="help_dur_mean">The plain average session length; slow sessions pull it up.</string>
+    <string name="help_total_time">All finished sessions added up.</string>
+    <string name="help_durations">Every session in the window, shortest to longest. The line marks the typical (median) session.</string>
+    <string name="durations">Durations</string>
+    <string name="durations_description">%1$d sessions, shortest to longest; typical %2$s, longest %3$s</string>
+    <plurals name="count_sessions">
+        <item quantity="one">session</item>
+        <item quantity="other">sessions</item>
+    </plurals>
+    <string name="entry_running">%1$s · running</string>
+    <string name="running_since">Running since %1$s</string>
+    <string name="entry_with_duration">%1$s · %2$s</string>
+    <string name="add_session_title">Session Length</string>
+    <string name="add_session_hint">Minutes</string>
+    <string name="customize_target_duration">Target session length in minutes, for Under target</string>
     <string name="value_range">%1$s–%2$s</string>
     <string name="value_of">%1$s of %2$s</string>
     <string name="value_percent_change">%1$s%2$s</string>
@@ -106,6 +138,9 @@
     <string name="help_entries">Every entry of the selected day (week…). Tap + to add one you forgot, or an entry to delete it.</string>
     <string name="count_card_title">Count</string>
     <string name="customize">Customize</string>
+    <string name="habit_type">Type</string>
+    <string name="habit_type_count">Count: tap to log a moment</string>
+    <string name="habit_type_duration">Duration: tap to start, tap again to finish</string>
     <string name="customize_title">Customize Statistics</string>
     <string name="customize_stats">Statistics</string>
     <string name="customize_cards">Cards</string>
@@ -275,6 +310,7 @@
     <string name="icon_football">Football</string>
     <string name="icon_basketball">Basketball</string>
     <string name="icon_meditation">Meditation</string>
+    <string name="icon_box_breathing">Box breathing</string>
     <string name="icon_selfcare">Self-care</string>
     <string name="icon_sleep">Sleep</string>
     <string name="icon_wake">Wake up</string>

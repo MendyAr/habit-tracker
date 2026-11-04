@@ -8,7 +8,9 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
+import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.data.Habit
+import io.github.mendyar.habittracker.data.HabitType
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -18,18 +20,21 @@ object IconFactory {
 
     /** A scalable icon for in-app views. */
     fun drawable(context: Context, habit: Habit, fullBleed: Boolean = false): HabitIconDrawable =
-        drawable(context, habit.icon, habit.customIcon, habit.color, fullBleed)
+        drawable(context, habit.icon, habit.customIcon, habit.color, fullBleed, habit.type == HabitType.DURATION)
 
+    /** [duration] adds the stopwatch badge of duration trackers. */
     fun drawable(
         context: Context,
         iconKey: String,
         customIcon: String?,
         color: Int,
         fullBleed: Boolean = false,
+        duration: Boolean = false,
     ): HabitIconDrawable {
         val image = customIcon?.let { BitmapFactory.decodeFile(it) }
         val glyph = if (image == null) context.getDrawable(HabitIcons.find(iconKey).drawable) else null
-        return HabitIconDrawable(glyph, image, color, fullBleed)
+        val badge = if (duration) context.getDrawable(R.drawable.ic_habit_timer) else null
+        return HabitIconDrawable(glyph, image, color, fullBleed, badge)
     }
 
     /** A circular icon bitmap of [sizePx] (legacy shortcuts and widgets). */

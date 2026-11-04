@@ -38,6 +38,7 @@ object HabitIcons {
         Icon("football", R.drawable.ic_habit_football, R.string.icon_football),
         Icon("basketball", R.drawable.ic_habit_basketball, R.string.icon_basketball),
         Icon("meditation", R.drawable.ic_habit_meditation, R.string.icon_meditation),
+        Icon("box_breathing", R.drawable.ic_habit_box_breathing, R.string.icon_box_breathing),
         Icon("selfcare", R.drawable.ic_habit_selfcare, R.string.icon_selfcare),
         Icon("sleep", R.drawable.ic_habit_sleep, R.string.icon_sleep),
         Icon("wake", R.drawable.ic_habit_wake, R.string.icon_wake),

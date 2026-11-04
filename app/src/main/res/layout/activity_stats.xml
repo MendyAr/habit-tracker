@@ -271,6 +271,26 @@
                     android:text="@string/history_legend" />
             </LinearLayout>
 
+            <!-- Duration habits: every session in the window, shortest to longest -->
+            <LinearLayout
+                android:id="@+id/durations_card"
+                style="@style/Card"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/durations_title"
+                    style="@style/CardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/durations" />
+
+                <io.github.mendyar.habittracker.stats.DurationsChartView
+                    android:id="@+id/durations_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="160dp"
+                    android:layout_marginTop="16dp" />
+            </LinearLayout>
+
             <!-- How likely the habit is at each time of day, over the same window -->
             <LinearLayout
                 android:id="@+id/time_card"

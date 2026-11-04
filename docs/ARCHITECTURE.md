@@ -118,12 +118,19 @@ hint.
 
 ## Data
 
-SQLite, two tables:
+SQLite, two tables (schema version 2):
 
 ```
-habits(_id, name, icon, custom_icon, color, created_at)
-entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts)   index (habit_id, ts)
+habits(_id, name, icon, custom_icon, color, created_at, type)   type: 0 count, 1 duration
+entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration)   index (habit_id, ts)
 ```
+
+For a **duration** habit an entry is a session: `ts` is its start and `duration`
+(ms) is null while it runs. A tap on its icon or widget starts a session, or
+finishes the running one (`HabitRepository.running/finish`); a tap within 5 s of
+the start leaves it running, and a session older than 3 hours asks before it is
+finished (`data/Sessions`). Version 1 databases are upgraded in place by adding
+the two columns; existing data stays count data.
 
 `ts` is epoch milliseconds (UTC). Bucketing into local days, weeks (locale's
 first day of week), months and years happens at read time in `core`, so

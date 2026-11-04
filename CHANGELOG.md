@@ -26,6 +26,14 @@ All notable changes to this project are documented here. The format follows
   gap, usual last entry… are options), which cards, a target, and when the day
   starts. Also available when creating a habit; *Reset to Default* is one tap (#18).
 
+- **Duration trackers** (e.g. Box Breathing): choose *Duration* when adding a habit.
+  Tap its icon or widget to start (a stopwatch animation), tap again to finish (a
+  check with the time it took). A stopwatch badge marks its icon and widget, the
+  widget counts up live while a session runs, a forgotten session asks to be
+  finished or discarded, and its statistics describe the session lengths with a
+  *Durations* chart from shortest to longest (#17).
+- A built-in **Box breathing** icon.
+
 ### Removed
 - The *App Icon Logs This Habit* switch, the one-time "long-press for statistics"
   hint, and the separate *Habit Stats* launcher icon on Android 7.0 and older.

@@ -71,4 +71,18 @@ class StatValuesTest {
         assertEquals(StatsConfig(), StatsConfig.decode("garbage"))
         assertEquals(true, StatsConfig().isDefault)
     }
+
+    @Test
+    fun durationStatisticsDescribeTheSessionLengths() {
+        val minutes = longArrayOf(3, 4, 4, 5, 20).map { it * 60_000 }.toLongArray()
+        val now = at(11, 12)
+        val bounds = at(1, 0)..now
+        val v = StatValues(context, Formats(context), LongArray(0), emptyList(), bounds, now, math, StatsConfig(target = 4), minutes)
+        assertEquals("4:00", v.text(StatKind.DUR_MEDIAN))
+        assertEquals("3:00–20:00", v.text(StatKind.DUR_RANGE))
+        assertEquals("5", v.text(StatKind.SESSIONS))
+        assertEquals(Formats(context).percent(0.6), v.text(StatKind.UNDER_TARGET))
+        assertEquals(listOf(StatKind.DUR_MEDIAN, StatKind.DUR_IQR, StatKind.DUR_RANGE, StatKind.SESSIONS, StatKind.UNDER_TARGET),
+            StatsConfig().statsFor(io.github.mendyar.habittracker.data.HabitType.DURATION))
+    }
 }

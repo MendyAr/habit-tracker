@@ -74,6 +74,43 @@
                 android:textColor="@color/text_primary"
                 android:textSize="20sp" />
 
+            <!-- Only when creating a habit: what a tap records. Fixed afterwards. -->
+            <LinearLayout
+                android:id="@+id/edit_type_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SectionLabel"
+                    android:text="@string/habit_type" />
+
+                <RadioGroup
+                    android:id="@+id/edit_type"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:padding="8dp">
+
+                    <RadioButton
+                        android:id="@+id/edit_type_count"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:minHeight="48dp"
+                        android:text="@string/habit_type_count"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/edit_type_duration"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:text="@string/habit_type_duration"
+                        android:textColor="@color/text_primary" />
+                </RadioGroup>
+            </LinearLayout>
+
             <TextView
                 style="@style/SectionLabel"
                 android:text="@string/color" />

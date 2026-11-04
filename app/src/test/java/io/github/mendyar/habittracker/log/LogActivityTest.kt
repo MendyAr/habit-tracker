@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
@@ -196,6 +197,45 @@ class LogActivityTest {
 
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
         assertTrue(finished)
+    }
+
+    @Test
+    fun aDurationIconStartsThenFinishesASession() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        awaitCondition { repository.running(breathing.id) != null }
+
+        // Pretend the session started four minutes ago, then tap again.
+        val session = repository.running(breathing.id)!!
+        repository.deleteEntry(session.id)
+        repository.log(breathing.id, System.currentTimeMillis() - 240_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        awaitCondition { repository.sessions(breathing.id).size == 1 }
+        assertNull(repository.running(breathing.id))
+        assertTrue(repository.sessions(breathing.id).single().duration!! >= 240_000)
+    }
+
+    @Test
+    fun aDoubleTapOnADurationIconLeavesTheSessionRunning() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        repository.log(breathing.id, System.currentTimeMillis() - 1_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        Thread.sleep(300)
+        shadowOf(Looper.getMainLooper()).idle()
+        Async.awaitIdle()
+        assertTrue(repository.running(breathing.id) != null)
+        assertTrue(repository.sessions(breathing.id).isEmpty())
+    }
+
+    @Test
+    fun aForgottenSessionAsksToFinishOrDiscard() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        repository.log(breathing.id, System.currentTimeMillis() - 5 * 3_600_000L)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+
+        awaitDialog().getButton(DialogInterface.BUTTON_NEUTRAL).performClick() // Discard
+        awaitCondition { repository.running(breathing.id) == null }
+        assertTrue(repository.sessions(breathing.id).isEmpty())
     }
 
     private fun awaitDialog(): AlertDialog {

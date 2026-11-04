@@ -13,6 +13,7 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
@@ -68,6 +69,9 @@ class HabitsActivity : Activity() {
     }
 
     private fun subtitle(habit: Habit, now: Long, math: PeriodMath): String {
+        if (habit.type == HabitType.DURATION) {
+            repository.running(habit.id)?.let { return getString(R.string.running_since, formats.time(it.timestamp)) }
+        }
         val period = repository.settings.period(habit.id)
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
         return formats.countPhrase(period, count)
@@ -95,6 +99,11 @@ class HabitsActivity : Activity() {
 
     /** Logs [habit] from its + button, asking first if it was logged moments ago. */
     private fun log(habit: Habit, button: ImageButton, subtitle: TextView) {
+        if (habit.type == HabitType.DURATION) {
+            // Starting or finishing a session plays the same confirmation as its home-screen icon.
+            startActivity(Shortcuts.logIntent(this, habit.id))
+            return
+        }
         val now = System.currentTimeMillis()
         Async.load({ repository.recentDuplicate(habit.id, now) }) { previous ->
             if (previous == null) {

@@ -61,6 +61,26 @@ Research behind the choices (mostly from smoking cessation):
 | **Usual gap** | Median time between consecutive entries. | Includes the overnight gap. |
 | **Usual last** | Median time of the day's last entry. | |
 
+## Duration trackers
+
+Statistics of the lengths of the finished sessions that started in the window
+(session lengths are right-skewed too: a few slow sessions, so the same robust
+set applies).
+
+| Statistic | How it is calculated |
+| --- | --- |
+| **Typical session** (default) | Median session length. |
+| **Middle half** (default) | Q1–Q3 of the session lengths. |
+| **Range** (default) | Shortest–longest session. |
+| **Sessions** (default) | Number of finished sessions. |
+| **Under target** (default) | Share of sessions no longer than the target (minutes, set in *Customize*); "–" without one. |
+| **Average** (option) | Mean session length; slow sessions pull it up. |
+| **Total time** (option) | All sessions added up. |
+
+The **Durations** chart shows every session as a bar, sorted from shortest to
+longest, with a line at the median. The other cards use the session starts: the
+history counts sessions per period, and Time of Day shows when you start them.
+
 ## Charts
 
 - **History**: one bar per period. The line is the **rolling median** of the last 7

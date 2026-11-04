@@ -25,7 +25,10 @@ class StatValues(
     private val now: Long,
     private val math: PeriodMath,
     private val config: StatsConfig,
+    /** Lengths (ms) of the finished sessions in the window, for duration habits. */
+    private val durations: LongArray = LongArray(0),
 ) {
+    private val minutes = DoubleArray(durations.size) { durations[it] / 60_000.0 }
     private val finished = buckets.filter { it.end <= now }.ifEmpty { buckets }
     private val counts = DoubleArray(finished.size) { finished[it].count.toDouble() }
     private val empty = context.getString(R.string.stat_empty)
@@ -37,6 +40,7 @@ class StatValues(
     val excludesCurrent: Boolean get() = finished.size < buckets.size
 
     fun text(kind: StatKind): String {
+        if (kind.forDuration) return durationText(kind)
         if (counts.isEmpty() && kind != StatKind.SINCE_LAST) return empty
         return when (kind) {
             StatKind.MEDIAN -> number(RobustStats.median(counts))
@@ -66,6 +70,23 @@ class StatValues(
                 if (gaps.isEmpty()) empty else formats.duration(RobustStats.median(gaps))
             }
             StatKind.SINCE_LAST -> timestamps.lastOrNull { it <= now }?.let { formats.duration((now - it) / 60_000.0) } ?: empty
+            else -> empty
+        }
+    }
+
+    /** Statistics of the session lengths (duration habits). */
+    private fun durationText(kind: StatKind): String {
+        if (kind == StatKind.SESSIONS) return formats.number(durations.size)
+        if (minutes.isEmpty()) return empty
+        fun length(m: Double) = formats.elapsed((m * 60_000).toLong())
+        return when (kind) {
+            StatKind.DUR_MEDIAN -> length(RobustStats.median(minutes))
+            StatKind.DUR_IQR -> RobustStats.quartiles(minutes).let { (q1, q3) -> range(length(q1), length(q3)) }
+            StatKind.DUR_RANGE -> range(length(minutes.min()), length(minutes.max()))
+            StatKind.DUR_MEAN -> length(minutes.average())
+            StatKind.DUR_TOTAL -> formats.duration(minutes.sum())
+            StatKind.UNDER_TARGET -> config.target?.let { target -> formats.percent(minutes.count { it <= target }.toDouble() / minutes.size) } ?: empty
+            else -> empty
         }
     }
 

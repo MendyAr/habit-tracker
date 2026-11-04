@@ -11,11 +11,15 @@ import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.view.View
 import android.widget.RemoteViews
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
+import io.github.mendyar.habittracker.data.Sessions
 import io.github.mendyar.habittracker.icons.HabitIconDrawable
 import io.github.mendyar.habittracker.icons.HabitIcons
 import io.github.mendyar.habittracker.launcher.LauncherSync
@@ -108,6 +112,11 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             val tap = (taps[widgetId] ?: 0) + 1
             taps[widgetId] = tap
 
+            if (habit.type == HabitType.DURATION) {
+                toggleSession(app, manager, widgetId, habit, now, tap, pending)
+                return@io
+            }
+
             // A tap moments after the last entry is usually a double tap: log only if the
             // user taps again while the widget asks.
             val armed = (armedUntil[widgetId] ?: 0L) > now
@@ -145,8 +154,60 @@ open class HabitWidgetProvider : AppWidgetProvider() {
     }
 
     /**
+     * A tap on a duration habit's widget: starts a session or finishes the running one.
+     * A widget can't ask, so a session running for hours (probably forgotten) is only
+     * finished by a second tap while the widget says so; a tap within seconds of the
+     * start leaves it running.
+     */
+    private fun toggleSession(
+        app: Context,
+        manager: AppWidgetManager,
+        widgetId: Int,
+        habit: Habit,
+        now: Long,
+        tap: Int,
+        pending: PendingResult?,
+    ) {
+        val repository = HabitRepository.get(app)
+        val formats = Formats(app)
+        val session = repository.running(habit.id)
+        val armed = (armedUntil[widgetId] ?: 0L) > now
+        val elapsed = session?.let { now - it.timestamp } ?: 0L
+        var delay = CONFIRM_MS
+        val (glyph, text) = when {
+            session == null -> {
+                repository.log(habit.id, now)
+                R.drawable.ic_habit_timer to app.getString(R.string.widget_started)
+            }
+            elapsed < Sessions.MIN_MS -> R.drawable.ic_habit_timer to formats.elapsed(elapsed)
+            elapsed > Sessions.LONG_RUNNING_MS && !armed -> {
+                armedUntil[widgetId] = now + ASK_AGAIN_MS
+                delay = ASK_AGAIN_MS
+                R.drawable.ic_habit_timer to app.getString(R.string.widget_finish_long, formats.duration(elapsed / 60_000.0))
+            }
+            else -> {
+                armedUntil.remove(widgetId)
+                repository.finish(session.id, now)
+                R.drawable.ic_ui_check to formats.elapsed(elapsed)
+            }
+        }
+        manager.partiallyUpdateAppWidget(
+            widgetId,
+            RemoteViews(app.packageName, R.layout.widget_habit).apply {
+                setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(glyph)))
+                setTextViewText(R.id.widget_count, text)
+                setDisplayedChild(R.id.widget_flipper, 1)
+            },
+        )
+        Shortcuts.reportUsed(app, habit.id)
+        // Redrawn in full afterwards: the live timer appears or disappears.
+        flipBackLater(app, manager, widgetId, tap, delay, pending, redraw = true)
+    }
+
+    /**
      * Shows the widget's icon again after [delayMs], unless the widget was tapped again
-     * meanwhile (that tap shows its own confirmation and flips back itself).
+     * meanwhile (that tap shows its own confirmation and flips back itself). With
+     * [redraw] the whole widget is rebuilt instead of just flipped.
      */
     private fun flipBackLater(
         app: Context,
@@ -155,11 +216,14 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         tap: Int,
         delayMs: Long,
         pending: PendingResult?,
+        redraw: Boolean = false,
     ) {
         Async.mainDelayed(delayMs) {
             Async.io {
                 try {
-                    if (taps[widgetId] == tap) {
+                    if (taps[widgetId] == tap && redraw) {
+                        update(app, manager, widgetId)
+                    } else if (taps[widgetId] == tap) {
                         manager.partiallyUpdateAppWidget(
                             widgetId,
                             RemoteViews(app.packageName, R.layout.widget_habit).apply {
@@ -216,6 +280,12 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         fun widgetFor(context: Context, habitId: Long): Int? {
             val settings = HabitRepository.get(context).settings
             return widgetIds(context).firstOrNull { settings.widgetHabit(it) == habitId }
+        }
+
+        /** Redraws the widget of [habitId], if it has one. Call on the [Async] I/O thread. */
+        fun updateFor(context: Context, habitId: Long) {
+            val manager = AppWidgetManager.getInstance(context) ?: return
+            widgetFor(context, habitId)?.let { update(context, manager, it) }
         }
 
         /** Redraws every widget after habits changed. Call on the [Async] I/O thread. */
@@ -284,6 +354,7 @@ open class HabitWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_label, habit.name)
                 views.setImageViewBitmap(R.id.widget_done, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_check)))
                 views.setContentDescription(R.id.widget_root, context.getString(R.string.widget_log_description, habit.name))
+                showSession(context, views, habit)
                 val tap = Intent(ACTION_LOG)
                     .setClass(context, HabitWidgetProvider::class.java)
                     .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
@@ -301,6 +372,22 @@ open class HabitWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, widgetId, pick, immutable()))
             }
             return views
+        }
+
+        /** Duration habits: the stopwatch badge, and a live timer while a session runs. */
+        private fun showSession(context: Context, views: RemoteViews, habit: Habit) {
+            val duration = habit.type == HabitType.DURATION
+            views.setViewVisibility(R.id.widget_badge, if (duration) View.VISIBLE else View.GONE)
+            if (duration) views.setImageViewBitmap(R.id.widget_badge, glyphBitmap(context, context.getDrawable(R.drawable.ic_habit_timer)))
+            val session = if (duration) HabitRepository.get(context).running(habit.id) else null
+            if (session != null) {
+                val base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - session.timestamp)
+                views.setChronometer(R.id.widget_timer, base, null, true)
+                views.setViewVisibility(R.id.widget_timer, View.VISIBLE)
+            } else {
+                views.setChronometer(R.id.widget_timer, SystemClock.elapsedRealtime(), null, false)
+                views.setViewVisibility(R.id.widget_timer, View.GONE)
+            }
         }
 
         private fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {

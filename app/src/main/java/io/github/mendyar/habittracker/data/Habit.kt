@@ -1,5 +1,14 @@
 package io.github.mendyar.habittracker.data
 
+/** What tapping a habit records. */
+enum class HabitType {
+    /** Each tap logs a moment. */
+    COUNT,
+
+    /** The first tap starts a session, the next one finishes it; the duration is recorded. */
+    DURATION,
+}
+
 /**
  * A tracked habit.
  *
@@ -14,7 +23,11 @@ data class Habit(
     val customIcon: String?,
     val color: Int,
     val createdAt: Long,
+    val type: HabitType = HabitType.COUNT,
 )
 
-/** A single logged timestamp. */
-data class Entry(val id: Long, val habitId: Long, val timestamp: Long)
+/**
+ * A single logged timestamp. For a [HabitType.DURATION] habit it is the start of a
+ * session, and [duration] (ms) is null while the session is still running.
+ */
+data class Entry(val id: Long, val habitId: Long, val timestamp: Long, val duration: Long? = null)

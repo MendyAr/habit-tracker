@@ -122,4 +122,42 @@ class HabitRepositoryTest {
         assertFalse(repository.hasEntryInMinute(habit.id, minute + 60_000))
         assertFalse(repository.hasEntryInMinute(habit.id, minute - 1))
     }
+
+    @Test
+    fun durationSessionsStartRunAndFinish() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        assertEquals(HabitType.DURATION, repository.habit(breathing.id)?.type)
+        val start = 1_000_000_000L
+        repository.log(breathing.id, start)
+        val running = repository.running(breathing.id)!!
+        assertEquals(start, running.timestamp)
+        assertNull(running.duration)
+
+        repository.finish(running.id, start + 272_000)
+        assertNull(repository.running(breathing.id))
+        assertEquals(listOf(272_000L), repository.sessions(breathing.id).map { it.duration })
+
+        repository.addSession(breathing.id, start + 3_600_000, 180_000)
+        assertEquals(2, repository.sessions(breathing.id).size)
+    }
+
+    @Test
+    fun upgradingFromVersion1KeepsHabitsAndEntriesAsCountData() {
+        val name = "upgrade-test.db"
+        context.deleteDatabase(name)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            db.execSQL("CREATE TABLE habits (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, icon TEXT NOT NULL, custom_icon TEXT, color INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE entries (_id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id INTEGER NOT NULL REFERENCES habits(_id) ON DELETE CASCADE, ts INTEGER NOT NULL)")
+            db.execSQL("INSERT INTO habits (name, icon, color, created_at) VALUES ('Smoking', 'smoking', 1, 5)")
+            db.execSQL("INSERT INTO entries (habit_id, ts) VALUES (1, 100)")
+            db.version = 1
+        }
+        val prefs = context.getSharedPreferences("upgrade", Context.MODE_PRIVATE)
+        val upgraded = HabitRepository(HabitDatabase(context, name), Settings(prefs))
+        val habit = upgraded.habits().single()
+        assertEquals(HabitType.COUNT, habit.type)
+        assertArrayEquals(longArrayOf(100), upgraded.timestamps(habit.id))
+        assertNull(upgraded.running(habit.id)?.duration)
+        context.deleteDatabase(name)
+    }
 }
