@@ -48,11 +48,16 @@ To update, install the newer APK over the old one; your data stays.
 - **Day / Week / Month / Year**: the period everything below is grouped by.
 - **Count card**: the number of logs today (or this week/month/year). Use the
   arrows or the calendar to see any other day or period.
-- **Statistics per period**: average, min, max, standard deviation and variance
-  of the per-period counts, plus the total. Periods with zero logs count as 0.
-  The period still in progress (e.g. today) is left out so a half-finished day
-  doesn't drag the average down. The caption says when that happens.
-- **History chart**: one bar per period. By default it spans all your data; tap
+- **Statistics per period**: by default the typical day (median), a trimmed
+  average, the middle half of your days, the range, the usual time of your first
+  entry, the time since the last one and the change against the previous 7 days.
+  These hold up when a few days are unusual (a party night), unlike the plain
+  average. Tap any value for what it means; *Customize* adds the average, standard
+  deviation, variance, total, a target and more, per habit. Periods with zero logs
+  count as 0, and the period still in progress (e.g. today) is left out. See the
+  [statistics guide](docs/STATISTICS.md).
+- **History chart**: one bar per period, with a 7-period median trend line and a dot
+  on unusually high periods. By default it spans all your data; tap
   the start or end date to narrow it, or *All* to reset. Tap or drag across the
   bars to inspect one, which also selects it in the count card.
 - **Time of Day**: how likely you are to do the habit at each moment of the day,
@@ -120,7 +125,7 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
   update) never records anything. Each habit's own icon or widget does the logging,
   and those can carry the habit's name and icon.
 - **"Covariance"**: for a single series, covariance with itself is the variance.
-  The app shows the variance and the standard deviation.
+  Add *Variance* and *Std. dev.* in *Customize*.
 - **Privacy**: no internet permission, no ads, no analytics. Everything stays on
   your phone and is included in Android's backup and phone-to-phone transfer.
 

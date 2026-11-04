@@ -133,6 +133,17 @@
                 android:orientation="vertical"
                 android:padding="8dp" />
 
+            <TextView
+                style="@style/SectionLabel"
+                android:text="@string/statistics_settings" />
+
+            <TextView
+                android:id="@+id/edit_statistics"
+                style="@style/ActionRow"
+                android:background="@drawable/bg_card"
+                android:drawableStart="@drawable/ic_ui_calendar_month"
+                android:text="@string/customize_title" />
+
             <LinearLayout
                 android:id="@+id/edit_home_section"
                 android:layout_width="match_parent"

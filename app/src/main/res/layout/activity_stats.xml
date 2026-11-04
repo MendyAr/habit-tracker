@@ -175,43 +175,12 @@
                     android:layout_height="wrap_content"
                     tools:text="Daily statistics" />
 
+                <!-- Filled with the tracker's chosen statistics, three per row. -->
                 <LinearLayout
+                    android:id="@+id/stats_grid"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <include
-                        android:id="@+id/stat_average"
-                        layout="@layout/item_stat" />
-
-                    <include
-                        android:id="@+id/stat_min"
-                        layout="@layout/item_stat" />
-
-                    <include
-                        android:id="@+id/stat_max"
-                        layout="@layout/item_stat" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <include
-                        android:id="@+id/stat_std_dev"
-                        layout="@layout/item_stat" />
-
-                    <include
-                        android:id="@+id/stat_variance"
-                        layout="@layout/item_stat" />
-
-                    <include
-                        android:id="@+id/stat_total"
-                        layout="@layout/item_stat" />
-                </LinearLayout>
+                    android:orientation="vertical" />
 
                 <TextView
                     android:id="@+id/stats_caption"
@@ -220,12 +189,29 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     tools:text="Based on 42 days · today is still running and not included" />
+
+                <TextView
+                    android:id="@+id/stats_customize"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/touch_target"
+                    android:layout_gravity="end"
+                    android:layout_marginBottom="-12dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/customize"
+                    android:textColor="@color/brand"
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <!-- Chart with a user-defined window -->
-            <LinearLayout style="@style/Card">
+            <LinearLayout
+                android:id="@+id/history_card"
+                style="@style/Card">
 
                 <TextView
+                    android:id="@+id/history_title"
                     style="@style/CardTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -275,6 +261,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="200dp"
                     android:layout_marginTop="16dp" />
+
+                <TextView
+                    android:id="@+id/history_legend"
+                    style="@style/Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/history_legend" />
             </LinearLayout>
 
             <!-- How likely the habit is at each time of day, over the same window -->
@@ -314,7 +308,9 @@
             </LinearLayout>
 
             <!-- Entries of the selected period -->
-            <LinearLayout style="@style/Card">
+            <LinearLayout
+                android:id="@+id/entries_card"
+                style="@style/Card">
 
                 <LinearLayout
                     android:layout_width="match_parent"

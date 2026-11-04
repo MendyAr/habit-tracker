@@ -23,6 +23,7 @@ import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.core.PositionProfile
 import io.github.mendyar.habittracker.core.StatsEngine
+import io.github.mendyar.habittracker.core.RobustStats
 import io.github.mendyar.habittracker.data.Entry
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
@@ -34,6 +35,7 @@ import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
+import io.github.mendyar.habittracker.ui.dp
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
 import java.util.Calendar
@@ -60,6 +62,7 @@ class StatsActivity : Activity() {
     private var range = DateRange.ALL
     private var buckets: List<Bucket> = emptyList()
     private var profile: DayProfile? = null
+    private var config = StatsConfig()
     private var positions: PositionProfile? = null
 
     /** Any instant inside the period whose count is shown. */
@@ -79,6 +82,10 @@ class StatsActivity : Activity() {
     private lateinit var rangeTo: TextView
     private lateinit var chart: BarChartView
     private lateinit var timeTitle: TextView
+    private lateinit var statsGrid: LinearLayout
+    private lateinit var historyCard: View
+    private lateinit var timeCard: View
+    private lateinit var entriesCard: View
     private lateinit var timeReadout: TextView
     private lateinit var timeChart: DayProfileView
     private lateinit var timeCaption: TextView
@@ -105,6 +112,10 @@ class StatsActivity : Activity() {
         rangeTo = findViewById(R.id.range_to)
         chart = findViewById(R.id.chart)
         timeTitle = findViewById(R.id.time_title)
+        statsGrid = findViewById(R.id.stats_grid)
+        historyCard = findViewById(R.id.history_card)
+        timeCard = findViewById(R.id.time_card)
+        entriesCard = findViewById(R.id.entries_card)
         timeReadout = findViewById(R.id.time_readout)
         timeChart = findViewById(R.id.time_chart)
         timeCaption = findViewById(R.id.time_caption)
@@ -119,6 +130,15 @@ class StatsActivity : Activity() {
         )
 
         periodButtons.forEach { (p, button) -> button.setOnClickListener { changePeriod(p) } }
+        // Tapping a title or value explains it in a line or two.
+        findViewById<View>(R.id.stats_customize).setOnClickListener { customize() }
+        statsTitle.setOnClickListener { explain(R.string.statistics_settings, R.string.help_stats_card) }
+        findViewById<View>(R.id.history_title).setOnClickListener { explain(R.string.history, R.string.help_history) }
+        timeTitle.setOnClickListener {
+            explain(R.string.time_of_day, if (period == Period.DAY) R.string.help_time_of_day else R.string.help_positions)
+        }
+        entriesTitle.setOnClickListener { explain(R.string.entries, R.string.help_entries) }
+        selectedCount.setOnClickListener { explain(R.string.count_card_title, R.string.help_count_card) }
         findViewById<View>(R.id.habit_switcher).setOnClickListener(::showHabitMenu)
         findViewById<View>(R.id.edit_button).setOnClickListener {
             habit?.let { startActivity(HabitEditActivity.intent(this, it.id)) }
@@ -192,6 +212,7 @@ class StatsActivity : Activity() {
             timestamps = loaded.timestamps
             requestedHabitId = loaded.habit.id
             repository.settings.lastViewedHabitId = loaded.habit.id
+            config = StatsConfig.decode(repository.settings.statsConfig(loaded.habit.id))
             if (switched) {
                 period = repository.settings.period(loaded.habit.id)
                 range = repository.settings.range(loaded.habit.id)
@@ -229,13 +250,7 @@ class StatsActivity : Activity() {
                 Period.YEAR -> R.string.stats_title_year
             },
         )
-        val empty = getString(R.string.stat_empty)
-        setStat(R.id.stat_average, R.string.stat_average, summary?.let { formats.number(it.average) } ?: empty)
-        setStat(R.id.stat_min, R.string.stat_min, summary?.let { formats.number(it.min) } ?: empty)
-        setStat(R.id.stat_max, R.string.stat_max, summary?.let { formats.number(it.max) } ?: empty)
-        setStat(R.id.stat_std_dev, R.string.stat_std_dev, summary?.let { formats.number(it.stdDev) } ?: empty)
-        setStat(R.id.stat_variance, R.string.stat_variance, summary?.let { formats.number(it.variance) } ?: empty)
-        setStat(R.id.stat_total, R.string.stat_total, summary?.let { formats.number(it.total) } ?: empty)
+        renderStats(StatValues(this, formats, timestamps, buckets, bounds, now, math, config))
 
         statsCaption.visible = summary != null
         if (summary != null) {
@@ -275,6 +290,11 @@ class StatsActivity : Activity() {
         rangeTo.contentDescription = getString(R.string.range_to_description, to)
 
         chart.setData(buckets, selectedBucketIndex(), h.color)
+        val finished = buckets.count { it.end <= now }.coerceAtLeast(if (buckets.isEmpty()) 0 else 1)
+        val counts = DoubleArray(buckets.size) { buckets[it].count.toDouble() }
+        val flags = RobustStats.highOutliers(counts.copyOf(finished))
+        chart.setTrend(RobustStats.rollingMedian(counts), BooleanArray(buckets.size) { it < finished && flags[it] })
+        applyCards()
         renderTimeOfDay(bounds, now, h.color)
     }
 
@@ -300,7 +320,7 @@ class StatsActivity : Activity() {
         val p = DayProfile.of(timestamps, bounds.first, bounds.last, now, math)
         profile = p
         val empty = p.peak <= 0.0
-        timeChart.setData(p, if (empty) -1 else p.peakIndex, color)
+        timeChart.setData(p, if (empty) -1 else p.peakIndex, color, config.dayStartHour ?: 0)
         timeReadout.visible = !empty
         timeCaption.visible = !empty
         val peakTime = formats.timeOfDay(p.minuteAt(p.peakIndex))
@@ -429,10 +449,52 @@ class StatsActivity : Activity() {
         }
     }
 
-    private fun setStat(containerId: Int, labelRes: Int, value: String) {
-        val container = findViewById<View>(containerId)
-        container.findViewById<TextView>(R.id.stat_value).text = value
-        container.findViewById<TextView>(R.id.stat_label).setText(labelRes)
+    /** The tracker's chosen statistics, three per row; tapping one explains it. */
+    private fun renderStats(values: StatValues) {
+        statsGrid.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+        config.stats.chunked(STATS_PER_ROW).forEach { chunk ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(12), 0, 0)
+            }
+            chunk.forEach { kind ->
+                val cell = inflater.inflate(R.layout.item_stat, row, false)
+                val value = values.text(kind)
+                cell.findViewById<TextView>(R.id.stat_value).text = value
+                cell.findViewById<TextView>(R.id.stat_label).setText(kind.label)
+                cell.contentDescription = getString(R.string.caption_join, getString(kind.label), value)
+                cell.setOnClickListener { explain(kind.label, kind.help) }
+                row.addView(cell)
+            }
+            repeat(STATS_PER_ROW - chunk.size) { row.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f)) }
+            statsGrid.addView(row)
+        }
+    }
+
+    /** A one- or two-line explanation of a statistic or chart. */
+    private fun explain(title: Int, text: Int) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(text)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    /** Lets the user choose this tracker's statistics; applies them right away. */
+    private fun customize() {
+        val h = habit ?: return
+        StatsCustomizeDialog.show(this, config) { chosen ->
+            config = chosen
+            repository.settings.setStatsConfig(h.id, chosen.takeUnless { it.isDefault }?.encode())
+            render()
+        }
+    }
+
+    private fun applyCards() {
+        historyCard.visible = StatsCard.HISTORY !in config.hiddenCards
+        timeCard.visible = StatsCard.WHEN !in config.hiddenCards
+        entriesCard.visible = StatsCard.ENTRIES !in config.hiddenCards
     }
 
     private fun selectedBucketIndex(): Int = buckets.indexOfFirst { selected >= it.start && selected < it.end }
@@ -587,6 +649,7 @@ class StatsActivity : Activity() {
         private const val STATE_SELECTED = "selected"
         private const val ENTRY_LIMIT = 100
         private const val MENU_MANAGE = 10_000
+        private const val STATS_PER_ROW = 3
 
         /** Below this many samples per bar, the Week/Month/Year chart says it is rough. */
         private const val ROUGH_BELOW = 4

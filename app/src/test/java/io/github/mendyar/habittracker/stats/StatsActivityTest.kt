@@ -14,6 +14,7 @@ import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -58,9 +59,59 @@ class StatsActivityTest {
 
         assertEquals("Smoking", activity.findViewById<TextView>(R.id.habit_name).text.toString())
         assertEquals(context.getString(R.string.today), activity.findViewById<TextView>(R.id.selected_label).text.toString())
-        val total = activity.findViewById<android.view.View>(R.id.stat_total).findViewById<TextView>(R.id.stat_value)
-        assertEquals("3", total.text.toString())
+        // Default statistics: the three finished days had 1, 0 and 0 entries (today is left out).
+        assertEquals("0", statValue(activity, R.string.stat_median))
+        assertEquals("0–1", statValue(activity, R.string.stat_range))
+        assertNull(statValue(activity, R.string.stat_total)) // optional, not shown by default
     }
+
+    @Test
+    fun customizedStatisticsAndCardsAreShownPerHabit() {
+        val habit = repository.createHabit("Smoking", "smoking", null, HabitColors.DEFAULT)
+        val now = System.currentTimeMillis()
+        repository.log(habit.id, now - 2 * 24 * 3_600_000L)
+        repository.settings.setStatsConfig(
+            habit.id,
+            StatsConfig(stats = listOf(StatKind.TOTAL, StatKind.MEAN), hiddenCards = setOf(StatsCard.ENTRIES)).encode(),
+        )
+        val activity = Robolectric.buildActivity(StatsActivity::class.java, Shortcuts.statsIntent(context, habit.id))
+            .setup().get()
+        awaitCondition { statValue(activity, R.string.stat_total) == "1" }
+        assertNull(statValue(activity, R.string.stat_median))
+        assertEquals(android.view.View.GONE, activity.findViewById<android.view.View>(R.id.entries_card).visibility)
+        assertEquals(android.view.View.VISIBLE, activity.findViewById<android.view.View>(R.id.history_card).visibility)
+    }
+
+    @Test
+    fun tappingAStatisticExplainsIt() {
+        val habit = repository.createHabit("Smoking", "smoking", null, HabitColors.DEFAULT)
+        repository.log(habit.id, System.currentTimeMillis() - 24 * 3_600_000L)
+        val activity = Robolectric.buildActivity(StatsActivity::class.java, Shortcuts.statsIntent(context, habit.id))
+            .setup().get()
+        awaitCondition { statValue(activity, R.string.stat_median) != null }
+        statCell(activity, R.string.stat_median)!!.performClick()
+        val dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        assertEquals(
+            context.getString(R.string.help_median),
+            shadowOf(dialog).message.toString(),
+        )
+    }
+
+    private fun statCell(activity: StatsActivity, label: Int): android.view.View? {
+        val grid = activity.findViewById<android.view.ViewGroup>(R.id.stats_grid)
+        for (r in 0 until grid.childCount) {
+            val row = grid.getChildAt(r) as android.view.ViewGroup
+            for (c in 0 until row.childCount) {
+                val cell = row.getChildAt(c)
+                val text = cell.findViewById<TextView>(R.id.stat_label)?.text?.toString() ?: continue
+                if (text == context.getString(label)) return cell
+            }
+        }
+        return null
+    }
+
+    private fun statValue(activity: StatsActivity, label: Int): String? =
+        statCell(activity, label)?.findViewById<TextView>(R.id.stat_value)?.text?.toString()
 
     @Test
     fun choosingAPeriodIsRememberedForTheHabit() {

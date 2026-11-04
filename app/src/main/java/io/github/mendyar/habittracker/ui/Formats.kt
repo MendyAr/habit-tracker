@@ -107,6 +107,16 @@ class Formats(private val context: Context) {
     /** Name of a [Calendar.MONTH] value (0 to 11), e.g. "March", or short "Mar". */
     fun month(month: Int, short: Boolean): String = (if (short) symbols.shortMonths else symbols.months)[month]
 
+    /** A length of time given in minutes, e.g. "45 min", "2 h 15 min" or "3 d 4 h". */
+    fun duration(minutes: Double): String {
+        val total = Math.round(minutes).toInt().coerceAtLeast(0)
+        return when {
+            total < 60 -> context.getString(R.string.duration_minutes, total)
+            total < 24 * 60 -> context.getString(R.string.duration_hours_minutes, total / 60, total % 60)
+            else -> context.getString(R.string.duration_days_hours, total / (24 * 60), total % (24 * 60) / 60)
+        }
+    }
+
     /** A share between 0 and 1 as a whole percentage, e.g. "86%". */
     fun percent(value: Double): String = percent.format(value)
 

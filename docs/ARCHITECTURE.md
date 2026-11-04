@@ -8,7 +8,7 @@ the design follows from that and from supporting Android 5.0 (2014) onwards.
 
 | Module | What it is | Depends on |
 | --- | --- | --- |
-| `core` | Pure Kotlin/JVM: period arithmetic (`PeriodMath`), bucketing and statistics (`StatsEngine`), the time-of-day profile (`DayProfile`). No Android types, so it is unit-tested on the JVM in milliseconds. | Kotlin stdlib |
+| `core` | Pure Kotlin/JVM: period arithmetic (`PeriodMath`), bucketing and statistics (`StatsEngine`, robust `RobustStats`, `DailyTimes`), the time-of-day and position profiles (`DayProfile`, `PositionProfile`). No Android types, so it is unit-tested on the JVM in milliseconds. | Kotlin stdlib |
 | `app` | The Android application. | `core`, Android framework only |
 
 The app uses **no AndroidX or other runtime libraries**, only the Android
@@ -170,6 +170,15 @@ one entry. Each one counts once however many entries it had, days without
 entries count, and the day (month) still running is left out unless it is the
 only one. Dividing by how many times each position occurs makes uneven months
 fair: the 31st is compared with the months that have one.
+
+### Statistics catalogue
+
+`stats/StatKind` lists every statistic with its label and explanation; the default
+set is the robust one described in [STATISTICS.md](STATISTICS.md). `StatValues`
+computes them from the bucketed counts. Each habit's choice (`StatsConfig`: the
+statistics, hidden cards, an optional target and day-start hour) is stored in
+`Settings` as a short text, absent while it is the default, and edited in
+`StatsCustomizeDialog` from the statistics screen or the editor.
 
 ## Threading
 

@@ -26,6 +26,8 @@ import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.PinResult
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.stats.StatsConfig
+import io.github.mendyar.habittracker.stats.StatsCustomizeDialog
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.colorOf
 import io.github.mendyar.habittracker.ui.dp
@@ -49,6 +51,9 @@ class HabitEditActivity : Activity() {
     private var customIcon: String? = null
     private var color = HabitColors.DEFAULT
     private var entryCount = 0
+
+    /** The statistics chosen in this editor, saved with the habit; null if untouched. */
+    private var statsConfig: StatsConfig? = null
 
     /** The habit whose widget the launcher is placing, while it asks the user. */
     private var widgetRequestedFor = NEW
@@ -100,6 +105,7 @@ class HabitEditActivity : Activity() {
         }
         HabitWidgetProvider.onPinned = widgetListener
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
+        findViewById<View>(R.id.edit_statistics).setOnClickListener { customizeStatistics() }
         findViewById<View>(R.id.edit_clear).setOnClickListener { confirmClearEntries() }
 
         buildColorRow()
@@ -307,6 +313,7 @@ class HabitEditActivity : Activity() {
         val custom = customIcon
         val chosenColor = color
         val existing = original
+        val chosenStats = statsConfig
         Async.load({
             val saved = if (existing == null) {
                 repository.createHabit(name, icon, custom, chosenColor)
@@ -314,6 +321,7 @@ class HabitEditActivity : Activity() {
                 existing.copy(name = name, icon = icon, customIcon = custom, color = chosenColor)
                     .also { repository.updateHabit(it) }
             }
+            chosenStats?.let { repository.settings.setStatsConfig(saved.id, it.takeUnless { c -> c.isDefault }?.encode()) }
             LauncherSync.refresh(this)
             saved
         }) { saved ->
@@ -321,6 +329,12 @@ class HabitEditActivity : Activity() {
             habitId = saved.id
             then(saved)
         }
+    }
+
+    /** The optional statistics setup: which statistics and charts this habit shows. */
+    private fun customizeStatistics() {
+        val current = statsConfig ?: StatsConfig.decode(original?.let { repository.settings.statsConfig(it.id) })
+        StatsCustomizeDialog.show(this, current) { chosen -> statsConfig = chosen }
     }
 
     private fun finishSaved(saved: Habit) {

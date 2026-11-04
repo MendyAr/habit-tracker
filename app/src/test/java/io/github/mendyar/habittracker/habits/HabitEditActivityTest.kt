@@ -220,6 +220,21 @@ class HabitEditActivityTest {
         assertEquals("water", repository.habit(water.id)?.icon)
     }
 
+    @Test
+    fun aNewHabitCanChooseItsStatisticsBeforeSaving() {
+        val activity = open(null)
+        activity.findViewById<EditText>(R.id.edit_name).setText("Breathing")
+        activity.findViewById<TextView>(R.id.edit_statistics).performClick()
+        val dialog = ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
+        // Resetting keeps the default; saving the habit stores nothing custom.
+        dialog.getButton(DialogInterface.BUTTON_NEUTRAL).performClick()
+        activity.findViewById<TextView>(R.id.save_button).performClick()
+        awaitCondition { repository.habits().any { it.name == "Breathing" } }
+        val id = repository.habits().first { it.name == "Breathing" }.id
+        Async.awaitIdle()
+        assertEquals(null, repository.settings.statsConfig(id))
+    }
+
     private fun findByDescription(view: View, description: String): View? {
         if (view.contentDescription == description) return view
         if (view is ViewGroup) {

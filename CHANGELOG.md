@@ -13,6 +13,19 @@ All notable changes to this project are documented here. The format follows
   *Open* button after an update, never logs anything (#16).
 - The long-press menu of the app icon offers *New Habit* instead of *All Habits*.
 
+### Added
+- **Statistics that one unusual day can't distort**: the statistics card now leads
+  with the typical day (median), a trimmed average, the middle half of your days and
+  the range, plus the usual time of the first entry of the day, the time since the
+  last one, and the change against the previous 7 days. The history chart shows a
+  7-day median trend line and marks unusually high days (#23).
+- **Tap any statistic or card title** for a short explanation, and see
+  [docs/STATISTICS.md](docs/STATISTICS.md) for how each one is calculated (#23).
+- **Customize** what each habit's statistics show: which statistics (average,
+  standard deviation, variance, total, days with none, days within a target, usual
+  gap, usual last entry… are options), which cards, a target, and when the day
+  starts. Also available when creating a habit; *Reset to Default* is one tap (#18).
+
 ### Removed
 - The *App Icon Logs This Habit* switch, the one-time "long-press for statistics"
   hint, and the separate *Habit Stats* launcher icon on Android 7.0 and older.

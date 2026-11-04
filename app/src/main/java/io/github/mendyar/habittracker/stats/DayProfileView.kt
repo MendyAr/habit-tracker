@@ -67,15 +67,27 @@ class DayProfileView @JvmOverloads constructor(
     /** Labels under each bar in bar mode (blank ones are skipped); null for the curve. */
     private var barLabels: List<String>? = null
 
+    /** How many points the curve is rotated by, so the axis starts at the chosen hour. */
+    private var shift = 0
+
     /** Shows [profile] in [color], with [selected] highlighted (-1 for none). */
-    fun setData(profile: DayProfile, selected: Int, color: Int) {
+    /**
+     * Shows [profile] in [color] with [selected] highlighted (-1 for none), the axis
+     * running from [startHour] to the same hour the next day.
+     */
+    fun setData(profile: DayProfile, selected: Int, color: Int, startHour: Int = 0) {
         barLabels = null
-        show(profile.values, profile.peak, selected, color)
+        val n = profile.values.size
+        shift = startHour * 60 / profile.stepMinutes % n
+        hourLabels = HOURS.map { hourLabel((startHour + it) % 24) }
+        val rotated = DoubleArray(n) { profile.values[(it + shift) % n] }
+        show(rotated, profile.peak, if (selected < 0) -1 else (selected - shift + n) % n, color)
     }
 
     /** Shows one bar per value (shares 0 to 1) with [labels] under them. */
     fun setBars(values: DoubleArray, labels: List<String>, selected: Int, color: Int) {
         barLabels = labels
+        shift = 0
         show(values, values.maxOrNull() ?: 0.0, selected, color)
     }
 
@@ -202,7 +214,7 @@ class DayProfileView @JvmOverloads constructor(
                 if (index != selected) {
                     selected = index
                     invalidate()
-                    onSelect?.invoke(index)
+                    onSelect?.invoke((index + shift) % values.size)
                 }
                 return true
             }

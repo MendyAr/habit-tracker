@@ -34,6 +34,13 @@ class Settings(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean("confirm_dup_$habitId", confirm).apply()
     }
 
+    /** The tracker's customised statistics, in `StatsConfig.encode()` form; null for the default. */
+    fun statsConfig(habitId: Long): String? = prefs.getString("stats_config_$habitId", null)
+
+    fun setStatsConfig(habitId: Long, encoded: String?) {
+        prefs.edit().apply { if (encoded == null) remove("stats_config_$habitId") else putString("stats_config_$habitId", encoded) }.apply()
+    }
+
     fun range(habitId: Long): DateRange = DateRange(
         fromDay = prefs.getLong("range_from_$habitId", NONE).takeIf { it != NONE },
         toDay = prefs.getLong("range_to_$habitId", NONE).takeIf { it != NONE },
@@ -77,6 +84,7 @@ class Settings(private val prefs: SharedPreferences) {
             .remove("range_from_$habitId")
             .remove("range_to_$habitId")
             .remove("confirm_dup_$habitId")
+            .remove("stats_config_$habitId")
             .apply()
     }
 
