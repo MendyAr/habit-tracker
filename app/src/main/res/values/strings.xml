@@ -170,6 +170,8 @@
 
     <!-- v1.1 -->
     <string name="habits_empty">No habits yet.\nTap + to add one.</string>
+    <!-- Label of the widget in the launcher's widget preview. -->
+    <string name="widget_preview_name">Habit</string>
     <string name="widget_choose">Choose Habit</string>
     <string name="widget_deleted">Habit Deleted</string>
     <string name="widget_exists">%1$s already has a widget on your home screen</string>

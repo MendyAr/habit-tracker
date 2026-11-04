@@ -44,7 +44,7 @@
             <TextView
                 android:id="@+id/widget_label"
                 style="@style/WidgetLabel"
-                android:text="@string/default_habit_name" />
+                android:text="@string/widget_preview_name" />
         </LinearLayout>
 
         <LinearLayout
