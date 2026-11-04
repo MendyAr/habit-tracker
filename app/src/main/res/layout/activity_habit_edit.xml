@@ -163,15 +163,6 @@
                         android:drawableStart="@drawable/ic_ui_widgets"
                         android:text="@string/add_widget" />
 
-                    <Switch
-                        android:id="@+id/edit_main_icon"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/main_icon_habit"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
                 </LinearLayout>
 
                 <LinearLayout

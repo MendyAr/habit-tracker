@@ -3,9 +3,6 @@ package io.github.mendyar.habittracker.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
-import io.github.mendyar.habittracker.R
-import io.github.mendyar.habittracker.icons.HabitColors
-import io.github.mendyar.habittracker.icons.HabitIcons
 import java.io.File
 
 /**
@@ -17,7 +14,6 @@ import java.io.File
 class HabitRepository(
     private val database: HabitDatabase,
     val settings: Settings,
-    private val defaultHabitName: String,
 ) {
 
     /** All habits, oldest first. */
@@ -28,29 +24,6 @@ class HabitRepository(
     fun habit(id: Long): Habit? = database.readableDatabase
         .query("habits", null, "_id = ?", arrayOf(id.toString()), null, null, null)
         .use { c -> if (c.moveToFirst()) c.toHabit() else null }
-
-    /** The habit logged by the main launcher icon, or null when the user chose none. */
-    fun defaultHabit(): Habit? = habit(settings.defaultHabitId)
-
-    /** Makes [id] the habit the main launcher icon logs; null for none. */
-    fun setDefaultHabit(id: Long?) {
-        settings.defaultHabitId = id ?: -1
-    }
-
-    /**
-     * On the very first run, creates one habit for the app icon to log, so the app
-     * works straight after installation. Never creates anything afterwards, even
-     * if the user deletes every habit.
-     */
-    @Synchronized
-    fun ensureFirstRun() {
-        if (settings.initialized) return
-        if (habits().isEmpty()) {
-            val first = createHabit(defaultHabitName, HabitIcons.DEFAULT, null, HabitColors.DEFAULT)
-            settings.defaultHabitId = first.id
-        }
-        settings.initialized = true
-    }
 
     fun createHabit(name: String, icon: String, customIcon: String?, color: Int): Habit {
         val now = System.currentTimeMillis()
@@ -83,7 +56,6 @@ class HabitRepository(
         database.writableDatabase.delete("habits", "_id = ?", arrayOf(id.toString()))
         old.customIcon?.let { File(it).delete() }
         settings.forgetHabit(id)
-        if (settings.defaultHabitId == id) settings.defaultHabitId = -1
     }
 
     /** Deletes every timestamp of [habitId]; the habit itself stays. */
@@ -175,11 +147,7 @@ class HabitRepository(
 
         /** Process-wide repository backed by the app's database. */
         fun get(context: Context): HabitRepository = instance ?: synchronized(this) {
-            instance ?: HabitRepository(
-                HabitDatabase(context),
-                Settings(context),
-                context.getString(R.string.default_habit_name),
-            ).also { instance = it }
+            instance ?: HabitRepository(HabitDatabase(context), Settings(context)).also { instance = it }
         }
 
         /** Drops the process-wide instance; tests use this to start from a clean database. */

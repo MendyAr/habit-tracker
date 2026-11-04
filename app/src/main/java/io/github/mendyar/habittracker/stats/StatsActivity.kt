@@ -175,10 +175,9 @@ class StatsActivity : Activity() {
     private fun load() {
         val id = requestedHabitId
         Async.load({
-            repository.ensureFirstRun()
             val all = repository.habits()
-            // The requested habit, else the app icon's, else any; null when there are none.
-            val h = repository.habit(id) ?: repository.defaultHabit() ?: all.firstOrNull()
+            // The requested habit, else any; null when there are none.
+            val h = repository.habit(id) ?: all.firstOrNull()
             h?.let { Loaded(it, all, repository.timestamps(it.id)) }
         }) { loaded ->
             if (isFinishing) return@load

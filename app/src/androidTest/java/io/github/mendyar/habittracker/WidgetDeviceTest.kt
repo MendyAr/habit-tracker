@@ -10,6 +10,7 @@ import android.view.View
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.ui.Async
@@ -40,6 +41,7 @@ class WidgetDeviceTest {
     private val host = AppWidgetHost(context, 7357)
     private val allocated = mutableListOf<Int>()
     private lateinit var repository: HabitRepository
+    private lateinit var other: Habit
 
     @Before
     fun setUp() {
@@ -47,7 +49,7 @@ class WidgetDeviceTest {
         context.deleteDatabase("habits.db")
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
-        repository.ensureFirstRun()
+        other = repository.createHabit("Walk", "walk", null, HabitColors.ALL[8])
         instrumentation.runOnMainSync { host.startListening() }
     }
 
@@ -97,7 +99,7 @@ class WidgetDeviceTest {
             )
         }
         waitUntil { repository.timestamps(water.id).size == 1 }
-        assertEquals(0, repository.timestamps(repository.defaultHabit()!!.id).size)
+        assertEquals(0, repository.timestamps(other.id).size)
     }
 
     @Test
@@ -108,16 +110,6 @@ class WidgetDeviceTest {
         assertTrue(onIo { HabitWidgetProvider.bind(context, first, water.id) })
         assertFalse(onIo { HabitWidgetProvider.bind(context, second, water.id) })
         waitUntil { label(second) == context.getString(R.string.widget_choose) }
-    }
-
-    @Test
-    fun aWidgetKeepsItsHabitWhenTheAppIconHabitChanges() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        val id = placeWidget()
-        onIo { HabitWidgetProvider.bind(context, id, water.id) }
-        repository.setDefaultHabit(null)
-        onIo { HabitWidgetProvider.updateAll(context) }
-        waitUntil { label(id) == "Water" }
     }
 
     @Test

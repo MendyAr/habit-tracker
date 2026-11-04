@@ -53,7 +53,6 @@ class WidgetConfigActivity : Activity() {
     /** Runs on the I/O thread; null when the widget was bound to a just-requested habit. */
     private fun load(app: android.content.Context, id: Int): List<Habit>? {
         val repository = HabitRepository.get(app)
-        repository.ensureFirstRun()
         // Requested via "Add one-tap widget": the habit is already known, nothing to ask.
         if (repository.settings.widgetHabit(id) == -1L && HabitWidgetProvider.bindPending(app, id)) return null
         val taken = HabitWidgetProvider.widgetIds(app)

@@ -78,9 +78,8 @@ class StatsActivityTest {
     }
 
     @Test
-    fun opensTheDefaultHabitWithoutAnExtra() {
-        repository.ensureFirstRun()
-        val default = repository.defaultHabit()!!
+    fun opensAHabitWithoutAnExtra() {
+        val default = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val activity = Robolectric.buildActivity(StatsActivity::class.java).setup().get()
         val name = activity.findViewById<TextView>(R.id.habit_name)
         awaitCondition { name.text.toString() == default.name }
@@ -88,8 +87,6 @@ class StatsActivityTest {
 
     @Test
     fun withoutAnyHabitItShowsTheHabitList() {
-        repository.ensureFirstRun()
-        repository.deleteHabit(repository.defaultHabit()!!.id)
         val activity = Robolectric.buildActivity(StatsActivity::class.java).setup().get()
         awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
         assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)

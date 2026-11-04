@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Habit Tracker</string>
-    <string name="stats_launcher_name">Habit Stats</string>
-    <string name="default_habit_name">Habit</string>
 
     <!-- Log confirmation -->
     <string name="logged_label">%1$s · %2$s</string>
-    <string name="hint_long_press">Long-press the icon for statistics</string>
     <string name="duplicate_title">Log Again?</string>
     <string name="duplicate_message">%1$s was already logged at %2$s (%3$s). Log it again?</string>
     <plurals name="seconds_ago">
@@ -17,7 +14,6 @@
     <string name="log_again">Log Again</string>
     <string name="dont_ask_again">Don\'t Ask Again</string>
     <string name="widget_tap_again">Just logged.\nTap again to log again.</string>
-    <string name="hint_stats_icon">Open “Habit stats” for statistics</string>
     <plurals name="count_today">
         <item quantity="one">%d today</item>
         <item quantity="other">%d today</item>
@@ -46,8 +42,7 @@
     <!-- Launcher shortcuts and widget -->
     <string name="shortcut_statistics">Statistics</string>
     <string name="shortcut_statistics_of">%1$s Statistics</string>
-    <string name="shortcut_habits">Habits</string>
-    <string name="shortcut_habits_long">All Habits</string>
+    <string name="shortcut_new_habit">New Habit</string>
     <string name="shortcut_deleted">This habit was deleted</string>
     <string name="widget_description">Log a habit with one tap, right on your home screen</string>
     <string name="widget_log_description">Log %1$s</string>
@@ -140,8 +135,6 @@
     <string name="manage_habits">Manage Habits…</string>
     <string name="switch_habit">Switch habit</string>
     <string name="habits_tip">Tap a habit for its statistics, or + to log it.</string>
-    <string name="app_icon_badge">app icon</string>
-    <string name="habit_subtitle">%1$s · %2$s</string>
     <string name="log_habit">Log %1$s</string>
 
     <!-- Editor -->
@@ -166,7 +159,6 @@
     <string name="add_widget">Add One-Tap Widget</string>
     <string name="pin_unsupported">Your launcher doesn\'t support this</string>
     <string name="pin_legacy_done">Icon sent to your home screen</string>
-    <string name="main_icon_habit">App Icon Logs This Habit</string>
     <string name="delete_habit">Delete Habit</string>
     <string name="delete_habit_title">Delete “%1$s”?</string>
     <plurals name="delete_habit_message">

@@ -6,7 +6,7 @@ A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
 meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
 confirmed by a short animation in the middle of the screen that shows the habit and
 today's count, and you stay where you were.
-Long-press for statistics.
+The Habit Tracker app icon opens the app: your habits and their statistics.
 
 [![CI](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/MendyAr/habit-tracker)](https://github.com/MendyAr/habit-tracker/releases/latest)
@@ -37,13 +37,11 @@ To update, install the newer APK over the old one; your data stays.
 
 | Do this | To |
 | --- | --- |
-| **Tap** the Habit Tracker icon | Log a timestamp for the habit the app icon tracks. A check pops up in the middle of the screen with today's count, and that's it. If the app icon tracks no habit, the habit list opens instead. |
-| **Long-press** the icon → *Statistics* | Open the statistics (Android 7.1+). On older Android use the separate *Habit stats* icon. |
-| Long-press → *All Habits* → **+** | Add another habit: name it, pick an icon and a colour. Tap a habit in the list for its statistics, or its **+** to log it. |
-| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. Tapping it logs that habit. If the icon is already there, the app says so. |
+| **Tap** the Habit Tracker app icon | Open the app: the list of your habits, or the statistics of your only habit. The app icon never logs anything by itself. |
+| In the list, **+** at the top | Add a habit: name it, pick an icon and a colour. Tap a habit for its statistics, or its own **+** to log it. |
+| **Long-press** the app icon | Jump to *New Habit* or to a habit's statistics (Android 7.1+). |
+| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. If the icon is already there, the app says so. |
 | In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
-
-The first tap after installing also shows a one-time hint about long-pressing.
 
 ### Statistics
 
@@ -80,8 +78,6 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
   …), or **your own image** from the gallery: tap *Use Your Own Image* above the
   icons. Change or remove it the same way.
 - **Colour**: ten accents.
-- **App Icon Logs This Habit**: choose which habit the main app icon counts, or switch it
-  off so the app icon opens the habit list.
 - **Clear All Entries**: deletes the habit's timestamps (after asking), keeping the habit.
 - **Delete Habit**: removes it and its entries. Android doesn't let apps remove
   home-screen items, so its icon is greyed out and its widget shows *Habit Deleted*
@@ -119,9 +115,10 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
   transparent, has no open or close animation, and closes itself after the
   confirmation, so you only ever see your home screen. The widget variant
   doesn't open a window at all.
-- **Why can't the main app icon be renamed?** Android fixes an app's own icon and
-  name at install time. Per-habit icons are home-screen shortcuts, which can be
-  renamed and re-iconed at any time, so use those for named habits.
+- **Why doesn't the app icon log?** So that nothing is ever logged without you
+  meaning it: opening the app (also from the installer's *Open* button after an
+  update) never records anything. Each habit's own icon or widget does the logging,
+  and those can carry the habit's name and icon.
 - **"Covariance"**: for a single series, covariance with itself is the variance.
   The app shows the variance and the standard deviation.
 - **Privacy**: no internet permission, no ads, no analytics. Everything stays on

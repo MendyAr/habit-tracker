@@ -22,11 +22,14 @@ import io.github.mendyar.habittracker.ui.Formats
 /**
  * Entry point of the launcher icon and of every pinned habit icon.
  *
- * It records a timestamp, plays [LogAnimationView] in the middle of the (still
- * visible) home screen in a transparent window and finishes without any
- * transition, so the user never leaves the screen they tapped on. When the app
- * icon has no habit assigned, it opens the habit list instead. A tap moments after
- * the habit's last entry asks first, since it is usually a double tap.
+ * A pinned habit icon records a timestamp, plays [LogAnimationView] in the middle
+ * of the (still visible) home screen in a transparent window and finishes without
+ * any transition, so the user never leaves the screen they tapped on. A tap moments
+ * after the habit's last entry asks first, since it is usually a double tap.
+ *
+ * The main app icon logs nothing: it opens the app, on the habit list, or on the
+ * statistics of the only habit. (This class stays the launcher entry because
+ * launchers drop the home-screen icon of an app whose launcher component is renamed.)
  */
 class LogActivity : Activity() {
 
@@ -52,10 +55,14 @@ class LogActivity : Activity() {
         setContentView(animation)
 
         val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
+        if (habitId == -1L) {
+            openApp()
+            return
+        }
         val now = System.currentTimeMillis()
         Async.load({ record(habitId, now) }) { outcome ->
             when (outcome) {
-                // No habit to log (none chosen for the app icon, or it was deleted): show the list.
+                // The habit was deleted: its greyed-out icon opens the habit list.
                 null -> {
                     startActivity(
                         Intent(this, HabitsActivity::class.java)
@@ -72,6 +79,20 @@ class LogActivity : Activity() {
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
         Async.io { LauncherSync.afterLog(applicationContext) }
+        startEnterFallback()
+    }
+
+    /** The main app icon: opens the habit list, or the statistics of the only habit. */
+    private fun openApp() {
+        Async.load({ HabitRepository.get(this).habits() }) { habits ->
+            val target = habits.singleOrNull()?.let { Shortcuts.statsIntent(this, it.id) }
+                ?: Intent(this, HabitsActivity::class.java)
+            startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            finishQuietly()
+        }
+    }
+
+    private fun startEnterFallback() {
         // Safety net in case the system never reports the end of the window transition.
         Async.mainDelayed(ENTER_TIMEOUT_MS) {
             windowShown = true
@@ -104,14 +125,12 @@ class LogActivity : Activity() {
     }
 
     /**
-     * Runs on the I/O thread. Logs [habitId], or the app icon's habit when none is
-     * given, unless that looks like an accidental second tap; returns null when
-     * there is no such habit.
+     * Runs on the I/O thread. Logs [habitId] unless that looks like an accidental
+     * second tap; returns null when there is no such habit.
      */
     private fun record(habitId: Long, now: Long): Outcome? {
         val repository = HabitRepository.get(this)
-        repository.ensureFirstRun()
-        val habit = (if (habitId == -1L) repository.defaultHabit() else repository.habit(habitId)) ?: return null
+        val habit = repository.habit(habitId) ?: return null
         repository.recentDuplicate(habit.id, now)?.let { return Outcome.Duplicate(habit, it, now) }
         return Outcome.Logged(log(habit, now))
     }
@@ -121,20 +140,13 @@ class LogActivity : Activity() {
         val repository = HabitRepository.get(this)
         repository.log(habit.id, now)
 
-        val settings = repository.settings
-        val period = settings.period(habit.id)
+        val period = repository.settings.period(habit.id)
         val math = PeriodMath()
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
         val label = getString(R.string.logged_label, habit.name, Formats(this).countPhrase(period, count))
-        val hint = if (!settings.hintShown) {
-            settings.hintShown = true
-            getString(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) R.string.hint_long_press else R.string.hint_stats_icon)
-        } else {
-            null
-        }
 
         Shortcuts.reportUsed(this, habit.id)
-        return Result(habit.color, label, hint)
+        return Result(habit.color, label, null)
     }
 
     /** Asks over the home screen whether a second log moments after the last one is intended. */

@@ -16,7 +16,6 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Switch
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.data.Habit
@@ -38,7 +37,7 @@ import java.io.File
 
 /**
  * Creates or edits a habit: name, colour, a built-in or user-supplied icon, its
- * home-screen icon / widget, whether the main app icon logs it, and deletion.
+ * home-screen icon / widget, clearing its entries and deletion.
  */
 class HabitEditActivity : Activity() {
 
@@ -49,7 +48,6 @@ class HabitEditActivity : Activity() {
     private var iconKey = HabitIcons.DEFAULT
     private var customIcon: String? = null
     private var color = HabitColors.DEFAULT
-    private var isDefault = false
     private var entryCount = 0
 
     /** The habit whose widget the launcher is placing, while it asks the user. */
@@ -65,7 +63,6 @@ class HabitEditActivity : Activity() {
     private lateinit var nameField: EditText
     private lateinit var colorRow: LinearLayout
     private lateinit var iconGrid: LinearLayout
-    private lateinit var mainIconSwitch: Switch
     private val iconCells = mutableMapOf<String, View>()
     private lateinit var ownImage: TextView
     private lateinit var ownImageRemove: TextView
@@ -81,7 +78,6 @@ class HabitEditActivity : Activity() {
         nameField = findViewById(R.id.edit_name)
         colorRow = findViewById(R.id.edit_colors)
         iconGrid = findViewById(R.id.edit_icons)
-        mainIconSwitch = findViewById(R.id.edit_main_icon)
         ownImage = findViewById(R.id.edit_own_image)
         ownImageRemove = findViewById(R.id.edit_own_image_remove)
         ownImage.setOnClickListener { pickImage() }
@@ -117,8 +113,8 @@ class HabitEditActivity : Activity() {
 
         if (habitId == NEW) {
             title.setText(R.string.new_habit)
-            // Pinning, clearing and deleting need a saved habit; the app-icon switch does not.
-            listOf(R.id.edit_add_home, R.id.edit_add_widget, R.id.edit_danger_card).forEach { findViewById<View>(it).visible = false }
+            // Pinning, clearing and deleting need a saved habit.
+            listOf(R.id.edit_home_section, R.id.edit_danger_card).forEach { findViewById<View>(it).visible = false }
             if (savedInstanceState == null) {
                 Async.load({ repository.habits().size }) { count ->
                     color = HabitColors.ALL[count % HabitColors.ALL.size]
@@ -130,14 +126,13 @@ class HabitEditActivity : Activity() {
             title.setText(R.string.edit_habit)
             Async.load({
                 val habit = repository.habit(habitId)
-                Triple(habit, repository.settings.defaultHabitId == habitId, repository.timestamps(habitId).size)
-            }) { (habit, default, count) ->
+                habit to repository.timestamps(habitId).size
+            }) { (habit, count) ->
                 if (habit == null) {
                     finish()
                     return@load
                 }
                 original = habit
-                isDefault = default
                 entryCount = count
                 if (savedInstanceState == null) {
                     nameField.setText(habit.name)
@@ -146,7 +141,6 @@ class HabitEditActivity : Activity() {
                     customIcon = habit.customIcon
                     color = habit.color
                 }
-                if (savedInstanceState == null) mainIconSwitch.isChecked = default
                 refresh()
             }
         }
@@ -309,8 +303,6 @@ class HabitEditActivity : Activity() {
             nameField.requestFocus()
             return
         }
-        val wantsDefault = mainIconSwitch.isChecked
-        val wasDefault = isDefault
         val icon = iconKey
         val custom = customIcon
         val chosenColor = color
@@ -322,14 +314,11 @@ class HabitEditActivity : Activity() {
                 existing.copy(name = name, icon = icon, customIcon = custom, color = chosenColor)
                     .also { repository.updateHabit(it) }
             }
-            // Switching it off leaves the app icon without a habit: a tap then opens the list.
-            if (wantsDefault) repository.setDefaultHabit(saved.id) else if (wasDefault) repository.setDefaultHabit(null)
             LauncherSync.refresh(this)
             saved
         }) { saved ->
             original = saved
             habitId = saved.id
-            isDefault = wantsDefault
             then(saved)
         }
     }

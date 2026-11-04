@@ -14,7 +14,6 @@ import android.provider.MediaStore
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.Switch
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.R
@@ -53,7 +52,6 @@ class HabitEditActivityTest {
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
-        repository.ensureFirstRun()
     }
 
     @After
@@ -72,45 +70,12 @@ class HabitEditActivityTest {
     }
 
     @Test
-    fun theAppIconSwitchIsOnAndChangeableForTheAppIconHabit() {
-        val habit = repository.defaultHabit()!!
-        val activity = open(habit.id)
-        activity.awaitLoaded(habit.name)
-        val switch = activity.findViewById<Switch>(R.id.edit_main_icon)
-        assertTrue(switch.isChecked)
-        assertTrue(switch.isEnabled)
-    }
-
-    @Test
-    fun switchingTheAppIconOffLeavesNoAppIconHabit() {
-        val habit = repository.defaultHabit()!!
-        val activity = open(habit.id)
-        activity.awaitLoaded(habit.name)
-        activity.findViewById<Switch>(R.id.edit_main_icon).isChecked = false
-        activity.findViewById<TextView>(R.id.save_button).performClick()
-        awaitCondition { repository.settings.defaultHabitId == -1L }
-    }
-
-    @Test
-    fun switchingItOnForAnotherHabitMovesTheAppIcon() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        val activity = open(water.id)
-        activity.awaitLoaded("Water")
-        val switch = activity.findViewById<Switch>(R.id.edit_main_icon)
-        assertFalse(switch.isChecked)
-        switch.isChecked = true
-        activity.findViewById<TextView>(R.id.save_button).performClick()
-        awaitCondition { repository.settings.defaultHabitId == water.id }
-    }
-
-    @Test
-    fun aNewHabitCanTakeTheAppIcon() {
-        repository.deleteHabit(repository.defaultHabit()!!.id)
+    fun aNewHabitIsSavedWithoutAnyHomeScreenSection() {
         val activity = open(null)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.edit_home_section).visibility)
         activity.findViewById<EditText>(R.id.edit_name).setText("Walk")
-        activity.findViewById<Switch>(R.id.edit_main_icon).isChecked = true
         activity.findViewById<TextView>(R.id.save_button).performClick()
-        awaitCondition { repository.defaultHabit()?.name == "Walk" }
+        awaitCondition { repository.habits().any { it.name == "Walk" } }
     }
 
     @Test
@@ -145,7 +110,7 @@ class HabitEditActivityTest {
     fun headingsUseTitleCase() {
         assertEquals("Edit Habit", context.getString(R.string.edit_habit))
         assertEquals("New Habit", context.getString(R.string.new_habit))
-        assertEquals("All Habits", context.getString(R.string.shortcut_habits_long))
+        assertEquals("New Habit", context.getString(R.string.shortcut_new_habit))
         assertEquals("Daily Statistics", context.getString(R.string.stats_title_day))
         assertEquals("Clear All Entries", context.getString(R.string.clear_entries))
     }

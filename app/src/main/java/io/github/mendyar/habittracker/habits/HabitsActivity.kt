@@ -60,20 +60,17 @@ class HabitsActivity : Activity() {
 
     /** Runs on the I/O thread. */
     private fun rows(): List<Row> {
-        repository.ensureFirstRun()
-        val defaultId = repository.settings.defaultHabitId
         val now = System.currentTimeMillis()
         val math = PeriodMath()
         return repository.habits().map { habit ->
-            Row(habit, subtitle(habit, defaultId, now, math))
+            Row(habit, subtitle(habit, now, math))
         }
     }
 
-    private fun subtitle(habit: Habit, defaultId: Long, now: Long, math: PeriodMath): String {
+    private fun subtitle(habit: Habit, now: Long, math: PeriodMath): String {
         val period = repository.settings.period(habit.id)
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-        val phrase = formats.countPhrase(period, count)
-        return if (habit.id == defaultId) getString(R.string.habit_subtitle, phrase, getString(R.string.app_icon_badge)) else phrase
+        return formats.countPhrase(period, count)
     }
 
     private fun render(rows: List<Row>) {
@@ -117,7 +114,7 @@ class HabitsActivity : Activity() {
         button.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         Async.load({
             repository.log(habit.id)
-            subtitle(habit, repository.settings.defaultHabitId, System.currentTimeMillis(), PeriodMath())
+            subtitle(habit, System.currentTimeMillis(), PeriodMath())
         }) { text ->
             subtitle.text = text
             Async.mainDelayed(CONFIRM_MS) {

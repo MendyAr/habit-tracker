@@ -81,38 +81,25 @@ class HabitWidgetProviderTest {
     }
 
     @Test
-    fun anUnboundWidgetAsksForAHabitInsteadOfShowingTheAppIconHabit() {
-        repository.ensureFirstRun()
+    fun anUnboundWidgetAsksForAHabit() {
+        repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
         assertEquals(context.getString(R.string.widget_choose), label(id))
     }
 
     @Test
-    fun aWidgetIgnoresChangesOfTheAppIconHabit() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
-        val id = placeWidget()
-        HabitWidgetProvider.bind(context, id, water.id)
-        repository.setDefaultHabit(walk.id)
-        assertEquals("Water", label(id))
-        repository.setDefaultHabit(null)
-        assertEquals("Water", label(id))
-    }
-
-    @Test
     fun deletingAHabitMarksItsWidgetInsteadOfSwitchingToAnotherHabit() {
-        repository.ensureFirstRun()
+        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
         HabitWidgetProvider.bind(context, id, water.id)
         repository.deleteHabit(water.id)
         assertEquals(context.getString(R.string.widget_deleted), label(id))
-        assertNull(HabitWidgetProvider.widgetFor(context, repository.defaultHabit()!!.id))
+        assertNull(HabitWidgetProvider.widgetFor(context, walk.id))
     }
 
     @Test
     fun aWidgetRequestedFromTheEditorIsBoundToThatHabit() {
-        repository.ensureFirstRun()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         repository.settings.setPendingWidget(water.id)
         // The launcher places it; the provider binds it (from onUpdate or the pin callback).
@@ -135,7 +122,7 @@ class HabitWidgetProviderTest {
 
     @Test
     fun tappingAWidgetLogsItsHabitOnly() {
-        repository.ensureFirstRun()
+        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
         HabitWidgetProvider.bind(context, id, water.id)
@@ -148,7 +135,7 @@ class HabitWidgetProviderTest {
         // Let the confirmation flip back so no work outlives the test.
         shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
         Async.awaitIdle()
-        assertEquals(0, repository.timestamps(repository.defaultHabit()!!.id).size)
+        assertEquals(0, repository.timestamps(walk.id).size)
     }
 
     @Test

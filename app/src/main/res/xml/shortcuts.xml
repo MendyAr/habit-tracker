@@ -4,12 +4,12 @@
     <shortcut
         android:enabled="true"
         android:icon="@drawable/shortcut_habits"
-        android:shortcutId="habits"
-        android:shortcutLongLabel="@string/shortcut_habits_long"
-        android:shortcutShortLabel="@string/shortcut_habits">
+        android:shortcutId="new_habit"
+        android:shortcutLongLabel="@string/new_habit"
+        android:shortcutShortLabel="@string/shortcut_new_habit">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetClass="io.github.mendyar.habittracker.habits.HabitsActivity"
+            android:targetClass="io.github.mendyar.habittracker.habits.HabitEditActivity"
             android:targetPackage="io.github.mendyar.habittracker" />
     </shortcut>
 </shortcuts>

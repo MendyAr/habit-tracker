@@ -1,5 +1,6 @@
 package io.github.mendyar.habittracker
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutManager
@@ -10,6 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
@@ -37,8 +39,9 @@ class LogFlowTest {
     }
 
     @Test
-    fun launcherIconLogsAndLeavesNoActivityBehind() {
+    fun launcherIconOpensTheAppAndLogsNothing() {
         val habit = firstHabit()
+        repository.createHabit("Walk", "walk", null, HabitColors.ALL[8])
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
             .setClass(context, LogActivity::class.java)
@@ -46,14 +49,24 @@ class LogFlowTest {
         intent.sourceBounds = Rect(300, 1200, 444, 1344)
         context.startActivity(intent)
 
+        waitUntil { resumedActivity() is HabitsActivity }
+        assertEquals(0, repository.timestamps(habit.id).size)
+        val opened = resumedActivity()
+        instrumentation.runOnMainSync { opened?.finish() }
+    }
+
+    @Test
+    fun pinnedIconLogsAndLeavesNoActivityBehind() {
+        val habit = firstHabit()
+        context.startActivity(Shortcuts.logIntent(context, habit.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(habit.id).size == 1 }
-        // The confirmation lasts at most ~3 s (first run shows a hint), then the window closes.
+        // The confirmation lasts about 2 s, then the window closes.
         waitUntil(timeoutMs = 8_000) { resumedActivities() == 0 }
     }
 
     @Test
     fun pinnedShortcutIntentLogsItsHabit() {
-        val default = firstHabit()
+        val default = repository.createHabit("Walk", "walk", null, HabitColors.ALL[8])
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         context.startActivity(Shortcuts.logIntent(context, water.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(water.id).size == 1 }
@@ -76,6 +89,14 @@ class LogFlowTest {
         }
     }
 
+    private fun resumedActivity(): Activity? {
+        var activity: Activity? = null
+        instrumentation.runOnMainSync {
+            activity = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).firstOrNull()
+        }
+        return activity
+    }
+
     private fun resumedActivities(): Int {
         var count = 0
         instrumentation.runOnMainSync {
@@ -94,8 +115,5 @@ class LogFlowTest {
     }
 
     /** The habit the first run creates for the app icon. */
-    private fun firstHabit() = repository.run {
-        ensureFirstRun()
-        defaultHabit()!!
-    }
+    private fun firstHabit() = repository.createHabit("Smoking", "smoking", null, HabitColors.ALL[5])
 }

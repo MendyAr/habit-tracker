@@ -36,16 +36,15 @@ io.github.mendyar.habittracker
 ### Tap: log a timestamp
 
 ```
-launcher icon / pinned habit icon
-        │  MAIN (app icon) or io.github.mendyar.habittracker.action.LOG (+ habit id)
+pinned habit icon
+        │  io.github.mendyar.habittracker.action.LOG (+ habit id)
         ▼
 LogActivity  (Theme.HabitTracker.Log: translucent, no window animation, no preview,
              own task affinity, excludeFromRecents, noHistory)
-        │ 1. insert entry on the I/O thread (app icon: the habit assigned to it; if there
-        │    is none, open the habit list instead)
+        │ 1. insert entry on the I/O thread (or ask "Log Again?" right after one)
         │ 2. once the window is on screen (onEnterAnimationComplete), LogAnimationView draws
-        │    a disc + check in the middle of the screen and a pill with the current count;
-        │    ~1.25 s in total
+        │    a disc + check in the middle of the screen and a pill with the habit and count;
+        │    about 2 s in total
         │ 3. finish() with transitions overridden to none
         ▼
 home screen (it was visible underneath the whole time)
@@ -57,7 +56,14 @@ opens". The activity's window is fully transparent and has no enter or exit
 animation, so what the user sees is the home screen with the confirmation drawn
 on top. It is always centred: launchers report icon bounds inconsistently (the
 icon may be mid-press-animation), so anchoring on the icon made the position jump
-between taps, and centring keeps app icon and habit icons alike.
+between taps.
+
+The **main app icon** also starts `LogActivity` (`MAIN`/`LAUNCHER`), but it never
+logs: it opens the habit list, or the statistics of the only habit. `LogActivity`
+stays the launcher component because launchers drop an app's home-screen icon when
+its launcher component is renamed. Logging only from a habit's own icon or widget
+means opening the app, including from the installer's *Open* button after an
+update, never records anything.
 
 The **widget** (`HabitWidgetProvider`) avoids even that: a tap sends a
 broadcast, the entry is written in the background and the tapped widget's
@@ -72,12 +78,9 @@ fill their space with the habit's colour.
 
 ### Long-press: statistics
 
-Long-pressing an app icon shows the app's shortcuts (Android 7.1+). The app
+Long-pressing the app icon shows the app's shortcuts (Android 7.1+). The app
 publishes one dynamic shortcut per habit (most recently logged first) that opens
-`StatsActivity` for that habit, plus a static "Habits" shortcut. On Android
-7.0 and older, which have no shortcuts, a second launcher entry "Habit stats"
-(an `activity-alias` enabled only there via `@bool/needs_stats_launcher`)
-opens the statistics.
+`StatsActivity` for that habit, plus a static "New Habit" shortcut.
 
 ### One icon per habit
 
@@ -86,10 +89,8 @@ get their own **pinned shortcuts** (`ShortcutManager.requestPinShortcut` on
 Android 8+, the `INSTALL_SHORTCUT` broadcast before that). Their label and icon
 are updated whenever the habit is renamed or re-iconed (`LauncherSync`), and
 they are disabled with a message when the habit is deleted (Android has no API
-to remove a pinned shortcut or a widget, so launchers grey them out). The main
-app icon logs the habit assigned to it in the editor, or opens the habit list
-when none is. Only the very first run creates a habit ("Habit"), so the app
-works right after installation; afterwards nothing is created implicitly.
+to remove a pinned shortcut or a widget, so launchers grey them out). Nothing is
+ever created implicitly: a fresh install starts with an empty habit list.
 
 Launchers silently ignore a request to pin a shortcut that is already pinned, so
 `Shortcuts.requestPin` first checks `ShortcutManager.getPinnedShortcuts()`
@@ -182,4 +183,4 @@ the main thread. Broadcast receivers use `goAsync()` for the same.
 | --- | --- | --- |
 | `core/src/test` | Period arithmetic incl. DST and week starts, bucketing, statistics, ranges, time-of-day profile | JVM |
 | `app/src/test` | Repository and settings, `LogActivity` (logs, never twice, closes itself, publishes shortcuts), `StatsActivity`, the editor (app-icon switch, clearing, "already on the home screen", widget size and return home), widgets of every size, formatting | JVM via Robolectric |
-| `app/src/androidTest` | Tap flow end to end (including a real tap on the launcher icon where the launcher shows it), long-press shortcuts published on the device, widgets hosted by a real `AppWidgetHost`, adding a widget through the real launcher dialog, every screen with screenshots | Emulators API 21, 29, 35 in CI |
+| `app/src/androidTest` | Tap flow end to end (a real tap on the launcher icon opens the app; a habit icon logs), long-press shortcuts published on the device, widgets hosted by a real `AppWidgetHost`, adding a widget through the real launcher dialog, every screen with screenshots | Emulators API 21, 29, 35 in CI |

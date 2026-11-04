@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **The Habit Tracker app icon opens the app instead of logging**: the habit list,
+  or the statistics of your only habit. Logging is done by each habit's own icon or
+  widget (or **+** in the app), so opening the app, including from the installer's
+  *Open* button after an update, never logs anything (#16).
+- The long-press menu of the app icon offers *New Habit* instead of *All Habits*.
+
+### Removed
+- The *App Icon Logs This Habit* switch, the one-time "long-press for statistics"
+  hint, and the separate *Habit Stats* launcher icon on Android 7.0 and older.
+- The habit created automatically on first install: a new install starts empty.
+
 ## [1.3.0] - 2026-11-01
 
 ### Added

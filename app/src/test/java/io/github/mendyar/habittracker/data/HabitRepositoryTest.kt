@@ -25,52 +25,13 @@ class HabitRepositoryTest {
         context = ApplicationProvider.getApplicationContext()
         val prefs = context.getSharedPreferences("test", Context.MODE_PRIVATE).apply { edit().clear().commit() }
         // A null name gives an in-memory database.
-        repository = HabitRepository(HabitDatabase(context, null), Settings(prefs), "Habit")
+        repository = HabitRepository(HabitDatabase(context, null), Settings(prefs))
     }
 
     @Test
-    fun firstRunCreatesOneHabitForTheAppIconOnlyOnce() {
-        assertNull(repository.defaultHabit())
-        repository.ensureFirstRun()
-        val first = repository.defaultHabit()!!
-        assertEquals("Habit", first.name)
-        repository.ensureFirstRun()
-        assertEquals(listOf(first), repository.habits())
-    }
-
-    @Test
-    fun firstRunKeepsExistingHabitsOfAnUpgrade() {
-        val existing = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.ensureFirstRun()
-        assertEquals(listOf(existing), repository.habits())
-    }
-
-    @Test
-    fun deletingTheAppIconHabitLeavesTheAppIconWithoutAHabit() {
-        repository.ensureFirstRun()
-        val first = repository.defaultHabit()!!
-        repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.deleteHabit(first.id)
-        assertNull(repository.defaultHabit())
-        assertEquals(-1L, repository.settings.defaultHabitId)
-    }
-
-    @Test
-    fun deletingEveryHabitNeverRecreatesOne() {
-        repository.ensureFirstRun()
-        repository.deleteHabit(repository.defaultHabit()!!.id)
-        repository.ensureFirstRun()
+    fun aFreshInstallStartsWithoutHabits() {
+        // Nothing is created implicitly: the user adds their first habit.
         assertTrue(repository.habits().isEmpty())
-        assertNull(repository.defaultHabit())
-    }
-
-    @Test
-    fun theAppIconHabitCanBeChangedAndCleared() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.setDefaultHabit(water.id)
-        assertEquals(water, repository.defaultHabit())
-        repository.setDefaultHabit(null)
-        assertNull(repository.defaultHabit())
     }
 
     @Test
