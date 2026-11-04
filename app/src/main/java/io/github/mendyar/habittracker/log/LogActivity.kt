@@ -17,6 +17,8 @@ import io.github.mendyar.habittracker.data.Sessions
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.launcher.LauncherSync
+import io.github.mendyar.habittracker.onboarding.Onboarding
+import io.github.mendyar.habittracker.onboarding.OnboardingActivity
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
@@ -87,12 +89,17 @@ class LogActivity : Activity() {
         startEnterFallback()
     }
 
-    /** The main app icon: opens the habit list, or the statistics of the only habit. */
+    /**
+     * The main app icon: opens the habit list, or the statistics of the only habit,
+     * with the tutorial (first install) or "What's new" (after an update) on top, once.
+     */
     private fun openApp() {
-        Async.load({ HabitRepository.get(this).habits() }) { habits ->
+        val app = applicationContext
+        Async.load({ HabitRepository.get(app).habits() to Onboarding.pending(app) }) { (habits, onboarding) ->
             val target = habits.singleOrNull()?.let { Shortcuts.statsIntent(this, it.id) }
                 ?: Intent(this, HabitsActivity::class.java)
             startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            onboarding?.let { startActivity(OnboardingActivity.intent(this, it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             finishQuietly()
         }
     }

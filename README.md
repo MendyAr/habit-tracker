@@ -43,6 +43,9 @@ To update, install the newer APK over the old one; your data stays.
 | In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. If the icon is already there, the app says so. |
 | In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
 
+The first time you open the app, a short tutorial shows the basics (skip it any
+time, or replay it from *How to Use* at the bottom of the habit list).
+
 ### Duration trackers
 
 Some habits are about *how long*, not *how often*: for example **Box Breathing**,

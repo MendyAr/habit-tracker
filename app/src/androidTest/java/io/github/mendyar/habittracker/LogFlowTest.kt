@@ -36,6 +36,8 @@ class LogFlowTest {
         context.deleteDatabase("habits.db")
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
+        // The tutorial is tested on its own; here the app should open straight to its screens.
+        repository.settings.lastSeenVersion = io.github.mendyar.habittracker.onboarding.Onboarding.versionCode(context)
     }
 
     @Test

@@ -15,6 +15,11 @@ class Settings(private val prefs: SharedPreferences) {
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE),
     )
 
+    /** Version code of the app when the user last opened it (0: never, or 1.3 and older). */
+    var lastSeenVersion: Int
+        get() = prefs.getInt(KEY_LAST_SEEN_VERSION, 0)
+        set(value) = prefs.edit().putInt(KEY_LAST_SEEN_VERSION, value).apply()
+
     /** The habit most recently shown in the statistics screen. */
     var lastViewedHabitId: Long
         get() = prefs.getLong(KEY_LAST_VIEWED, -1)
@@ -92,6 +97,7 @@ class Settings(private val prefs: SharedPreferences) {
         const val FILE = "settings"
         const val NONE = Long.MIN_VALUE
         const val KEY_LAST_VIEWED = "last_viewed_habit"
+        const val KEY_LAST_SEEN_VERSION = "last_seen_version"
         const val KEY_PENDING_WIDGET = "pending_widget"
         const val KEY_PENDING_WIDGET_AT = "pending_widget_at"
         const val PENDING_WIDGET_MAX_AGE_MS = 120_000L

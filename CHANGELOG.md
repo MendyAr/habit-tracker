@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-04
 
 ### Changed
 - **The Habit Tracker app icon opens the app instead of logging**: the habit list,
@@ -33,6 +33,10 @@ All notable changes to this project are documented here. The format follows
   finished or discarded, and its statistics describe the session lengths with a
   *Durations* chart from shortest to longest (#17).
 - A built-in **Box breathing** icon.
+- A short **tutorial** the first time the app is opened (adding habits, logging from
+  icons and widgets, duration trackers, statistics, editing), and a **What's new**
+  page once after updates. Both can be skipped, never log anything, and the tutorial
+  can be replayed from *How to Use* in the habit list (#13).
 
 ### Removed
 - The *App Icon Logs This Habit* switch, the one-time "long-press for statistics"
@@ -126,6 +130,7 @@ All notable changes to this project are documented here. The format follows
 - Runs on Android 5.0 (API 21) and newer; no internet permission; data is
   included in Android backup and device-to-device transfer.
 
+[2.0.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v2.0.0
 [1.3.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.1.0

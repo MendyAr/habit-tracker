@@ -58,6 +58,10 @@
             android:exported="true" />
 
         <activity
+            android:name=".onboarding.OnboardingActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".habits.HabitEditActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />

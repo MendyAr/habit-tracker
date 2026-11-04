@@ -138,6 +138,32 @@
     <string name="help_entries">Every entry of the selected day (week…). Tap + to add one you forgot, or an entry to delete it.</string>
     <string name="count_card_title">Count</string>
     <string name="customize">Customize</string>
+    <string name="how_to_use">How to Use</string>
+    <string name="tour_skip">Skip</string>
+    <string name="tour_back">Back</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_done">Got It</string>
+    <string name="tour_page_description">Page %1$d of %2$d</string>
+    <string name="tour_welcome_title">Track Habits in One Tap</string>
+    <string name="tour_welcome_text">Each habit gets its own icon or widget on your home screen. Tap it and it\'s logged, without opening anything.</string>
+    <string name="tour_add_title">Add a Habit</string>
+    <string name="tour_add_text">In the habit list, tap + at the top. Give it a name, an icon (or your own image) and a colour, and choose Count or Duration.</string>
+    <string name="tour_log_title">Log From Your Home Screen</string>
+    <string name="tour_log_text">In a habit\'s settings, tap Add Icon to Home Screen or Add One-Tap Widget. A tap on it logs the habit and shows a quick confirmation. In the app, the + next to a habit logs it too.</string>
+    <string name="tour_duration_title">Duration Trackers</string>
+    <string name="tour_duration_text">For things like Box Breathing: tap to start, tap again when you\'re done. The app records how long it took. These icons carry a small stopwatch.</string>
+    <string name="tour_stats_title">See Your Statistics</string>
+    <string name="tour_stats_text">Tap a habit for its statistics by day, week, month or year, and when you usually do it. Tap any value for what it means, or Customize to choose what you see.</string>
+    <string name="tour_edit_title">Edit or Delete</string>
+    <string name="tour_edit_text">The pencil opens a habit\'s settings: rename it, change its icon or colour, clear its entries or delete it. You can replay this tour from How to Use in the habit list.</string>
+    <string name="whats_new_title">What\'s New</string>
+    <string-array name="whats_new_items">
+        <item>The app icon now opens the app. Log a habit with its own home-screen icon or widget, so nothing is ever logged by accident.</item>
+        <item>Statistics that one unusual day can\'t distort, like your typical day and the usual time of your first entry. Tap any value for what it means.</item>
+        <item>Choose which statistics each habit shows with Customize.</item>
+        <item>Duration trackers, e.g. Box Breathing: tap to start, tap again to finish.</item>
+        <item>Removed: the App Icon Logs This Habit switch.</item>
+    </string-array>
     <string name="habit_type">Type</string>
     <string name="habit_type_count">Count: tap to log a moment</string>
     <string name="habit_type_duration">Duration: tap to start, tap again to finish</string>

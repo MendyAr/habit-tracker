@@ -17,6 +17,8 @@ import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.onboarding.Onboarding
+import io.github.mendyar.habittracker.onboarding.OnboardingActivity
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
@@ -32,6 +34,9 @@ class HabitsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_habits)
+        findViewById<View>(R.id.habits_how_to).setOnClickListener {
+            startActivity(OnboardingActivity.intent(this, Onboarding.Mode.TUTORIAL))
+        }
         repository = HabitRepository.get(this)
         formats = Formats(this)
         list = findViewById(R.id.habits_list)

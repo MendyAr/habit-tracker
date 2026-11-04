@@ -116,6 +116,14 @@ then opens the home screen and explains how to resize. If the user placed the
 widget by hand (and is on the home screen already), the editor only shows that
 hint.
 
+### First open and updates
+
+`onboarding/Onboarding` compares the app's version code with the one stored when
+the app was last opened (`Settings.lastSeenVersion`). The main app icon then opens
+`OnboardingActivity` on top of the app once: the tutorial on a fresh install, or
+"What's new" after an update from 1.3 or older (habits but no stored version) or to
+a version listed in `WHATS_NEW_VERSIONS` (its items are `R.array.whats_new_items`).
+
 ## Data
 
 SQLite, two tables (schema version 2):

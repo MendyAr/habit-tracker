@@ -62,6 +62,8 @@ class ScreensTest {
         context.deleteDatabase("habits.db")
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
+        // The tutorial is tested on its own; here the app should open straight to its screens.
+        repository.settings.lastSeenVersion = io.github.mendyar.habittracker.onboarding.Onboarding.versionCode(context)
     }
 
     /** Two months of a habit that is slowly being cut down, plus two more habits. */
@@ -122,6 +124,21 @@ class ScreensTest {
         assertEquals(Period.WEEK, repository.settings.period(id))
         instrumentation.runOnMainSync { activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, 0) }
         screenshot("6_statistics_week")
+        activity.finish()
+    }
+
+    @Test
+    fun tutorialScreen() {
+        launch(
+            io.github.mendyar.habittracker.onboarding.OnboardingActivity.intent(
+                context,
+                io.github.mendyar.habittracker.onboarding.Onboarding.Mode.TUTORIAL,
+            ),
+        )
+        val activity = waitForActivity()
+        waitUntil { activity.findViewById<TextView>(R.id.tour_title).text.isNotEmpty() }
+        instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.tour_next).performClick() }
+        screenshot("10_tutorial")
         activity.finish()
     }
 
