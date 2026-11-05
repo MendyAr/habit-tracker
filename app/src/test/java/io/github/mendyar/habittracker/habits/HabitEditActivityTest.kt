@@ -143,7 +143,7 @@ class HabitEditActivityTest {
         activity.findViewById<TextView>(R.id.save_button).performClick()
         awaitCondition { ShadowAlertDialog.getLatestAlertDialog()?.isShowing == true }
         val dialog = ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
-        assertEquals(context.getString(R.string.add_widget_title), shadowOf(dialog).title.toString())
+        assertTrue(findByText(dialog.window!!.decorView, context.getString(R.string.add_widget_title)) != null)
 
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         val walk = repository.habits().first { it.name == "Walk" }
