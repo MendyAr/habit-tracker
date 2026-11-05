@@ -67,41 +67,42 @@ choose **Duration** instead of **Count**:
   **finish it now or discard it**. In the
   statistics you can also tap a running session to finish or discard it, or add a
   session by hand.
-- Its statistics describe the session lengths: the typical (median) session, the
-  middle half, the range, the number of sessions and, with a target, the share
-  under it. A **Durations** chart shows every session from shortest to longest.
+- Its statistics describe the session lengths: the median, the mean, the middle
+  half (IQR) and the share under a target (5 minutes unless you set another). The
+  **Time per Session** chart shows each session, the median of the last 7 (is it
+  getting faster?) and the target.
 
 There is a built-in **Box breathing** icon (a square with an arrow on each side).
 
 ### Statistics
 
-- **Day / Week / Month / Year**: the period everything below is grouped by.
+By default the statistics screen shows the set from the research on what helps
+most when tracking a habit like smoking (see the [statistics guide](docs/STATISTICS.md)):
+
 - **Count card**: the number of logs today (or this week/month/year). Use the
   arrows or the calendar to see any other day or period.
-- **Statistics per period**: by default the typical day (median), a trimmed
-  average, the middle half of your days, the range, the usual time of your first
-  entry, the time since the last one and the change against the previous 7 days.
-  These hold up when a few days are unusual (a party night), unlike the plain
-  average. Tap any value for what it means; *Customize* adds the average, standard
-  deviation, variance, total, a target and more, per habit. Periods with zero logs
-  count as 0, and the period still in progress (e.g. today) is left out. See the
-  [statistics guide](docs/STATISTICS.md).
-- **History chart**: one bar per period, with a 7-period median trend line and a dot
-  on unusually high periods. By default it spans all your data; tap
-  the start or end date to narrow it, or *All* to reset. Tap or drag across the
-  bars to inspect one, which also selects it in the count card.
-- **Time of Day**: how likely you are to do the habit at each moment of the day,
-  over the same window as the history chart. 100% means you logged it around
-  that time on every day, 50% on half of the days, 0% never. It starts on your
-  most likely time ("Most likely around 8:10 AM · 86% of days"); touch or drag
-  across the curve to read any other time. See [how it is calculated](#how-time-of-day-is-calculated).
-  On the **Week**, **Month** and **Year** tabs it becomes **Day of Week**, **Day of
-  Month** and **Month of Year**: bars showing the share of Mondays, of 15ths, of
-  Marches… on which you logged it at least once.
+- **Daily statistics**, in groups with a short note under each value: *Typical*
+  (median, trimmed mean, mean, mean without flagged days) and *Spread* (IQR,
+  standard deviation). These hold up when a few days are unusual (a party night),
+  unlike the plain mean, which is shown next to them with what pulls it up. Periods
+  with zero logs count as 0, and the period still in progress is left out.
+- **Entries per Day**: one bar per day; unusually high days are red, with lines at
+  the median and the mean. By default it spans all your data; tap the start or end
+  date to narrow it (every card uses that window), or *All* to reset. Tap or drag
+  across the bars to inspect one, which also selects it in the count card.
+- **Share by Hour**: the share of all your entries in each hour, the three busiest
+  darker. Touch a bar to read it.
+- **First Entry of the Day**: the median time of your first entry, with Q1 and Q3.
+  For smoking, a later first cigarette is one of the clearest signs of progress.
+- **Day of the Week**: the median of each weekday with its middle half.
 - **Entries**: the individual timestamps of the selected period. Tap **+** to add
   one you forgot, or tap an entry to delete an accidental tap.
 
-Your choice of period and chart window is remembered for each habit.
+**Tap a value or a card's title** for a short explanation. **Customize** (on the
+statistics card) chooses the period everything is grouped by (day, week, month or
+year), adds statistics (range, usual first and last entry, time since the last one,
+change against the previous 7 days, total, a target and more) and cards (such as
+the [Time of Day curve](#how-time-of-day-is-calculated)), per habit.
 
 ### Making each habit your own
 

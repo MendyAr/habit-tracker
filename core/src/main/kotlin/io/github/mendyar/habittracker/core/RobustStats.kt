@@ -41,15 +41,36 @@ object RobustStats {
         return median(DoubleArray(values.size) { abs(values[it] - m) })
     }
 
+    /** Tukey's upper fence, Q3 + 1.5 × IQR; NaN when empty. */
+    fun upperFence(values: DoubleArray): Double {
+        val (q1, q3) = quartiles(values)
+        return q3 + 1.5 * (q3 - q1)
+    }
+
     /**
      * Which [values] are outliers on the high side: above Q3 + 1.5 × IQR (Tukey's
      * fence). Needs at least 4 values; with fewer, nothing is flagged.
      */
     fun highOutliers(values: DoubleArray): BooleanArray {
         if (values.size < 4) return BooleanArray(values.size)
-        val (q1, q3) = quartiles(values)
-        val fence = q3 + 1.5 * (q3 - q1)
+        val fence = upperFence(values)
         return BooleanArray(values.size) { values[it] > fence }
+    }
+
+    /** The mean of the [values] that [highOutliers] doesn't flag: the mean of ordinary days. */
+    fun meanWithoutHighOutliers(values: DoubleArray): Double {
+        val flagged = highOutliers(values)
+        val kept = values.filterIndexed { i, _ -> !flagged[i] }
+        return if (kept.isEmpty()) Double.NaN else kept.average()
+    }
+
+    /**
+     * The median of each value and up to [window] − 1 values before it, e.g. the
+     * median of the last 7 sessions at each session. Unlike [rollingMedian] the first
+     * points use the values available.
+     */
+    fun trailingMedian(values: DoubleArray, window: Int = 7): DoubleArray = DoubleArray(values.size) { i ->
+        median(values.copyOfRange(maxOf(0, i + 1 - window), i + 1))
     }
 
     /**

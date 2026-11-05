@@ -86,6 +86,11 @@ class ScreensTest {
                 repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
             }
         }
+        // A few party nights, flagged as unusually high.
+        for (d in intArrayOf(12, 26, 47)) {
+            val evening = math.startOf(Period.DAY, now - d * day) + 20 * 3_600_000L
+            repeat(9) { repository.log(smoking.id, evening + it * 900_000L) }
+        }
         repeat(5) { repository.log(smoking.id, now - (it + 1) * 1_800_000L) }
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         repeat(6) { repository.log(water.id, now - it * 3_000_000L) }
@@ -104,27 +109,33 @@ class ScreensTest {
         waitUntil { activity.findViewById<TextView>(R.id.selected_count).text.toString() == today.toString() }
         screenshot("1_statistics_day")
 
-        // Scroll to the chart and entries.
-        instrumentation.runOnMainSync {
-            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
-            scroll.scrollTo(0, activity.findViewById<View>(R.id.stats_caption).bottom)
+        // Scroll through the cards of the research defaults.
+        fun scrollTo(card: Int) = instrumentation.runOnMainSync {
+            activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, activity.findViewById<View>(card).top - 24)
         }
+        scrollTo(R.id.history_card)
         screenshot("2_statistics_history")
 
-        // Scroll to the time-of-day chart, which peaks at one of the usual times.
-        val readout = activity.findViewById<TextView>(R.id.time_readout)
-        waitUntil { readout.text.isNotEmpty() }
-        instrumentation.runOnMainSync {
-            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
-            scroll.scrollTo(0, activity.findViewById<View>(R.id.time_card).top - 24)
-        }
+        // The busiest hours, and the first entry of the day.
+        waitUntil { activity.findViewById<TextView>(R.id.hours_readout).text.isNotEmpty() }
+        scrollTo(R.id.hours_card)
         screenshot("9_time_of_day")
 
-        instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.period_week).performClick() }
-        instrumentation.waitForIdleSync()
-        assertEquals(Period.WEEK, repository.settings.period(id))
+        scrollTo(R.id.weekdays_card)
+        screenshot("13_weekdays")
+
+        // A chart is explained from its title only.
+        instrumentation.runOnMainSync { activity.findViewById<View>(R.id.history_title).performClick() }
+        device.wait(Until.findObject(By.textContains("One bar per day")), 3_000)
+        screenshot("14_explanation")
+        device.pressBack()
+
+        // The period is chosen in Customize, where everything else is too.
         instrumentation.runOnMainSync { activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, 0) }
-        screenshot("6_statistics_week")
+        instrumentation.runOnMainSync { activity.findViewById<View>(R.id.stats_customize).performClick() }
+        device.wait(Until.findObject(By.text(context.getString(R.string.customize_period))), 3_000)
+        screenshot("6_customize")
+        device.pressBack()
         activity.finish()
     }
 

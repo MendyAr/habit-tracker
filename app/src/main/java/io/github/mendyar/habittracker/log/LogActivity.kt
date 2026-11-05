@@ -68,7 +68,9 @@ class LogActivity : Activity() {
         animation.onFinished = ::finishQuietly
         animation.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                if (onTappedSpot(event.rawX, event.rawY)) tapAgain() else animation.skip()
+                // Screen coordinates: the window is full screen, but go by the view's own position.
+                val origin = IntArray(2).also { animation.getLocationOnScreen(it) }
+                if (onTappedSpot(origin[0] + event.x, origin[1] + event.y)) tapAgain() else animation.skip()
             }
             true
         }

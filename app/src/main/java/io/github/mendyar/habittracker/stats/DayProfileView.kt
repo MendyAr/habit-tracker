@@ -54,6 +54,8 @@ class DayProfileView @JvmOverloads constructor(
         textSize = sp(11f)
     }
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val emphasisPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var emphasized: Set<Int> = emptySet()
     private val rect = android.graphics.RectF()
     private val line = Path()
     private val area = Path()
@@ -70,13 +72,13 @@ class DayProfileView @JvmOverloads constructor(
     /** How many points the curve is rotated by, so the axis starts at the chosen hour. */
     private var shift = 0
 
-    /** Shows [profile] in [color], with [selected] highlighted (-1 for none). */
     /**
      * Shows [profile] in [color] with [selected] highlighted (-1 for none), the axis
      * running from [startHour] to the same hour the next day.
      */
     fun setData(profile: DayProfile, selected: Int, color: Int, startHour: Int = 0) {
         barLabels = null
+        emphasized = emptySet()
         val n = profile.values.size
         shift = startHour * 60 / profile.stepMinutes % n
         hourLabels = HOURS.map { hourLabel((startHour + it) % 24) }
@@ -84,11 +86,18 @@ class DayProfileView @JvmOverloads constructor(
         show(rotated, profile.peak, if (selected < 0) -1 else (selected - shift + n) % n, color)
     }
 
-    /** Shows one bar per value (shares 0 to 1) with [labels] under them. */
-    fun setBars(values: DoubleArray, labels: List<String>, selected: Int, color: Int) {
+    /**
+     * Shows one bar per value (shares 0 to 1) with [labels] under them; bars in
+     * [emphasized] (e.g. the busiest hours) are darker than the others.
+     */
+    fun setBars(values: DoubleArray, labels: List<String>, selected: Int, color: Int, emphasized: Set<Int> = emptySet()) {
         barLabels = labels
         shift = 0
+        this.emphasized = emphasized
         show(values, values.maxOrNull() ?: 0.0, selected, color)
+        emphasisPaint.color = color
+        emphasisPaint.alpha = 220
+        if (emphasized.isNotEmpty()) barPaint.alpha = 80
     }
 
     private fun show(values: DoubleArray, peak: Double, selected: Int, color: Int) {
@@ -197,7 +206,12 @@ class DayProfileView @JvmOverloads constructor(
             val h = (bottom - top) * (value / axisMax).toFloat()
             if (h <= 0f && i != selected) return@forEachIndexed
             rect.set(left + slot * i + gap / 2f, bottom - maxOf(h, density * 2), left + slot * (i + 1) - gap / 2f, bottom)
-            canvas.drawRoundRect(rect, corner, corner, if (i == selected) markerPaint else barPaint)
+            val paint = when {
+                i == selected -> markerPaint
+                i in emphasized -> emphasisPaint
+                else -> barPaint
+            }
+            canvas.drawRoundRect(rect, corner, corner, paint)
         }
     }
 

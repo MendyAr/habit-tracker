@@ -108,7 +108,8 @@ class WidgetDeviceTest {
 
         repository.log(breathing.id, System.currentTimeMillis() - 65_000)
         onIo { HabitWidgetProvider.updateFor(context, breathing.id) }
-        waitUntil { timer(id)?.startsWith("1:0") == true }
+        // "1:05" or "01:05", depending on the Android version.
+        waitUntil { timer(id)?.matches(Regex("0?1:0\\d")) == true }
         // It counts up by itself.
         val first = timer(id)
         waitUntil(timeoutMs = 4_000) { timer(id) != first }

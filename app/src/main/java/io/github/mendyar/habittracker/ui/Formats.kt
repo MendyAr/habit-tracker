@@ -127,6 +127,26 @@ class Formats(private val context: Context) {
     }
 
     /** A share between 0 and 1 as a whole percentage, e.g. "86%". */
+    /** The word for one [period], e.g. "day", used in explanations. */
+    fun unit(period: Period): String = context.getString(
+        when (period) {
+            Period.DAY -> R.string.unit_day
+            Period.WEEK -> R.string.unit_week
+            Period.MONTH -> R.string.unit_month
+            Period.YEAR -> R.string.unit_year
+        },
+    )
+
+    /** The word for several [period]s, e.g. "days". */
+    fun units(period: Period): String = context.getString(
+        when (period) {
+            Period.DAY -> R.string.units_day
+            Period.WEEK -> R.string.units_week
+            Period.MONTH -> R.string.units_month
+            Period.YEAR -> R.string.units_year
+        },
+    )
+
     fun percent(value: Double): String = percent.format(value)
 
     fun number(value: Double): String = decimal.format(value)

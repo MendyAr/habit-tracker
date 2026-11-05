@@ -19,6 +19,21 @@ All notable changes to this project are documented here. The format follows
   (#31).
 - While the confirmation shows, tapping the widget again counts as another tap.
 
+- **Statistics follow the research report by default** (#27): the statistics card
+  shows median, trimmed mean, mean, mean without flagged days, IQR and standard
+  deviation; new cards show entries per day with flagged days and median/mean lines,
+  the share of entries by hour (busiest three darker), the first entry of the day
+  (median, Q1, Q3) and the median per weekday with its middle half. Duration habits
+  show median, mean, IQR and the share under a target (5 minutes by default) and a
+  **Time per Session** chart with the median of the last 7. Former defaults (range,
+  time since last, vs previous 7, the time-of-day curve…) stay available in
+  *Customize*; customised setups are kept.
+- **The statistics card is grouped** (Typical, Spread…) with a short note under each
+  value (#26).
+- **The period is chosen in Customize**; the Day/Week/Month/Year tabs are gone, and
+  explanations name the chosen period instead of saying "(or week…)" (#26).
+- Charts are explained only from their titles; touching a chart only selects (#26).
+
 ### Fixed
 - Quick taps on a widget were sometimes registered seconds late (#29).
 - A running session's timer now replaces the widget's name, so it also shows on a

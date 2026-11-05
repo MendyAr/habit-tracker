@@ -19,6 +19,7 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
+import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
@@ -56,6 +57,9 @@ class HabitEditActivity : Activity() {
 
     /** The statistics chosen in this editor, saved with the habit; null if untouched. */
     private var statsConfig: StatsConfig? = null
+
+    /** The period chosen in this editor's statistics setup, saved with the habit; null if untouched. */
+    private var statsPeriod: Period? = null
 
     /** The habit whose widget the launcher is placing, while it asks the user. */
     private var widgetRequestedFor = NEW
@@ -322,6 +326,7 @@ class HabitEditActivity : Activity() {
         val chosenColor = color
         val existing = original
         val chosenStats = statsConfig
+        val chosenPeriod = statsPeriod
         val type = if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
         Async.load({
             val saved = if (existing == null) {
@@ -331,6 +336,7 @@ class HabitEditActivity : Activity() {
                     .also { repository.updateHabit(it) }
             }
             chosenStats?.let { repository.settings.setStatsConfig(saved.id, it.takeUnless { c -> c.isDefault }?.encode()) }
+            chosenPeriod?.let { repository.settings.setPeriod(saved.id, it) }
             LauncherSync.refresh(this)
             saved
         }) { saved ->
@@ -345,7 +351,11 @@ class HabitEditActivity : Activity() {
         val current = statsConfig ?: StatsConfig.decode(original?.let { repository.settings.statsConfig(it.id) })
         val type = original?.type
             ?: if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
-        StatsCustomizeDialog.show(this, current, type) { chosen -> statsConfig = chosen }
+        val period = statsPeriod ?: original?.let { repository.settings.period(it.id) } ?: Period.DAY
+        StatsCustomizeDialog.show(this, current, type, period) { chosen, chosenPeriod ->
+            statsConfig = chosen
+            statsPeriod = chosenPeriod
+        }
     }
 
     private fun finishSaved(saved: Habit) {
