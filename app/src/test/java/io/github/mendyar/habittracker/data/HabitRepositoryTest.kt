@@ -25,52 +25,13 @@ class HabitRepositoryTest {
         context = ApplicationProvider.getApplicationContext()
         val prefs = context.getSharedPreferences("test", Context.MODE_PRIVATE).apply { edit().clear().commit() }
         // A null name gives an in-memory database.
-        repository = HabitRepository(HabitDatabase(context, null), Settings(prefs), "Habit")
+        repository = HabitRepository(HabitDatabase(context, null), Settings(prefs))
     }
 
     @Test
-    fun firstRunCreatesOneHabitForTheAppIconOnlyOnce() {
-        assertNull(repository.defaultHabit())
-        repository.ensureFirstRun()
-        val first = repository.defaultHabit()!!
-        assertEquals("Habit", first.name)
-        repository.ensureFirstRun()
-        assertEquals(listOf(first), repository.habits())
-    }
-
-    @Test
-    fun firstRunKeepsExistingHabitsOfAnUpgrade() {
-        val existing = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.ensureFirstRun()
-        assertEquals(listOf(existing), repository.habits())
-    }
-
-    @Test
-    fun deletingTheAppIconHabitLeavesTheAppIconWithoutAHabit() {
-        repository.ensureFirstRun()
-        val first = repository.defaultHabit()!!
-        repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.deleteHabit(first.id)
-        assertNull(repository.defaultHabit())
-        assertEquals(-1L, repository.settings.defaultHabitId)
-    }
-
-    @Test
-    fun deletingEveryHabitNeverRecreatesOne() {
-        repository.ensureFirstRun()
-        repository.deleteHabit(repository.defaultHabit()!!.id)
-        repository.ensureFirstRun()
+    fun aFreshInstallStartsWithoutHabits() {
+        // Nothing is created implicitly: the user adds their first habit.
         assertTrue(repository.habits().isEmpty())
-        assertNull(repository.defaultHabit())
-    }
-
-    @Test
-    fun theAppIconHabitCanBeChangedAndCleared() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.setDefaultHabit(water.id)
-        assertEquals(water, repository.defaultHabit())
-        repository.setDefaultHabit(null)
-        assertNull(repository.defaultHabit())
     }
 
     @Test
@@ -160,5 +121,43 @@ class HabitRepositoryTest {
         assertTrue(repository.hasEntryInMinute(habit.id, minute + 59_000))
         assertFalse(repository.hasEntryInMinute(habit.id, minute + 60_000))
         assertFalse(repository.hasEntryInMinute(habit.id, minute - 1))
+    }
+
+    @Test
+    fun durationSessionsStartRunAndFinish() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        assertEquals(HabitType.DURATION, repository.habit(breathing.id)?.type)
+        val start = 1_000_000_000L
+        repository.log(breathing.id, start)
+        val running = repository.running(breathing.id)!!
+        assertEquals(start, running.timestamp)
+        assertNull(running.duration)
+
+        repository.finish(running.id, start + 272_000)
+        assertNull(repository.running(breathing.id))
+        assertEquals(listOf(272_000L), repository.sessions(breathing.id).map { it.duration })
+
+        repository.addSession(breathing.id, start + 3_600_000, 180_000)
+        assertEquals(2, repository.sessions(breathing.id).size)
+    }
+
+    @Test
+    fun upgradingFromVersion1KeepsHabitsAndEntriesAsCountData() {
+        val name = "upgrade-test.db"
+        context.deleteDatabase(name)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            db.execSQL("CREATE TABLE habits (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, icon TEXT NOT NULL, custom_icon TEXT, color INTEGER NOT NULL, created_at INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE entries (_id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id INTEGER NOT NULL REFERENCES habits(_id) ON DELETE CASCADE, ts INTEGER NOT NULL)")
+            db.execSQL("INSERT INTO habits (name, icon, color, created_at) VALUES ('Smoking', 'smoking', 1, 5)")
+            db.execSQL("INSERT INTO entries (habit_id, ts) VALUES (1, 100)")
+            db.version = 1
+        }
+        val prefs = context.getSharedPreferences("upgrade", Context.MODE_PRIVATE)
+        val upgraded = HabitRepository(HabitDatabase(context, name), Settings(prefs))
+        val habit = upgraded.habits().single()
+        assertEquals(HabitType.COUNT, habit.type)
+        assertArrayEquals(longArrayOf(100), upgraded.timestamps(habit.id))
+        assertNull(upgraded.running(habit.id)?.duration)
+        context.deleteDatabase(name)
     }
 }

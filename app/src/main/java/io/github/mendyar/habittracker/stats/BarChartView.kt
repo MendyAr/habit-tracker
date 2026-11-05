@@ -45,6 +45,16 @@ class BarChartView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
     private val rect = RectF()
+    private val trendPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = context.colorOf(R.color.text_secondary)
+        strokeWidth = 1.5f * density
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val outlierPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.colorOf(R.color.text_secondary) }
+    private val trendPath = android.graphics.Path()
+    private var trend = DoubleArray(0)
+    private var outliers = BooleanArray(0)
 
     private var buckets: List<Bucket> = emptyList()
     private var selected = -1
@@ -62,6 +72,13 @@ class BarChartView @JvmOverloads constructor(
         } else {
             context.getString(R.string.chart_description, buckets.size, buckets.maxOf { it.count })
         }
+        invalidate()
+    }
+
+    /** A trend line (e.g. a rolling median; NaN where there is none) and the bars to mark as unusual. */
+    fun setTrend(trend: DoubleArray, outliers: BooleanArray) {
+        this.trend = trend
+        this.outliers = outliers
         invalidate()
     }
 
@@ -105,6 +122,30 @@ class BarChartView @JvmOverloads constructor(
             val h = maxOf(plotHeight * bucket.count / axisMax, if (bucket.count > 0) density * 2 else 0f)
             rect.set(x + gap / 2f, bottom - h, x + slot - gap / 2f, bottom)
             canvas.drawRoundRect(rect, corner, corner, if (i == selected) selectedPaint else barPaint)
+        }
+
+        // Trend line through the bar centres, and a dot above unusually high bars.
+        if (trend.size == buckets.size) {
+            trendPath.reset()
+            var drawing = false
+            trend.forEachIndexed { i, value ->
+                if (value.isNaN()) {
+                    drawing = false
+                    return@forEachIndexed
+                }
+                val x = left + (i + 0.5f) * slot
+                val y = bottom - (plotHeight * value / axisMax).toFloat()
+                if (drawing) trendPath.lineTo(x, y) else trendPath.moveTo(x, y)
+                drawing = true
+            }
+            canvas.drawPath(trendPath, trendPaint)
+        }
+        if (outliers.size == buckets.size) {
+            outliers.forEachIndexed { i, outlier ->
+                if (!outlier || i == selected) return@forEachIndexed
+                val h = plotHeight * buckets[i].count / axisMax
+                canvas.drawCircle(left + (i + 0.5f) * slot, bottom - h - 5 * density, 2.5f * density, outlierPaint)
+            }
         }
 
         if (selected in buckets.indices) {

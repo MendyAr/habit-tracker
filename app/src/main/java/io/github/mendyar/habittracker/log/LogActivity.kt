@@ -10,23 +10,32 @@ import android.view.View
 import android.view.WindowManager
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
+import io.github.mendyar.habittracker.data.Entry
 import io.github.mendyar.habittracker.data.Habit
+import io.github.mendyar.habittracker.data.HabitType
+import io.github.mendyar.habittracker.data.Sessions
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.launcher.LauncherSync
+import io.github.mendyar.habittracker.onboarding.Onboarding
+import io.github.mendyar.habittracker.onboarding.OnboardingActivity
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
+import io.github.mendyar.habittracker.widget.HabitWidgetProvider
 
 /**
  * Entry point of the launcher icon and of every pinned habit icon.
  *
- * It records a timestamp, plays [LogAnimationView] in the middle of the (still
- * visible) home screen in a transparent window and finishes without any
- * transition, so the user never leaves the screen they tapped on. When the app
- * icon has no habit assigned, it opens the habit list instead. A tap moments after
- * the habit's last entry asks first, since it is usually a double tap.
+ * A pinned habit icon records a timestamp, plays [LogAnimationView] in the middle
+ * of the (still visible) home screen in a transparent window and finishes without
+ * any transition, so the user never leaves the screen they tapped on. A tap moments
+ * after the habit's last entry asks first, since it is usually a double tap.
+ *
+ * The main app icon logs nothing: it opens the app, on the habit list, or on the
+ * statistics of the only habit. (This class stays the launcher entry because
+ * launchers drop the home-screen icon of an app whose launcher component is renamed.)
  */
 class LogActivity : Activity() {
 
@@ -52,10 +61,14 @@ class LogActivity : Activity() {
         setContentView(animation)
 
         val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
+        if (habitId == -1L) {
+            openApp()
+            return
+        }
         val now = System.currentTimeMillis()
         Async.load({ record(habitId, now) }) { outcome ->
             when (outcome) {
-                // No habit to log (none chosen for the app icon, or it was deleted): show the list.
+                // The habit was deleted: its greyed-out icon opens the habit list.
                 null -> {
                     startActivity(
                         Intent(this, HabitsActivity::class.java)
@@ -64,6 +77,7 @@ class LogActivity : Activity() {
                     finishQuietly()
                 }
                 is Outcome.Duplicate -> askAboutDuplicate(outcome)
+                is Outcome.LongRunning -> askAboutLongSession(outcome)
                 is Outcome.Logged -> {
                     result = outcome.result
                     startAnimationWhenVisible()
@@ -72,6 +86,25 @@ class LogActivity : Activity() {
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
         Async.io { LauncherSync.afterLog(applicationContext) }
+        startEnterFallback()
+    }
+
+    /**
+     * The main app icon: opens the habit list, or the statistics of the only habit,
+     * with the tutorial (first install) or "What's new" (after an update) on top, once.
+     */
+    private fun openApp() {
+        val app = applicationContext
+        Async.load({ HabitRepository.get(app).habits() to Onboarding.pending(app) }) { (habits, onboarding) ->
+            val target = habits.singleOrNull()?.let { Shortcuts.statsIntent(this, it.id) }
+                ?: Intent(this, HabitsActivity::class.java)
+            startActivity(target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            onboarding?.let { startActivity(OnboardingActivity.intent(this, it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            finishQuietly()
+        }
+    }
+
+    private fun startEnterFallback() {
         // Safety net in case the system never reports the end of the window transition.
         Async.mainDelayed(ENTER_TIMEOUT_MS) {
             windowShown = true
@@ -91,29 +124,70 @@ class LogActivity : Activity() {
         val ready = result ?: return
         if (!windowShown || finishing || animation.isStarted) return
         haptic()
-        animation.start(ready.color, ready.label, ready.hint)
+        animation.start(ready.color, ready.label, ready.hint, ready.mark)
     }
 
-    private class Result(val color: Int, val label: String, val hint: String?)
+    private class Result(
+        val color: Int,
+        val label: String,
+        val hint: String?,
+        val mark: LogAnimationView.Mark = LogAnimationView.Mark.CHECK,
+    )
 
     private sealed class Outcome {
         class Logged(val result: Result) : Outcome()
 
         /** Not logged: the habit was logged moments ago, at [previous]. */
         class Duplicate(val habit: Habit, val previous: Long, val now: Long) : Outcome()
+
+        /** A duration habit's session has been running for very long: probably forgotten. */
+        class LongRunning(val habit: Habit, val session: Entry, val now: Long) : Outcome()
     }
 
     /**
-     * Runs on the I/O thread. Logs [habitId], or the app icon's habit when none is
-     * given, unless that looks like an accidental second tap; returns null when
-     * there is no such habit.
+     * Runs on the I/O thread. Logs [habitId] unless that looks like an accidental
+     * second tap; returns null when there is no such habit.
      */
     private fun record(habitId: Long, now: Long): Outcome? {
         val repository = HabitRepository.get(this)
-        repository.ensureFirstRun()
-        val habit = (if (habitId == -1L) repository.defaultHabit() else repository.habit(habitId)) ?: return null
+        val habit = repository.habit(habitId) ?: return null
+        if (habit.type == HabitType.DURATION) {
+            val session = repository.running(habit.id)
+            if (session != null && now - session.timestamp > Sessions.LONG_RUNNING_MS) return Outcome.LongRunning(habit, session, now)
+            return Outcome.Logged(toggleSession(habit, now))
+        }
         repository.recentDuplicate(habit.id, now)?.let { return Outcome.Duplicate(habit, it, now) }
         return Outcome.Logged(log(habit, now))
+    }
+
+    /**
+     * Runs on the I/O thread: starts a session of the duration habit [habit], or
+     * finishes the running one. A tap within seconds of the start leaves it running
+     * (a double tap shouldn't record a meaningless session).
+     */
+    private fun toggleSession(habit: Habit, now: Long): Result {
+        val repository = HabitRepository.get(this)
+        val formats = Formats(this)
+        val session = repository.running(habit.id)
+        val result = when {
+            session == null -> {
+                repository.log(habit.id, now)
+                Result(habit.color, getString(R.string.logged_started, habit.name), null, LogAnimationView.Mark.STOPWATCH)
+            }
+            now - session.timestamp < Sessions.MIN_MS -> Result(
+                habit.color,
+                getString(R.string.logged_running, habit.name, formats.elapsed(now - session.timestamp)),
+                null,
+                LogAnimationView.Mark.STOPWATCH,
+            )
+            else -> {
+                repository.finish(session.id, now)
+                Result(habit.color, getString(R.string.logged_label, habit.name, formats.elapsed(now - session.timestamp)), null)
+            }
+        }
+        Shortcuts.reportUsed(this, habit.id)
+        HabitWidgetProvider.updateFor(applicationContext, habit.id)
+        return result
     }
 
     /** Runs on the I/O thread: logs [habit] at [now] and describes the confirmation. */
@@ -121,20 +195,40 @@ class LogActivity : Activity() {
         val repository = HabitRepository.get(this)
         repository.log(habit.id, now)
 
-        val settings = repository.settings
-        val period = settings.period(habit.id)
+        val period = repository.settings.period(habit.id)
         val math = PeriodMath()
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
         val label = getString(R.string.logged_label, habit.name, Formats(this).countPhrase(period, count))
-        val hint = if (!settings.hintShown) {
-            settings.hintShown = true
-            getString(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) R.string.hint_long_press else R.string.hint_stats_icon)
-        } else {
-            null
-        }
 
         Shortcuts.reportUsed(this, habit.id)
-        return Result(habit.color, label, hint)
+        return Result(habit.color, label, null)
+    }
+
+    /** A session running for hours was probably forgotten: finish it now, or discard it? */
+    private fun askAboutLongSession(long: Outcome.LongRunning) {
+        if (finishing) return
+        val app = applicationContext
+        dialog = AlertDialog.Builder(this, R.style.Theme_HabitTracker_Dialog)
+            .setTitle(R.string.long_running_title)
+            .setMessage(
+                getString(R.string.long_running_message, long.habit.name, Formats(this).duration((long.now - long.session.timestamp) / 60_000.0)),
+            )
+            .setPositiveButton(R.string.finish_now) { _, _ ->
+                Async.load({ toggleSession(long.habit, System.currentTimeMillis()) }) {
+                    result = it
+                    startAnimationWhenVisible()
+                }
+            }
+            .setNeutralButton(R.string.discard) { _, _ ->
+                Async.io {
+                    HabitRepository.get(app).deleteEntry(long.session.id)
+                    HabitWidgetProvider.updateFor(app, long.habit.id)
+                }
+                finishQuietly()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> finishQuietly() }
+            .setOnCancelListener { finishQuietly() }
+            .show()
     }
 
     /** Asks over the home screen whether a second log moments after the last one is intended. */

@@ -13,9 +13,12 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.onboarding.Onboarding
+import io.github.mendyar.habittracker.onboarding.OnboardingActivity
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
@@ -31,6 +34,9 @@ class HabitsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_habits)
+        findViewById<View>(R.id.habits_how_to).setOnClickListener {
+            startActivity(OnboardingActivity.intent(this, Onboarding.Mode.TUTORIAL))
+        }
         repository = HabitRepository.get(this)
         formats = Formats(this)
         list = findViewById(R.id.habits_list)
@@ -60,20 +66,20 @@ class HabitsActivity : Activity() {
 
     /** Runs on the I/O thread. */
     private fun rows(): List<Row> {
-        repository.ensureFirstRun()
-        val defaultId = repository.settings.defaultHabitId
         val now = System.currentTimeMillis()
         val math = PeriodMath()
         return repository.habits().map { habit ->
-            Row(habit, subtitle(habit, defaultId, now, math))
+            Row(habit, subtitle(habit, now, math))
         }
     }
 
-    private fun subtitle(habit: Habit, defaultId: Long, now: Long, math: PeriodMath): String {
+    private fun subtitle(habit: Habit, now: Long, math: PeriodMath): String {
+        if (habit.type == HabitType.DURATION) {
+            repository.running(habit.id)?.let { return getString(R.string.running_since, formats.time(it.timestamp)) }
+        }
         val period = repository.settings.period(habit.id)
         val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-        val phrase = formats.countPhrase(period, count)
-        return if (habit.id == defaultId) getString(R.string.habit_subtitle, phrase, getString(R.string.app_icon_badge)) else phrase
+        return formats.countPhrase(period, count)
     }
 
     private fun render(rows: List<Row>) {
@@ -98,6 +104,11 @@ class HabitsActivity : Activity() {
 
     /** Logs [habit] from its + button, asking first if it was logged moments ago. */
     private fun log(habit: Habit, button: ImageButton, subtitle: TextView) {
+        if (habit.type == HabitType.DURATION) {
+            // Starting or finishing a session plays the same confirmation as its home-screen icon.
+            startActivity(Shortcuts.logIntent(this, habit.id))
+            return
+        }
         val now = System.currentTimeMillis()
         Async.load({ repository.recentDuplicate(habit.id, now) }) { previous ->
             if (previous == null) {
@@ -117,7 +128,7 @@ class HabitsActivity : Activity() {
         button.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         Async.load({
             repository.log(habit.id)
-            subtitle(habit, repository.settings.defaultHabitId, System.currentTimeMillis(), PeriodMath())
+            subtitle(habit, System.currentTimeMillis(), PeriodMath())
         }) { text ->
             subtitle.text = text
             Async.mainDelayed(CONFIRM_MS) {

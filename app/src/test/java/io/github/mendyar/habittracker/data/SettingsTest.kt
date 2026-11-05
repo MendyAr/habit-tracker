@@ -30,8 +30,7 @@ class SettingsTest {
         val settings = Settings(context)
         assertEquals(Period.DAY, settings.period(1))
         assertEquals(DateRange.ALL, settings.range(1))
-        assertFalse(settings.hintShown)
-        assertEquals(-1L, settings.defaultHabitId)
+        assertTrue(settings.confirmDuplicates(1))
     }
 
     @Test
@@ -41,14 +40,15 @@ class SettingsTest {
             setPeriod(2, Period.YEAR)
             setRange(1, DateRange(fromDay = 1_000, toDay = null))
             setRange(2, DateRange(fromDay = 5, toDay = 9))
-            hintShown = true
+            setConfirmDuplicates(2, false)
         }
         val settings = reopen()
         assertEquals(Period.WEEK, settings.period(1))
         assertEquals(Period.YEAR, settings.period(2))
         assertEquals(DateRange(1_000, null), settings.range(1))
         assertEquals(DateRange(5, 9), settings.range(2))
-        assertTrue(settings.hintShown)
+        assertFalse(settings.confirmDuplicates(2))
+        assertTrue(settings.confirmDuplicates(1))
     }
 
     @Test

@@ -5,9 +5,9 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 
 ## State (2026-11)
 
-- Latest release: **v1.3.0** (versionCode 4), published from `main` (#14, #15, #19, #20, #22 done).
+- Latest release: **v2.0.0** (versionCode 5) once PR to `main` is merged (#13, #16, #17, #18, #23 done).
 - `main` is the default branch. Work on a feature branch and open a PR to `main`.
-- Open work is tracked as GitHub issues #13, #16, #17, #18, #23 (see *Roadmap* below).
+- Open work: none planned beyond Dependabot (see *Roadmap* below); new ideas go in GitHub issues.
 - The owner (MendyAr) writes in Hebrew or English; keep the code, commits, issues and docs in English.
 
 ## Build, test, release
@@ -35,8 +35,8 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 
 - `core/`: pure Kotlin (no Android). `PeriodMath`, `StatsEngine`, `DayProfile` (time-of-day curve).
 - `app/`: Android **framework only, no AndroidX at runtime** (keep it that way), minSdk 21.
-  - `log/LogActivity`: transparent, animation-free; **it is the launcher (MAIN/LAUNCHER) entry** and
-    logs on start. Pinned habit icons use `Shortcuts.logIntent`.
+  - `log/LogActivity`: transparent, animation-free; **it is the launcher (MAIN/LAUNCHER) entry**, which
+    opens the app (never logs); pinned habit icons (`Shortcuts.logIntent`) log or start/finish a session.
   - `widget/HabitWidgetProvider`: one widget per habit. Nested `Medium`/`Large`/`ExtraLarge` are the
     same widget at 2×2–4×4 default sizes (hidden from the picker, enabled on API 28+ via
     `@bool/sized_widgets`) used when adding a widget from the editor.
@@ -69,12 +69,13 @@ Proposed grouping; confirm with the owner before starting:
 - **1.3 (done):** #14 own-image option · #15 plain wallpaper in screenshot tests · #19 duplicate-log
   question (dialog; widgets need a second tap) · #20 Week/Month/Year position profiles
   (`core/PositionProfile`) · #22 livelier confirmation (with a still mode when animations are off).
-- **2.0 (major):** #16 main icon opens the app instead of logging (removes the "App Icon Logs This
-  Habit" switch; also fixes the log on install/update) · #13 onboarding tutorial + "What's new" ·
-  #17 duration trackers (start/finish taps, Box Breathing icon, DB migration) · #18 per-tracker
-  statistics settings (optional setup step at creation) · #23 research-backed default statistics
-  (median, trimmed mean, IQR, time of first entry…), `docs/STATISTICS.md`, tap-to-explain in the app.
-  Ship #23 together with #18.
+- **2.0 (done):** #16 app icon opens the app (LogActivity routes; logging only from habit icons and
+  widgets) · #13 tutorial + What's new (`onboarding/`, add a version to `WHATS_NEW_VERSIONS` and
+  items to `whats_new_items` when a release has user-visible changes) · #17 duration trackers (DB v2,
+  `data/Sessions`, stopwatch badge, live widget timer) · #18/#23 `stats/StatKind` catalogue,
+  `StatsConfig` per habit, `StatsCustomizeDialog`, `docs/STATISTICS.md`.
+- **Possible next:** trigger tags when logging (ranked "strong evidence" in the owner's research
+  artifact, needs a one-tap tag UI).
 - Dependabot PRs: #6–#9 are stale (built on v1.0) and #21 (AGP 9.5) is a major jump. Don't merge
   them blindly; re-test each on current `main` (e.g. one combined PR), and close #4-style no-ops.
 

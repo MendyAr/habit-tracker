@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-11-04
+
+### Changed
+- **The Habit Tracker app icon opens the app instead of logging**: the habit list,
+  or the statistics of your only habit. Logging is done by each habit's own icon or
+  widget (or **+** in the app), so opening the app, including from the installer's
+  *Open* button after an update, never logs anything (#16).
+- The long-press menu of the app icon offers *New Habit* instead of *All Habits*.
+
+### Added
+- **Statistics that one unusual day can't distort**: the statistics card now leads
+  with the typical day (median), a trimmed average, the middle half of your days and
+  the range, plus the usual time of the first entry of the day, the time since the
+  last one, and the change against the previous 7 days. The history chart shows a
+  7-day median trend line and marks unusually high days (#23).
+- **Tap any statistic or card title** for a short explanation, and see
+  [docs/STATISTICS.md](docs/STATISTICS.md) for how each one is calculated (#23).
+- **Customize** what each habit's statistics show: which statistics (average,
+  standard deviation, variance, total, days with none, days within a target, usual
+  gap, usual last entry… are options), which cards, a target, and when the day
+  starts. Also available when creating a habit; *Reset to Default* is one tap (#18).
+
+- **Duration trackers** (e.g. Box Breathing): choose *Duration* when adding a habit.
+  Tap its icon or widget to start (a stopwatch animation), tap again to finish (a
+  check with the time it took). A stopwatch badge marks its icon and widget, the
+  widget counts up live while a session runs, a forgotten session asks to be
+  finished or discarded, and its statistics describe the session lengths with a
+  *Durations* chart from shortest to longest (#17).
+- A built-in **Box breathing** icon.
+- A short **tutorial** the first time the app is opened (adding habits, logging from
+  icons and widgets, duration trackers, statistics, editing), and a **What's new**
+  page once after updates. Both can be skipped, never log anything, and the tutorial
+  can be replayed from *How to Use* in the habit list (#13).
+
+### Removed
+- The *App Icon Logs This Habit* switch, the one-time "long-press for statistics"
+  hint, and the separate *Habit Stats* launcher icon on Android 7.0 and older.
+- The habit created automatically on first install: a new install starts empty.
+
 ## [1.3.0] - 2026-11-01
 
 ### Added
@@ -91,6 +130,7 @@ All notable changes to this project are documented here. The format follows
 - Runs on Android 5.0 (API 21) and newer; no internet permission; data is
   included in Android backup and device-to-device transfer.
 
+[2.0.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v2.0.0
 [1.3.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.3.0
 [1.2.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.2.0
 [1.1.0]: https://github.com/MendyAr/habit-tracker/releases/tag/v1.1.0

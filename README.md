@@ -6,7 +6,7 @@ A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
 meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
 confirmed by a short animation in the middle of the screen that shows the habit and
 today's count, and you stay where you were.
-Long-press for statistics.
+The Habit Tracker app icon opens the app: your habits and their statistics.
 
 [![CI](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MendyAr/habit-tracker/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/MendyAr/habit-tracker)](https://github.com/MendyAr/habit-tracker/releases/latest)
@@ -37,24 +37,51 @@ To update, install the newer APK over the old one; your data stays.
 
 | Do this | To |
 | --- | --- |
-| **Tap** the Habit Tracker icon | Log a timestamp for the habit the app icon tracks. A check pops up in the middle of the screen with today's count, and that's it. If the app icon tracks no habit, the habit list opens instead. |
-| **Long-press** the icon → *Statistics* | Open the statistics (Android 7.1+). On older Android use the separate *Habit stats* icon. |
-| Long-press → *All Habits* → **+** | Add another habit: name it, pick an icon and a colour. Tap a habit in the list for its statistics, or its **+** to log it. |
-| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. Tapping it logs that habit. If the icon is already there, the app says so. |
+| **Tap** the Habit Tracker app icon | Open the app: the list of your habits, or the statistics of your only habit. The app icon never logs anything by itself. |
+| In the list, **+** at the top | Add a habit: name it, pick an icon and a colour. Tap a habit for its statistics, or its own **+** to log it. |
+| **Long-press** the app icon | Jump to *New Habit* or to a habit's statistics (Android 7.1+). |
+| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. If the icon is already there, the app says so. |
 | In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
 
-The first tap after installing also shows a one-time hint about long-pressing.
+The first time you open the app, a short tutorial shows the basics (skip it any
+time, or replay it from *How to Use* at the bottom of the habit list).
+
+### Duration trackers
+
+Some habits are about *how long*, not *how often*: for example **Box Breathing**,
+where you want to see how long it takes you to calm down. When you add a habit,
+choose **Duration** instead of **Count**:
+
+- **Tap its icon or widget to start**: a stopwatch sweeps round (*Box Breathing ·
+  started*). **Tap again when you're done**: a check shows the time it took
+  (*Box Breathing · 4:32*). A second tap within a few seconds doesn't stop it.
+- Its icon and widget carry a small **stopwatch badge**, and while a session runs
+  the widget **counts up live**.
+- Forgot to stop it? A tap on a session that has run for hours asks whether to
+  **finish it now or discard it** (a widget asks for a second tap). In the
+  statistics you can also tap a running session to finish or discard it, or add a
+  session by hand.
+- Its statistics describe the session lengths: the typical (median) session, the
+  middle half, the range, the number of sessions and, with a target, the share
+  under it. A **Durations** chart shows every session from shortest to longest.
+
+There is a built-in **Box breathing** icon (a square with an arrow on each side).
 
 ### Statistics
 
 - **Day / Week / Month / Year**: the period everything below is grouped by.
 - **Count card**: the number of logs today (or this week/month/year). Use the
   arrows or the calendar to see any other day or period.
-- **Statistics per period**: average, min, max, standard deviation and variance
-  of the per-period counts, plus the total. Periods with zero logs count as 0.
-  The period still in progress (e.g. today) is left out so a half-finished day
-  doesn't drag the average down. The caption says when that happens.
-- **History chart**: one bar per period. By default it spans all your data; tap
+- **Statistics per period**: by default the typical day (median), a trimmed
+  average, the middle half of your days, the range, the usual time of your first
+  entry, the time since the last one and the change against the previous 7 days.
+  These hold up when a few days are unusual (a party night), unlike the plain
+  average. Tap any value for what it means; *Customize* adds the average, standard
+  deviation, variance, total, a target and more, per habit. Periods with zero logs
+  count as 0, and the period still in progress (e.g. today) is left out. See the
+  [statistics guide](docs/STATISTICS.md).
+- **History chart**: one bar per period, with a 7-period median trend line and a dot
+  on unusually high periods. By default it spans all your data; tap
   the start or end date to narrow it, or *All* to reset. Tap or drag across the
   bars to inspect one, which also selects it in the count card.
 - **Time of Day**: how likely you are to do the habit at each moment of the day,
@@ -75,13 +102,11 @@ Your choice of period and chart window is remembered for each habit.
 Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
 
 - **Name**, e.g. "Smoking tracker".
-- **Icon**: 65 built-in icons (cigarette, no-smoking, sweets, food, coffee, water,
+- **Icon**: 66 built-in icons (cigarette, no-smoking, box breathing, sweets, food, coffee, water,
   workout, walk, run, cycling, sleep, wake up, meditation, reading, medication,
   …), or **your own image** from the gallery: tap *Use Your Own Image* above the
   icons. Change or remove it the same way.
 - **Colour**: ten accents.
-- **App Icon Logs This Habit**: choose which habit the main app icon counts, or switch it
-  off so the app icon opens the habit list.
 - **Clear All Entries**: deletes the habit's timestamps (after asking), keeping the habit.
 - **Delete Habit**: removes it and its entries. Android doesn't let apps remove
   home-screen items, so its icon is greyed out and its widget shows *Habit Deleted*
@@ -119,11 +144,12 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
   transparent, has no open or close animation, and closes itself after the
   confirmation, so you only ever see your home screen. The widget variant
   doesn't open a window at all.
-- **Why can't the main app icon be renamed?** Android fixes an app's own icon and
-  name at install time. Per-habit icons are home-screen shortcuts, which can be
-  renamed and re-iconed at any time, so use those for named habits.
+- **Why doesn't the app icon log?** So that nothing is ever logged without you
+  meaning it: opening the app (also from the installer's *Open* button after an
+  update) never records anything. Each habit's own icon or widget does the logging,
+  and those can carry the habit's name and icon.
 - **"Covariance"**: for a single series, covariance with itself is the variance.
-  The app shows the variance and the standard deviation.
+  Add *Variance* and *Std. dev.* in *Customize*.
 - **Privacy**: no internet permission, no ads, no analytics. Everything stays on
   your phone and is included in Android's backup and phone-to-phone transfer.
 

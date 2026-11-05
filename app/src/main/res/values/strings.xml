@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Habit Tracker</string>
-    <string name="stats_launcher_name">Habit Stats</string>
-    <string name="default_habit_name">Habit</string>
 
     <!-- Log confirmation -->
     <string name="logged_label">%1$s · %2$s</string>
-    <string name="hint_long_press">Long-press the icon for statistics</string>
+    <string name="logged_started">%1$s · started</string>
+    <string name="logged_running">%1$s · running for %2$s</string>
+    <string name="long_running_title">Still Running?</string>
+    <string name="long_running_message">%1$s has been running for %2$s. Finish it now, or discard it if you forgot to stop it?</string>
+    <string name="finish_now">Finish Now</string>
+    <string name="discard">Discard</string>
     <string name="duplicate_title">Log Again?</string>
     <string name="duplicate_message">%1$s was already logged at %2$s (%3$s). Log it again?</string>
     <plurals name="seconds_ago">
@@ -16,8 +19,9 @@
     <string name="duplicate_manual_message">%1$s already has an entry at %2$s. Add another one?</string>
     <string name="log_again">Log Again</string>
     <string name="dont_ask_again">Don\'t Ask Again</string>
+    <string name="widget_started">Started</string>
+    <string name="widget_finish_long">Running %1$s.\nTap again to finish.</string>
     <string name="widget_tap_again">Just logged.\nTap again to log again.</string>
-    <string name="hint_stats_icon">Open “Habit stats” for statistics</string>
     <plurals name="count_today">
         <item quantity="one">%d today</item>
         <item quantity="other">%d today</item>
@@ -46,8 +50,7 @@
     <!-- Launcher shortcuts and widget -->
     <string name="shortcut_statistics">Statistics</string>
     <string name="shortcut_statistics_of">%1$s Statistics</string>
-    <string name="shortcut_habits">Habits</string>
-    <string name="shortcut_habits_long">All Habits</string>
+    <string name="shortcut_new_habit">New Habit</string>
     <string name="shortcut_deleted">This habit was deleted</string>
     <string name="widget_description">Log a habit with one tap, right on your home screen</string>
     <string name="widget_log_description">Log %1$s</string>
@@ -69,6 +72,112 @@
     <string name="stat_variance">Variance</string>
     <string name="stat_total">Total</string>
     <string name="stat_empty">–</string>
+    <string name="stat_median">Typical (median)</string>
+    <string name="stat_trimmed_mean">Trimmed average</string>
+    <string name="stat_iqr">Middle half</string>
+    <string name="stat_range">Range</string>
+    <string name="stat_first_entry">Usual first</string>
+    <string name="stat_last_entry">Usual last</string>
+    <string name="stat_since_last">Since last</string>
+    <string name="stat_change">vs previous 7</string>
+    <string name="stat_zero_periods">With none</string>
+    <string name="stat_within_target">Within target</string>
+    <string name="stat_median_gap">Usual gap</string>
+    <string name="stat_dur_median">Typical session</string>
+    <string name="stat_sessions">Sessions</string>
+    <string name="stat_under_target">Under target</string>
+    <string name="stat_total_time">Total time</string>
+    <string name="help_dur_median">Your typical session length: half are shorter, half longer. One slow session doesn\'t move it.</string>
+    <string name="help_dur_iqr">The range your middle half of sessions fall in.</string>
+    <string name="help_dur_range">Your shortest and longest session in the window.</string>
+    <string name="help_sessions">How many finished sessions the window has.</string>
+    <string name="help_under_target">The share of sessions that took no longer than your target (set in Customize, in minutes).</string>
+    <string name="help_dur_mean">The plain average session length; slow sessions pull it up.</string>
+    <string name="help_total_time">All finished sessions added up.</string>
+    <string name="help_durations">Every session in the window, shortest to longest. The line marks the typical (median) session.</string>
+    <string name="durations">Durations</string>
+    <string name="durations_description">%1$d sessions, shortest to longest; typical %2$s, longest %3$s</string>
+    <plurals name="count_sessions">
+        <item quantity="one">session</item>
+        <item quantity="other">sessions</item>
+    </plurals>
+    <string name="entry_running">%1$s · running</string>
+    <string name="running_since">Running since %1$s</string>
+    <string name="entry_with_duration">%1$s · %2$s</string>
+    <string name="add_session_title">Session Length</string>
+    <string name="add_session_hint">Minutes</string>
+    <string name="customize_target_duration">Target session length in minutes, for Under target</string>
+    <string name="value_range">%1$s–%2$s</string>
+    <string name="value_of">%1$s of %2$s</string>
+    <string name="value_percent_change">%1$s%2$s</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="duration_days_hours">%1$d d %2$d h</string>
+    <string name="help_median">Your typical day (or week…): half of them are below it, half above. One unusual day doesn\'t move it.</string>
+    <string name="help_trimmed_mean">The average after setting aside the highest and lowest 10% of days, so a party night or a sick day barely counts.</string>
+    <string name="help_iqr">The range your middle half of days fall in. A narrow range means you\'re consistent.</string>
+    <string name="help_range">Your lowest and highest day in the window.</string>
+    <string name="help_first_entry">The usual time of your first entry of the day (after the day starts). For smoking, a later first cigarette is one of the clearest signs of progress.</string>
+    <string name="help_last_entry">The usual time of your last entry of the day.</string>
+    <string name="help_since_last">How long it has been since your last entry.</string>
+    <string name="help_change">Your last 7 days (or weeks…) compared with the 7 before: minus means fewer.</string>
+    <string name="help_zero_periods">How many days (or weeks…) in the window had no entry at all.</string>
+    <string name="help_within_target">How many of your last 30 days (or weeks…) stayed at or under your target. One miss doesn\'t reset anything. Set the target in Customize.</string>
+    <string name="help_median_gap">The usual time between two entries.</string>
+    <string name="help_mean">The plain average. One unusual day can pull it up a lot, so it\'s shown as a secondary number.</string>
+    <string name="help_std_dev">How much your days usually differ from the average. Unusual days inflate it.</string>
+    <string name="help_variance">The square of the standard deviation; for one series it is also its covariance with itself.</string>
+    <string name="help_min">Your lowest day in the window.</string>
+    <string name="help_max">Your highest day in the window.</string>
+    <string name="help_total">Every entry in the window, including today.</string>
+    <string name="help_count_card">How many entries the selected day, week, month or year has. Use the arrows or the calendar to look at another one.</string>
+    <string name="help_stats_card">Statistics of the days (weeks…) in the History window. The one still running is left out so a half-finished day doesn\'t count as a low one. Tap a value for what it means.</string>
+    <string name="help_history">One bar per day (week…). The line is the median of the last 7; a dot marks an unusually high one. Tap or drag across the bars to look at one.</string>
+    <string name="help_time_of_day">How likely you are to do it around each time of day: 100% means around that time every day.</string>
+    <string name="help_positions">The share of each weekday, day of the month or month on which you logged it at least once.</string>
+    <string name="help_entries">Every entry of the selected day (week…). Tap + to add one you forgot, or an entry to delete it.</string>
+    <string name="count_card_title">Count</string>
+    <string name="customize">Customize</string>
+    <string name="how_to_use">How to Use</string>
+    <string name="tour_skip">Skip</string>
+    <string name="tour_back">Back</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_done">Got It</string>
+    <string name="tour_page_description">Page %1$d of %2$d</string>
+    <string name="tour_welcome_title">Track Habits in One Tap</string>
+    <string name="tour_welcome_text">Each habit gets its own icon or widget on your home screen. Tap it and it\'s logged, without opening anything.</string>
+    <string name="tour_add_title">Add a Habit</string>
+    <string name="tour_add_text">In the habit list, tap + at the top. Give it a name, an icon (or your own image) and a colour, and choose Count or Duration.</string>
+    <string name="tour_log_title">Log From Your Home Screen</string>
+    <string name="tour_log_text">In a habit\'s settings, tap Add Icon to Home Screen or Add One-Tap Widget. A tap on it logs the habit and shows a quick confirmation. In the app, the + next to a habit logs it too.</string>
+    <string name="tour_duration_title">Duration Trackers</string>
+    <string name="tour_duration_text">For things like Box Breathing: tap to start, tap again when you\'re done. The app records how long it took. These icons carry a small stopwatch.</string>
+    <string name="tour_stats_title">See Your Statistics</string>
+    <string name="tour_stats_text">Tap a habit for its statistics by day, week, month or year, and when you usually do it. Tap any value for what it means, or Customize to choose what you see.</string>
+    <string name="tour_edit_title">Edit or Delete</string>
+    <string name="tour_edit_text">The pencil opens a habit\'s settings: rename it, change its icon or colour, clear its entries or delete it. You can replay this tour from How to Use in the habit list.</string>
+    <string name="whats_new_title">What\'s New</string>
+    <string-array name="whats_new_items">
+        <item>The app icon now opens the app. Log a habit with its own home-screen icon or widget, so nothing is ever logged by accident.</item>
+        <item>Statistics that one unusual day can\'t distort, like your typical day and the usual time of your first entry. Tap any value for what it means.</item>
+        <item>Choose which statistics each habit shows with Customize.</item>
+        <item>Duration trackers, e.g. Box Breathing: tap to start, tap again to finish.</item>
+        <item>Removed: the App Icon Logs This Habit switch.</item>
+    </string-array>
+    <string name="habit_type">Type</string>
+    <string name="habit_type_count">Count: tap to log a moment</string>
+    <string name="habit_type_duration">Duration: tap to start, tap again to finish</string>
+    <string name="customize_title">Customize Statistics</string>
+    <string name="customize_stats">Statistics</string>
+    <string name="customize_cards">Cards</string>
+    <string name="customize_target">Target per day (week…), for Within target</string>
+    <string name="customize_target_hint">No target</string>
+    <string name="customize_day_start">Day starts at (time of day chart, first entry)</string>
+    <string name="customize_reset">Reset to Default</string>
+    <string name="statistics_settings">Statistics</string>
+    <string name="statistics_settings_default">Default</string>
+    <string name="statistics_settings_custom">Customized</string>
+    <string name="history_legend">Line: median of the last 7 · dot: unusually high</string>
     <plurals name="based_on_days">
         <item quantity="one">Based on %d day</item>
         <item quantity="other">Based on %d days</item>
@@ -140,8 +249,6 @@
     <string name="manage_habits">Manage Habits…</string>
     <string name="switch_habit">Switch habit</string>
     <string name="habits_tip">Tap a habit for its statistics, or + to log it.</string>
-    <string name="app_icon_badge">app icon</string>
-    <string name="habit_subtitle">%1$s · %2$s</string>
     <string name="log_habit">Log %1$s</string>
 
     <!-- Editor -->
@@ -166,7 +273,6 @@
     <string name="add_widget">Add One-Tap Widget</string>
     <string name="pin_unsupported">Your launcher doesn\'t support this</string>
     <string name="pin_legacy_done">Icon sent to your home screen</string>
-    <string name="main_icon_habit">App Icon Logs This Habit</string>
     <string name="delete_habit">Delete Habit</string>
     <string name="delete_habit_title">Delete “%1$s”?</string>
     <plurals name="delete_habit_message">
@@ -178,6 +284,8 @@
 
     <!-- v1.1 -->
     <string name="habits_empty">No habits yet.\nTap + to add one.</string>
+    <!-- Label of the widget in the launcher's widget preview. -->
+    <string name="widget_preview_name">Habit</string>
     <string name="widget_choose">Choose Habit</string>
     <string name="widget_deleted">Habit Deleted</string>
     <string name="widget_exists">%1$s already has a widget on your home screen</string>
@@ -228,6 +336,7 @@
     <string name="icon_football">Football</string>
     <string name="icon_basketball">Basketball</string>
     <string name="icon_meditation">Meditation</string>
+    <string name="icon_box_breathing">Box breathing</string>
     <string name="icon_selfcare">Self-care</string>
     <string name="icon_sleep">Sleep</string>
     <string name="icon_wake">Wake up</string>

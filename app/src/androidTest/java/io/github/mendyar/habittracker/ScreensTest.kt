@@ -62,7 +62,8 @@ class ScreensTest {
         context.deleteDatabase("habits.db")
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().clear().commit()
         repository = HabitRepository.get(context)
-        repository.settings.hintShown = true
+        // The tutorial is tested on its own; here the app should open straight to its screens.
+        repository.settings.lastSeenVersion = io.github.mendyar.habittracker.onboarding.Onboarding.versionCode(context)
     }
 
     /** Two months of a habit that is slowly being cut down, plus two more habits. */
@@ -127,6 +128,21 @@ class ScreensTest {
     }
 
     @Test
+    fun tutorialScreen() {
+        launch(
+            io.github.mendyar.habittracker.onboarding.OnboardingActivity.intent(
+                context,
+                io.github.mendyar.habittracker.onboarding.Onboarding.Mode.TUTORIAL,
+            ),
+        )
+        val activity = waitForActivity()
+        waitUntil { activity.findViewById<TextView>(R.id.tour_title).text.isNotEmpty() }
+        instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.tour_next).performClick() }
+        screenshot("10_tutorial")
+        activity.finish()
+    }
+
+    @Test
     fun habitsScreen() {
         seed()
         launch(Intent(context, HabitsActivity::class.java))
@@ -147,11 +163,10 @@ class ScreensTest {
     }
 
     /**
-     * The real user flow through the launcher: tapping the app icon logs a
-     * timestamp and returns to the home screen. Then the confirmation is shown
-     * again, anchored on the icon's bounds, to screenshot it mid-animation
-     * (emulator screenshots are too slow to catch it after a real tap).
-     * Skipped where the launcher has not placed the app icon on the home screen.
+     * The real user flow through the launcher: tapping the app icon opens the app
+     * and logs nothing. Then a habit's own icon intent logs it, and its confirmation
+     * is screenshot mid-animation (emulator screenshots are too slow to catch it
+     * otherwise). Skipped where the launcher has not placed the app icon on the home screen.
      */
     @Test
     fun launcherIconTap() {
@@ -167,18 +182,16 @@ class ScreensTest {
         val iconSelector = By.desc(appName).clazz("android.widget.TextView")
         val icon = device.wait(Until.findObject(iconSelector), 3_000) ?: device.findObject(By.text(appName))
         assumeTrue("The launcher shows no '$appName' icon on the home screen", icon != null)
-        val bounds = icon!!.visibleBounds
         val before = repository.timestamps(id).size
-        icon.click()
-        waitUntil { repository.timestamps(id).size == before + 1 }
-        waitUntil { resumedActivity() == null }
+        // The app icon opens the app (the habit list: there are several habits) and logs nothing.
+        icon!!.click()
+        waitUntil { resumedActivity() is HabitsActivity }
+        assertEquals(before, repository.timestamps(id).size)
+        device.pressHome()
+        device.waitForIdle()
 
-        Thread.sleep(1_500)
-        // A second log seconds later would ask whether it's a mistake; this one is on purpose.
-        repository.settings.setConfirmDuplicates(id, false)
-        val intent = Intent(Intent.ACTION_MAIN).setClass(context, LogActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.sourceBounds = bounds
-        context.startActivity(intent)
+        // A habit's own home-screen icon logs it; picture its confirmation.
+        context.startActivity(Shortcuts.logIntent(context, id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         var view: LogAnimationView? = null
         waitUntil {
             val activity = resumedActivity() as? LogActivity
@@ -195,7 +208,7 @@ class ScreensTest {
         instrumentation.runOnMainSync { freeze(view!!, atMs = 700f) }
         Thread.sleep(500)
         screenshot("5_log_animation", settleMs = 0)
-        waitUntil { repository.timestamps(id).size == before + 2 }
+        waitUntil { repository.timestamps(id).size == before + 1 }
         instrumentation.runOnMainSync { view!!.skip() }
     }
 
@@ -325,10 +338,7 @@ class ScreensTest {
     }
 
     /** The habit the first run creates for the app icon. */
-    private fun firstHabit() = repository.run {
-        ensureFirstRun()
-        defaultHabit()!!
-    }
+    private fun firstHabit() = repository.createHabit("Habit", "check", null, HabitColors.DEFAULT)
 
     private companion object {
         /** The app's light background (`@color/bg`). */

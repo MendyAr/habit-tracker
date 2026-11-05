@@ -18,12 +18,15 @@ import android.graphics.drawable.Drawable
  *
  * With [fullBleed] the background fills the whole bounds instead of a circle and
  * the content is kept inside the centre safe zone, as adaptive icons require.
+ * A [badge] (the stopwatch of duration trackers) sits in a white disc at the
+ * bottom right, so these icons are easy to tell from count trackers.
  */
 class HabitIconDrawable(
     private val glyph: Drawable?,
     private val image: Bitmap?,
     color: Int,
     private val fullBleed: Boolean = false,
+    private val badge: Drawable? = null,
 ) : Drawable() {
 
     private val background = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
@@ -31,9 +34,11 @@ class HabitIconDrawable(
     private val shaderMatrix = Matrix()
     private val glyphBounds = Rect()
     private val imageRect = RectF()
+    private val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = 0xFFFFFFFF.toInt() }
 
     init {
         glyph?.mutate()?.setTint(0xFFFFFFFF.toInt())
+        badge?.mutate()?.setTint(color)
         if (image != null) imagePaint.shader = BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
     }
 
@@ -62,6 +67,18 @@ class HabitIconDrawable(
             glyph.bounds = glyphBounds
             glyph.draw(canvas)
         }
+
+        if (badge != null) {
+            val offset = size * if (fullBleed) BADGE_OFFSET_ADAPTIVE else BADGE_OFFSET_CIRCLE
+            val r = size * if (fullBleed) BADGE_RADIUS_ADAPTIVE else BADGE_RADIUS_CIRCLE
+            val bx = cx + offset
+            val by = cy + offset
+            canvas.drawCircle(bx, by, r, badgePaint)
+            val g = r * 1.35f
+            glyphBounds.set((bx - g / 2f).toInt(), (by - g / 2f).toInt(), (bx + g / 2f).toInt(), (by + g / 2f).toInt())
+            badge.bounds = glyphBounds
+            badge.draw(canvas)
+        }
     }
 
     override fun setAlpha(alpha: Int) {
@@ -84,5 +101,9 @@ class HabitIconDrawable(
         const val GLYPH_CIRCLE = 0.56f
         const val GLYPH_ADAPTIVE = 0.40f
         const val IMAGE_SAFE_ZONE = 0.70f
+        const val BADGE_OFFSET_CIRCLE = 0.32f
+        const val BADGE_RADIUS_CIRCLE = 0.19f
+        const val BADGE_OFFSET_ADAPTIVE = 0.19f
+        const val BADGE_RADIUS_ADAPTIVE = 0.11f
     }
 }

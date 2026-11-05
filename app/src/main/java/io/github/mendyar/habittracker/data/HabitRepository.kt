@@ -3,9 +3,6 @@ package io.github.mendyar.habittracker.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
-import io.github.mendyar.habittracker.R
-import io.github.mendyar.habittracker.icons.HabitColors
-import io.github.mendyar.habittracker.icons.HabitIcons
 import java.io.File
 
 /**
@@ -17,7 +14,6 @@ import java.io.File
 class HabitRepository(
     private val database: HabitDatabase,
     val settings: Settings,
-    private val defaultHabitName: String,
 ) {
 
     /** All habits, oldest first. */
@@ -29,30 +25,7 @@ class HabitRepository(
         .query("habits", null, "_id = ?", arrayOf(id.toString()), null, null, null)
         .use { c -> if (c.moveToFirst()) c.toHabit() else null }
 
-    /** The habit logged by the main launcher icon, or null when the user chose none. */
-    fun defaultHabit(): Habit? = habit(settings.defaultHabitId)
-
-    /** Makes [id] the habit the main launcher icon logs; null for none. */
-    fun setDefaultHabit(id: Long?) {
-        settings.defaultHabitId = id ?: -1
-    }
-
-    /**
-     * On the very first run, creates one habit for the app icon to log, so the app
-     * works straight after installation. Never creates anything afterwards, even
-     * if the user deletes every habit.
-     */
-    @Synchronized
-    fun ensureFirstRun() {
-        if (settings.initialized) return
-        if (habits().isEmpty()) {
-            val first = createHabit(defaultHabitName, HabitIcons.DEFAULT, null, HabitColors.DEFAULT)
-            settings.defaultHabitId = first.id
-        }
-        settings.initialized = true
-    }
-
-    fun createHabit(name: String, icon: String, customIcon: String?, color: Int): Habit {
+    fun createHabit(name: String, icon: String, customIcon: String?, color: Int, type: HabitType = HabitType.COUNT): Habit {
         val now = System.currentTimeMillis()
         val values = ContentValues().apply {
             put("name", name)
@@ -60,9 +33,10 @@ class HabitRepository(
             put("custom_icon", customIcon)
             put("color", color)
             put("created_at", now)
+            put("type", type.ordinal)
         }
         val id = database.writableDatabase.insertOrThrow("habits", null, values)
-        return Habit(id, name, icon, customIcon, color, now)
+        return Habit(id, name, icon, customIcon, color, now, type)
     }
 
     fun updateHabit(habit: Habit) {
@@ -83,7 +57,6 @@ class HabitRepository(
         database.writableDatabase.delete("habits", "_id = ?", arrayOf(id.toString()))
         old.customIcon?.let { File(it).delete() }
         settings.forgetHabit(id)
-        if (settings.defaultHabitId == id) settings.defaultHabitId = -1
     }
 
     /** Deletes every timestamp of [habitId]; the habit itself stays. */
@@ -121,6 +94,40 @@ class HabitRepository(
         return count(habitId, minute, minute + MINUTE_MS) > 0
     }
 
+    /** The running session of a duration habit (started, not finished), if any. */
+    fun running(habitId: Long): Entry? = database.readableDatabase
+        .rawQuery(
+            "SELECT _id, ts FROM entries WHERE habit_id = ? AND duration IS NULL ORDER BY ts DESC LIMIT 1",
+            arrayOf(habitId.toString()),
+        )
+        .use { c -> if (c.moveToFirst()) Entry(c.getLong(0), habitId, c.getLong(1)) else null }
+
+    /** Finishes the session [entryId] at [end], recording its duration. */
+    fun finish(entryId: Long, end: Long) {
+        database.writableDatabase.execSQL(
+            "UPDATE entries SET duration = MAX(0, ? - ts) WHERE _id = ?",
+            arrayOf(end, entryId),
+        )
+    }
+
+    /** Records a finished session of [habitId] (e.g. one added by hand). */
+    fun addSession(habitId: Long, start: Long, duration: Long): Long {
+        val values = ContentValues().apply {
+            put("habit_id", habitId)
+            put("ts", start)
+            put("duration", duration)
+        }
+        return database.writableDatabase.insertOrThrow("entries", null, values)
+    }
+
+    /** The finished sessions of the duration habit [habitId], oldest first. */
+    fun sessions(habitId: Long): List<Entry> = database.readableDatabase
+        .rawQuery(
+            "SELECT _id, ts, duration FROM entries WHERE habit_id = ? AND duration IS NOT NULL ORDER BY ts",
+            arrayOf(habitId.toString()),
+        )
+        .use { c -> generateSequence { if (c.moveToNext()) Entry(c.getLong(0), habitId, c.getLong(1), c.getLong(2)) else null }.toList() }
+
     fun deleteEntry(entryId: Long) {
         database.writableDatabase.delete("entries", "_id = ?", arrayOf(entryId.toString()))
     }
@@ -146,10 +153,14 @@ class HabitRepository(
     /** Entries of [habitId] in [[from], [to]), newest first, at most [limit]. */
     fun entries(habitId: Long, from: Long, to: Long, limit: Int): List<Entry> = database.readableDatabase
         .rawQuery(
-            "SELECT _id, ts FROM entries WHERE habit_id = ? AND ts >= ? AND ts < ? ORDER BY ts DESC LIMIT $limit",
+            "SELECT _id, ts, duration FROM entries WHERE habit_id = ? AND ts >= ? AND ts < ? ORDER BY ts DESC LIMIT $limit",
             arrayOf(habitId.toString(), from.toString(), to.toString()),
         )
-        .use { c -> generateSequence { if (c.moveToNext()) Entry(c.getLong(0), habitId, c.getLong(1)) else null }.toList() }
+        .use { c ->
+            generateSequence {
+                if (c.moveToNext()) Entry(c.getLong(0), habitId, c.getLong(1), if (c.isNull(2)) null else c.getLong(2)) else null
+            }.toList()
+        }
 
     /** Time of the most recent entry per habit id (habits never logged are absent). */
     fun lastLogged(): Map<Long, Long> = database.readableDatabase
@@ -163,6 +174,7 @@ class HabitRepository(
         customIcon = getString(getColumnIndexOrThrow("custom_icon")),
         color = getInt(getColumnIndexOrThrow("color")),
         createdAt = getLong(getColumnIndexOrThrow("created_at")),
+        type = HabitType.entries.getOrElse(getInt(getColumnIndexOrThrow("type"))) { HabitType.COUNT },
     )
 
     companion object {
@@ -175,11 +187,7 @@ class HabitRepository(
 
         /** Process-wide repository backed by the app's database. */
         fun get(context: Context): HabitRepository = instance ?: synchronized(this) {
-            instance ?: HabitRepository(
-                HabitDatabase(context),
-                Settings(context),
-                context.getString(R.string.default_habit_name),
-            ).also { instance = it }
+            instance ?: HabitRepository(HabitDatabase(context), Settings(context)).also { instance = it }
         }
 
         /** Drops the process-wide instance; tests use this to start from a clean database. */

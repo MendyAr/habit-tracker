@@ -15,25 +15,16 @@ class Settings(private val prefs: SharedPreferences) {
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE),
     )
 
-    /** The habit logged by the main launcher icon, or -1 when none is chosen. */
-    var defaultHabitId: Long
-        get() = prefs.getLong(KEY_DEFAULT_HABIT, -1)
-        set(value) = prefs.edit().putLong(KEY_DEFAULT_HABIT, value).apply()
-
-    /** Whether the first-run habit was set up; after that habits are never created implicitly. */
-    var initialized: Boolean
-        get() = prefs.getBoolean(KEY_INITIALIZED, false)
-        set(value) = prefs.edit().putBoolean(KEY_INITIALIZED, value).apply()
+    /** Version code of the app when the user last opened it (0: never, or 1.3 and older). */
+    var lastSeenVersion: Int
+        get() = prefs.getInt(KEY_LAST_SEEN_VERSION, 0)
+        set(value) = prefs.edit().putInt(KEY_LAST_SEEN_VERSION, value).apply()
 
     /** The habit most recently shown in the statistics screen. */
     var lastViewedHabitId: Long
         get() = prefs.getLong(KEY_LAST_VIEWED, -1)
         set(value) = prefs.edit().putLong(KEY_LAST_VIEWED, value).apply()
 
-    /** Whether the one-time "long-press for statistics" hint was shown. */
-    var hintShown: Boolean
-        get() = prefs.getBoolean(KEY_HINT_SHOWN, false)
-        set(value) = prefs.edit().putBoolean(KEY_HINT_SHOWN, value).apply()
 
     fun period(habitId: Long): Period = Period.fromName(prefs.getString("period_$habitId", null))
 
@@ -46,6 +37,13 @@ class Settings(private val prefs: SharedPreferences) {
 
     fun setConfirmDuplicates(habitId: Long, confirm: Boolean) {
         prefs.edit().putBoolean("confirm_dup_$habitId", confirm).apply()
+    }
+
+    /** The tracker's customised statistics, in `StatsConfig.encode()` form; null for the default. */
+    fun statsConfig(habitId: Long): String? = prefs.getString("stats_config_$habitId", null)
+
+    fun setStatsConfig(habitId: Long, encoded: String?) {
+        prefs.edit().apply { if (encoded == null) remove("stats_config_$habitId") else putString("stats_config_$habitId", encoded) }.apply()
     }
 
     fun range(habitId: Long): DateRange = DateRange(
@@ -91,16 +89,15 @@ class Settings(private val prefs: SharedPreferences) {
             .remove("range_from_$habitId")
             .remove("range_to_$habitId")
             .remove("confirm_dup_$habitId")
+            .remove("stats_config_$habitId")
             .apply()
     }
 
     private companion object {
         const val FILE = "settings"
         const val NONE = Long.MIN_VALUE
-        const val KEY_DEFAULT_HABIT = "default_habit"
         const val KEY_LAST_VIEWED = "last_viewed_habit"
-        const val KEY_HINT_SHOWN = "hint_shown"
-        const val KEY_INITIALIZED = "initialized"
+        const val KEY_LAST_SEEN_VERSION = "last_seen_version"
         const val KEY_PENDING_WIDGET = "pending_widget"
         const val KEY_PENDING_WIDGET_AT = "pending_widget_at"
         const val PENDING_WIDGET_MAX_AGE_MS = 120_000L

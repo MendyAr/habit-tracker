@@ -31,8 +31,7 @@ def main():
     for density, px in DENSITIES.items():
         out = RES / f"mipmap-{density}"
         out.mkdir(parents=True, exist_ok=True)
-        for name, glyph, rnd in [("ic_launcher", CHECK, False), ("ic_launcher_round", CHECK, True),
-                                 ("ic_launcher_stats", STATS, True)]:
+        for name, glyph, rnd in [("ic_launcher", CHECK, False), ("ic_launcher_round", CHECK, True)]:
             cairosvg.svg2png(bytestring=svg(glyph, rnd).encode(), write_to=str(out / f"{name}.png"),
                              output_width=px, output_height=px)
     print("done")

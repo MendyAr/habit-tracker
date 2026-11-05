@@ -11,9 +11,12 @@ import android.view.ViewGroup
 import androidx.test.core.app.ApplicationProvider
 import io.github.mendyar.habittracker.awaitCondition
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.onboarding.Onboarding
+import io.github.mendyar.habittracker.stats.StatsActivity
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -41,6 +44,8 @@ class LogActivityTest {
         HabitRepository.resetForTests()
         context = ApplicationProvider.getApplicationContext()
         repository = HabitRepository.get(context)
+        // The tutorial is tested in OnboardingTest; here the app icon should open the app directly.
+        repository.settings.lastSeenVersion = Onboarding.versionCode(context).coerceAtLeast(1)
     }
 
     @After
@@ -50,10 +55,11 @@ class LogActivityTest {
     }
 
     @Test
-    fun launcherTapLogsTheAppIconHabitAndShowsTheConfirmation() {
-        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
+    fun pinnedIconLogsAndShowsTheConfirmation() {
+        val habit = firstHabit()
+        val activity = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup().get()
 
-        awaitCondition { repository.defaultHabit()?.let { repository.timestamps(it.id).size } == 1 }
+        awaitCondition { repository.timestamps(habit.id).size == 1 }
         // The system reports the end of the window transition; Robolectric does not.
         activity.onEnterAnimationComplete()
         val confirmation = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0) as LogAnimationView
@@ -67,12 +73,12 @@ class LogActivityTest {
 
     @Test
     fun pinnedIconLogsItsOwnHabit() {
-        val default = firstHabit()
+        val other = firstHabit()
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup()
 
         awaitCondition { repository.timestamps(water.id).size == 1 }
-        assertEquals(0, repository.timestamps(default.id).size)
+        assertEquals(0, repository.timestamps(other.id).size)
     }
 
     @Test
@@ -86,33 +92,32 @@ class LogActivityTest {
     }
 
     @Test
-    fun firstLogShowsTheHintOnlyOnce() {
-        val habit = firstHabit()
-        // Two logs in a row: don't stop at the double-tap question here.
-        repository.settings.setConfirmDuplicates(habit.id, false)
-        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
-        awaitCondition { repository.settings.hintShown }
-        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, habit.id)).setup()
-        awaitCondition { repository.timestamps(habit.id).size == 2 }
-        assertTrue(repository.settings.hintShown)
-    }
-
-    @Test
-    fun launcherTapWithoutAnAppIconHabitOpensTheHabitList() {
-        val habit = firstHabit()
-        repository.setDefaultHabit(null)
-        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
+    fun appIconOpensTheHabitListAndLogsNothing() {
+        val water = firstHabit()
+        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
+        val activity = Robolectric.buildActivity(LogActivity::class.java, launcherIntent()).setup().get()
 
         awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
         assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)
         assertTrue(activity.isFinishing)
-        assertEquals(0, repository.timestamps(habit.id).size)
+        assertEquals(0, repository.timestamps(water.id).size + repository.timestamps(walk.id).size)
     }
 
     @Test
-    fun launcherTapAfterDeletingEveryHabitCreatesNothing() {
-        repository.deleteHabit(firstHabit().id)
-        val activity = Robolectric.buildActivity(LogActivity::class.java, Intent(Intent.ACTION_MAIN)).setup().get()
+    fun appIconOpensTheStatisticsOfTheOnlyHabit() {
+        val water = firstHabit()
+        val activity = Robolectric.buildActivity(LogActivity::class.java, launcherIntent()).setup().get()
+
+        awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
+        val started = shadowOf(activity).nextStartedActivity
+        assertEquals(StatsActivity::class.java.name, started.component?.className)
+        assertEquals(water.id, started.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1))
+        assertEquals(0, repository.timestamps(water.id).size)
+    }
+
+    @Test
+    fun appIconWithoutHabitsOpensTheEmptyListAndCreatesNothing() {
+        val activity = Robolectric.buildActivity(LogActivity::class.java, launcherIntent()).setup().get()
 
         awaitCondition { shadowOf(activity).peekNextStartedActivity() != null }
         assertEquals(HabitsActivity::class.java.name, shadowOf(activity).nextStartedActivity.component?.className)
@@ -197,14 +202,52 @@ class LogActivityTest {
         assertTrue(finished)
     }
 
+    @Test
+    fun aDurationIconStartsThenFinishesASession() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        awaitCondition { repository.running(breathing.id) != null }
+
+        // Pretend the session started four minutes ago, then tap again.
+        val session = repository.running(breathing.id)!!
+        repository.deleteEntry(session.id)
+        repository.log(breathing.id, System.currentTimeMillis() - 240_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        awaitCondition { repository.sessions(breathing.id).size == 1 }
+        assertNull(repository.running(breathing.id))
+        assertTrue(repository.sessions(breathing.id).single().duration!! >= 240_000)
+    }
+
+    @Test
+    fun aDoubleTapOnADurationIconLeavesTheSessionRunning() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        repository.log(breathing.id, System.currentTimeMillis() - 1_000)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+        Thread.sleep(300)
+        shadowOf(Looper.getMainLooper()).idle()
+        Async.awaitIdle()
+        assertTrue(repository.running(breathing.id) != null)
+        assertTrue(repository.sessions(breathing.id).isEmpty())
+    }
+
+    @Test
+    fun aForgottenSessionAsksToFinishOrDiscard() {
+        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        repository.log(breathing.id, System.currentTimeMillis() - 5 * 3_600_000L)
+        Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, breathing.id)).setup()
+
+        awaitDialog().getButton(DialogInterface.BUTTON_NEUTRAL).performClick() // Discard
+        awaitCondition { repository.running(breathing.id) == null }
+        assertTrue(repository.sessions(breathing.id).isEmpty())
+    }
+
     private fun awaitDialog(): AlertDialog {
         awaitCondition { (ShadowAlertDialog.getLatestAlertDialog() as? AlertDialog)?.isShowing == true }
         return ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
     }
 
-    /** The habit the first run creates for the app icon. */
-    private fun firstHabit() = repository.run {
-        ensureFirstRun()
-        defaultHabit()!!
-    }
+    private fun firstHabit() = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+
+    /** What a launcher sends when the app icon is tapped (also the installer's Open button). */
+    private fun launcherIntent() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
 }
