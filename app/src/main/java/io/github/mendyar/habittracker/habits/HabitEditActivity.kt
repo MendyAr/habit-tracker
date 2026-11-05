@@ -447,9 +447,11 @@ class HabitEditActivity : Activity() {
                 val tileDp = 18 + 10 * size.cells
                 option.addView(
                     ImageView(this).apply {
+                        // Like the widget: a neutral panel with the habit's disc.
                         background = GradientDrawable().apply {
                             cornerRadius = dp(4 + 2 * size.cells).toFloat()
-                            setColor(habit.color)
+                            setColor(colorOf(R.color.surface_variant))
+                            setStroke(dp(1), colorOf(R.color.divider))
                         }
                         setImageBitmap(icon)
                         scaleType = ImageView.ScaleType.FIT_CENTER

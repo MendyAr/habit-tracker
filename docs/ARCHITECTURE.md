@@ -83,8 +83,15 @@ confirmation.
 Each habit has at most one widget. A widget is bound to its habit explicitly
 (picker, or the pin request from the editor) and never falls back to another
 habit: an unbound widget shows *Choose Habit*, one whose habit was deleted shows
-*Habit Deleted*, and tapping either opens the picker. Widgets are resizable and
-fill their space with the habit's colour.
+*Habit Deleted*, and tapping either opens the picker. Widgets are resizable.
+
+The widget blends with the home screen: its panel (`drawable/widget_tile`) is a
+translucent neutral, `@color/widget_surface`, which on Android 12+ is the system's
+wallpaper-derived `system_neutral1_50` (dark theme: `system_neutral1_900`) at 86%
+opacity (`color-v31`, `color-night-v31`), with the launcher's own corner radius;
+before that a translucent white or dark grey. The habit's colour is only on the
+icon (a disc, `IconFactory.circleBitmap`) and the stopwatch badge, and the text is
+dark on light (light in the dark theme), so it stays readable on any wallpaper.
 
 ### Long-press: statistics
 

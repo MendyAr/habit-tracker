@@ -41,6 +41,11 @@ All notable changes to this project are documented here. The format follows
 - The **+** next to a habit in the app logs through the same confirmation (and
   trigger suggestion) as its widget.
 
+- **A calmer widget that blends with your home screen**: a translucent panel in your
+  wallpaper's colours (Android 12+; light or dark grey before that, dark in the dark
+  theme) with the launcher's corner radius, and the habit's colour only on its icon
+  (#30).
+
 ### Fixed
 - Quick taps on a widget were sometimes registered seconds late (#29).
 - A running session's timer now replaces the widget's name, so it also shows on a

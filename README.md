@@ -19,7 +19,7 @@ The Habit Tracker app icon opens the app: your habits and their statistics.
 
 | Time of day | Widget: pick a size | …and it's on your home screen |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/time-of-day.png" width="160" alt="Smooth curve of how likely the habit is at each time of day, peaking at 10:10 AM on 72% of days"> | <img src="docs/screenshots/widget-size.png" width="160" alt="Widget Size dialog with 1 × 1, 2 × 2, 3 × 3 and 4 × 4 tiles"> | <img src="docs/screenshots/widget.png" width="160" alt="A 2 × 2 widget in the habit's colour on the home screen"> |
+| <img src="docs/screenshots/time-of-day.png" width="160" alt="Smooth curve of how likely the habit is at each time of day, peaking at 10:10 AM on 72% of days"> | <img src="docs/screenshots/widget-size.png" width="160" alt="Widget Size dialog with 1 × 1, 2 × 2, 3 × 3 and 4 × 4 tiles"> | <img src="docs/screenshots/widget.png" width="160" alt="A 2 × 2 widget on the home screen: a translucent panel with the habit's coloured icon"> |
 
 <sub>Screenshots are taken automatically by the instrumented tests on an Android 15 emulator.</sub>
 
@@ -42,6 +42,10 @@ To update, install the newer APK over the old one; your data stays.
 | **Long-press** the app icon | Jump to *New Habit* or to a habit's statistics (Android 7.1+). |
 | In a habit's settings → *Add One-Tap Widget* | Give the habit its own widget (the app offers it right after you create a habit). **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one; if it's already there, the app says so. |
 | Your launcher's widget list → *Habit Tracker* | The same widget, placed by hand (the only way before Android 8): it asks which habit to show. |
+
+Widgets are a soft, see-through panel that sits well on any wallpaper (on Android
+12 and newer in your phone's wallpaper colours, and dark in the dark theme), with
+the habit's icon in its colour.
 
 Habit icons pinned to the home screen by earlier versions keep working, but the
 app no longer creates new ones: widgets do everything icons did, and more.

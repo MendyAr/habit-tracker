@@ -18,16 +18,16 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
-import io.github.mendyar.habittracker.icons.HabitIconDrawable
-import io.github.mendyar.habittracker.icons.HabitIcons
+import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.PinResult
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.colorOf
 
 /**
- * A resizable home-screen widget, at most one per habit. It is a tile in the
- * habit's colour with its icon; tapping it opens [io.github.mendyar.habittracker.log.LogActivity], which logs a
+ * A resizable home-screen widget, at most one per habit. It is a translucent
+ * neutral panel that blends with the wallpaper (on Android 12+ in the system's
+ * wallpaper-derived colours), with the habit's icon as a disc in its colour; tapping it opens [io.github.mendyar.habittracker.log.LogActivity], which logs a
  * timestamp and shows its confirmation in the middle of the home screen in a
  * transparent window, exactly like a pinned habit icon. (Logging in the receiver
  * held each tap's broadcast open until the widget flipped back, which delayed the
@@ -113,7 +113,6 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         internal const val ACTION_LOG = "io.github.mendyar.habittracker.action.WIDGET_LOG"
         internal const val ACTION_PINNED = "io.github.mendyar.habittracker.action.WIDGET_PINNED"
         private const val UNBOUND = -1L
-        private const val NEUTRAL_TILE = 0xFF8A8F8C.toInt()
 
         private fun Context.settingsHabit(widgetId: Int) = HabitRepository.get(this).settings.widgetHabit(widgetId)
 
@@ -211,7 +210,6 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             val habit = repository.habit(habitId)
             val views = RemoteViews(context.packageName, R.layout.widget_habit)
             if (habit != null) {
-                views.setInt(R.id.widget_bg, "setColorFilter", habit.color)
                 views.setImageViewBitmap(R.id.widget_icon, iconBitmap(context, habit))
                 views.setTextViewText(R.id.widget_label, habit.name)
                 views.setContentDescription(R.id.widget_root, context.getString(R.string.widget_log_description, habit.name))
@@ -220,8 +218,7 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             } else {
                 // Not chosen yet, or its habit was deleted: say so, and let a tap pick a habit.
                 val label = if (habitId == UNBOUND) R.string.widget_choose else R.string.widget_deleted
-                views.setInt(R.id.widget_bg, "setColorFilter", NEUTRAL_TILE)
-                views.setImageViewBitmap(R.id.widget_icon, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_add)))
+                views.setImageViewBitmap(R.id.widget_icon, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_add), context.colorOf(R.color.widget_text)))
                 views.setTextViewText(R.id.widget_label, context.getString(label))
                 views.setContentDescription(R.id.widget_root, context.getString(label))
                 val pick = Intent(context, WidgetConfigActivity::class.java)
@@ -236,7 +233,7 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         private fun showSession(context: Context, views: RemoteViews, habit: Habit) {
             val duration = habit.type == HabitType.DURATION
             views.setViewVisibility(R.id.widget_badge, if (duration) View.VISIBLE else View.GONE)
-            if (duration) views.setImageViewBitmap(R.id.widget_badge, glyphBitmap(context, context.getDrawable(R.drawable.ic_habit_timer)))
+            if (duration) views.setImageViewBitmap(R.id.widget_badge, glyphBitmap(context, context.getDrawable(R.drawable.ic_habit_timer), habit.color))
             val session = if (duration) HabitRepository.get(context).running(habit.id) else null
             if (session != null) {
                 val base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - session.timestamp)
@@ -267,16 +264,12 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         private fun immutable() = PendingIntent.FLAG_UPDATE_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
-        /** The habit's glyph in white, or its own image cropped to a circle. */
+        /** The habit's icon as on the home screen: a disc in its colour with the glyph, or its own image. */
         internal fun iconBitmap(context: Context, habit: Habit): Bitmap =
-            if (habit.customIcon != null) {
-                render(context, HabitIconDrawable(null, android.graphics.BitmapFactory.decodeFile(habit.customIcon), habit.color))
-            } else {
-                glyphBitmap(context, context.getDrawable(HabitIcons.find(habit.icon).drawable))
-            }
+            IconFactory.circleBitmap(context, habit, (ICON_DP * context.resources.displayMetrics.density).toInt())
 
-        private fun glyphBitmap(context: Context, glyph: Drawable?): Bitmap {
-            glyph?.mutate()?.setTint(context.colorOf(android.R.color.white))
+        private fun glyphBitmap(context: Context, glyph: Drawable?, color: Int): Bitmap {
+            glyph?.mutate()?.setTint(color)
             return render(context, glyph)
         }
 

@@ -6,4 +6,5 @@
     <dimen name="card_gap">12dp</dimen>
     <dimen name="toolbar_height">56dp</dimen>
     <dimen name="touch_target">48dp</dimen>
+    <dimen name="widget_radius">18dp</dimen>
 </resources>

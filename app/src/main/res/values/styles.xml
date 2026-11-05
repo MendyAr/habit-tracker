@@ -91,18 +91,16 @@
         <item name="android:textSize">16sp</item>
     </style>
 
-    <!-- Mimics launcher icon labels: white text with a soft shadow over any wallpaper. -->
+    <!-- Widget text on its translucent panel (dark on light, light in the dark theme). -->
     <style name="WidgetLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:layout_marginTop">6dp</item>
         <item name="android:maxWidth">240dp</item>
         <item name="android:ellipsize">end</item>
         <item name="android:singleLine">true</item>
-        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textColor">@color/widget_text</item>
         <item name="android:textSize">12sp</item>
-        <item name="android:shadowColor">#B3000000</item>
-        <item name="android:shadowRadius">4</item>
-        <item name="android:shadowDy">1</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 </resources>
