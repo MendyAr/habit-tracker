@@ -133,11 +133,11 @@ a version listed in `WHATS_NEW_VERSIONS` (its items are `R.array.whats_new_items
 
 ## Data
 
-SQLite, two tables (schema version 2):
+SQLite, two tables (schema version 3):
 
 ```
 habits(_id, name, icon, custom_icon, color, created_at, type)   type: 0 count, 1 duration
-entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration)   index (habit_id, ts)
+entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration, trigger_tag)   index (habit_id, ts)
 ```
 
 For a **duration** habit an entry is a session: `ts` is its start and `duration`
@@ -148,6 +148,17 @@ large below), a tap within 3 s of the end changes nothing (*Already Ended*, the
 same length, from `HabitRepository.lastFinished`), and after that a tap starts a
 new session. A session older than 3 hours asks before it is finished. Version 1 databases are upgraded in place by adding
 the two columns; existing data stays count data.
+
+**Trigger tags** (version 3): `trigger_tag` is what set a count entry off, as the
+name the user picked (null when none). After `LogActivity` logs a count habit, a
+short confirmation is followed by `TriggerPickerView`, a card of wrapping chips in
+the middle of the screen (a chip never cuts a name: it wraps). Picking tags the
+entry; *Skip*, a tap outside or 12 s without a choice leave it untagged. *+ Add*
+types a new trigger, which tags the entry and is appended to the habit's list.
+Each habit's list (presets in `data/Triggers` until changed) and its on/off switch
+are in `Settings` (`triggers_<id>`, `suggest_triggers_<id>`), edited in the habit
+editor (`TriggersDialog`). Renaming isn't offered, so stored names never go stale;
+a removed trigger stays on the entries it tagged.
 
 `ts` is epoch milliseconds (UTC). Bucketing into local days, weeks (locale's
 first day of week), months and years happens at read time in `core`, so

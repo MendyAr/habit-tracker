@@ -407,6 +407,35 @@
                     android:text="@string/weekdays_caption" />
             </LinearLayout>
 
+            <!-- What set the entries off: the share of tagged entries per trigger -->
+            <LinearLayout
+                android:id="@+id/triggers_card"
+                style="@style/Card">
+
+                <TextView
+                    android:id="@+id/triggers_title"
+                    style="@style/CardTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/card_triggers" />
+
+                <!-- Filled with a row per trigger: name, bar, share. -->
+                <LinearLayout
+                    android:id="@+id/triggers_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/triggers_caption"
+                    style="@style/Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    tools:text="Based on 120 of 160 entries in the window" />
+            </LinearLayout>
+
             <!-- Duration habits: each session, with the median of the last 7 and the target -->
             <LinearLayout
                 android:id="@+id/trend_card"

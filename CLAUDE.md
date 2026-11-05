@@ -74,7 +74,7 @@ Proposed grouping; confirm with the owner before starting:
   items to `whats_new_items` when a release has user-visible changes) · #17 duration trackers (DB v2,
   `data/Sessions`, stopwatch badge, live widget timer) · #18/#23 `stats/StatKind` catalogue,
   `StatsConfig` per habit, `StatsCustomizeDialog`, `docs/STATISTICS.md`.
-- Trigger tags when logging: considered and dropped by the owner (not planned).
+- Trigger tags (#28): planned again by the owner and done in 2.1 (picker after logging, DB v3).
 - Dependabot PRs: #6–#9 are stale (built on v1.0) and #21 (AGP 9.5) is a major jump. Don't merge
   them blindly; re-test each on current `main` (e.g. one combined PR), and close #4-style no-ops.
 

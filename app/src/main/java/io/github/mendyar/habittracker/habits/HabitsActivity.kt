@@ -2,7 +2,6 @@ package io.github.mendyar.habittracker.habits
 
 import android.app.Activity
 import android.os.Bundle
-import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageButton
@@ -15,12 +14,10 @@ import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.IconFactory
-import io.github.mendyar.habittracker.launcher.LauncherSync
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.onboarding.Onboarding
 import io.github.mendyar.habittracker.onboarding.OnboardingActivity
 import io.github.mendyar.habittracker.ui.Async
-import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.visible
 
@@ -96,50 +93,18 @@ class HabitsActivity : Activity() {
             view.setOnClickListener { startActivity(Shortcuts.statsIntent(this, row.habit.id)) }
             view.findViewById<ImageButton>(R.id.habit_row_log).apply {
                 contentDescription = getString(R.string.log_habit, row.habit.name)
-                setOnClickListener { log(row.habit, this, subtitle) }
+                setOnClickListener { log(row.habit) }
             }
             list.addView(view)
         }
     }
 
-    /** Logs [habit] from its + button, asking first if it was logged moments ago. */
-    private fun log(habit: Habit, button: ImageButton, subtitle: TextView) {
-        if (habit.type == HabitType.DURATION) {
-            // Starting or finishing a session plays the same confirmation as its home-screen icon.
-            startActivity(Shortcuts.logIntent(this, habit.id))
-            return
-        }
-        val now = System.currentTimeMillis()
-        Async.load({ repository.recentDuplicate(habit.id, now) }) { previous ->
-            if (previous == null) {
-                logNow(habit, button, subtitle)
-            } else {
-                DuplicateDialog.recent(this, habit, previous, now, onLog = { logNow(habit, button, subtitle) }, onCancel = {})
-            }
-        }
-    }
-
-    private fun logNow(habit: Habit, button: ImageButton, subtitle: TextView) {
-        button.isEnabled = false
-        button.setImageResource(R.drawable.ic_ui_check)
-        button.scaleX = 0.6f
-        button.scaleY = 0.6f
-        button.animate().scaleX(1f).scaleY(1f).setDuration(220).start()
-        button.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        Async.load({
-            repository.log(habit.id)
-            subtitle(habit, System.currentTimeMillis(), PeriodMath())
-        }) { text ->
-            subtitle.text = text
-            Async.mainDelayed(CONFIRM_MS) {
-                button.setImageResource(R.drawable.ic_ui_add)
-                button.isEnabled = true
-            }
-        }
-        Async.io { LauncherSync.afterLog(applicationContext) }
-    }
-
-    private companion object {
-        const val CONFIRM_MS = 900L
+    /**
+     * Logs [habit] from its + button through the same window as its widget: the
+     * confirmation, "Log Again?" right after an entry, the session rules of duration
+     * habits and the trigger suggestion. The list refreshes when it closes.
+     */
+    private fun log(habit: Habit) {
+        startActivity(Shortcuts.logIntent(this, habit.id))
     }
 }

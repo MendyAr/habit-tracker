@@ -83,7 +83,10 @@ class ScreensTest {
             val perDay = 4 + d / 6 + random.nextInt(3)
             for (i in 0 until minOf(perDay, usual.size)) {
                 val hours = usual[i] + random.nextGaussian() * 0.35
-                repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
+                val entry = repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
+                // Most entries tagged with what set them off, coffee and stress most often.
+                val trigger = TRIGGERS[random.nextInt(TRIGGERS.size)]
+                if (random.nextInt(10) < 7) repository.setTrigger(entry, trigger)
             }
         }
         // A few party nights, flagged as unusually high.
@@ -209,8 +212,7 @@ class ScreensTest {
             val activity = resumedActivity() as? LogActivity
             if (activity != null) {
                 instrumentation.runOnMainSync {
-                    val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                    view = (content.getChildAt(0) as? LogAnimationView)?.takeIf { it.isStarted }
+                    view = activity.confirmationView.takeIf { it.isStarted }
                 }
             }
             view != null
@@ -222,6 +224,16 @@ class ScreensTest {
         screenshot("5_log_animation", settleMs = 0)
         waitUntil { repository.timestamps(id).size == before + 1 }
         instrumentation.runOnMainSync { view!!.skip() }
+
+        // Then: what set it off?
+        var activity: LogActivity? = null
+        waitUntil {
+            val resumed = resumedActivity() as? LogActivity
+            if (resumed != null) instrumentation.runOnMainSync { activity = resumed.takeIf { it.triggerPicker != null } }
+            activity != null
+        }
+        screenshot("15_trigger_picker")
+        instrumentation.runOnMainSync { activity!!.finish() }
     }
 
     /**
@@ -278,8 +290,7 @@ class ScreensTest {
             val activity = resumedActivity() as? LogActivity
             if (activity != null) {
                 instrumentation.runOnMainSync {
-                    val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                    view = (content.getChildAt(0) as? LogAnimationView)?.takeIf { it.isStarted }
+                    view = activity.confirmationView.takeIf { it.isStarted }
                 }
             }
             view != null
@@ -383,5 +394,8 @@ class ScreensTest {
     private companion object {
         /** The app's light background (`@color/bg`). */
         const val PLAIN_WALLPAPER = 0xFFF6F6F4.toInt()
+
+        /** Weighted: the earlier ones come up more often. */
+        val TRIGGERS = listOf("Coffee", "Coffee", "Coffee", "Stress", "Stress", "Craving", "After a Meal", "With Smokers", "Alcohol")
     }
 }

@@ -97,9 +97,10 @@ class LogAnimationView(context: Context) : View(context) {
 
     /**
      * Starts the animation in the colour of the logged habit: [label] in the pill, with
-     * [value] large on the line below it and [hint] small under that, if given.
+     * [value] large on the line below it and [hint] small under that, if given. A
+     * [short] confirmation (something else follows) is held for less time.
      */
-    fun start(color: Int, label: String, hint: String?, mark: Mark = Mark.CHECK, value: String? = null) {
+    fun start(color: Int, label: String, hint: String?, mark: Mark = Mark.CHECK, value: String? = null, short: Boolean = false) {
         if (started) return
         started = true
         this.mark = mark
@@ -109,7 +110,11 @@ class LogAnimationView(context: Context) : View(context) {
         this.label = label
         this.hint = hint
         this.value = value
-        holdMs = if (hint != null || value != null) HOLD_WITH_HINT_MS else HOLD_MS
+        holdMs = when {
+            short -> SHORT_HOLD_MS
+            hint != null || value != null -> HOLD_WITH_HINT_MS
+            else -> HOLD_MS
+        }
         announceForAccessibility(listOfNotNull(label, value, hint).joinToString(". "))
         val total = (holdMs + EXIT_MS).toFloat()
         if (!motionEnabled()) {
@@ -307,6 +312,7 @@ class LogAnimationView(context: Context) : View(context) {
         const val DISC_RADIUS_DP = 60
         const val HOLD_MS = 1700L
         const val HOLD_WITH_HINT_MS = 2800L
+        const val SHORT_HOLD_MS = 900L
         const val EXIT_MS = 350L
 
         /** Elapsed time at which everything is fully shown (used without motion). */

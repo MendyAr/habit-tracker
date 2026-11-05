@@ -87,6 +87,9 @@ enum class StatsCard(val label: Int, val forCount: Boolean, val forDuration: Boo
     /** The median count of each weekday with its middle half. */
     WEEKDAYS(R.string.card_weekdays, true, false, true, false),
 
+    /** The share of tagged entries per trigger. */
+    TRIGGERS(R.string.card_triggers, true, false, true, false),
+
     /** Each session's length, with the median of the last 7 and the target. */
     SESSION_TREND(R.string.card_session_trend, false, true, false, true),
 

@@ -49,6 +49,19 @@ app no longer creates new ones: widgets do everything icons did, and more.
 The first time you open the app, a short tutorial shows the basics (skip it any
 time, or replay it from *How to Use* at the bottom of the habit list).
 
+### What sets it off?
+
+After you log a count habit (from its widget or with **+** in the app), the
+confirmation is followed by a card in the middle of the screen: **What Set It Off?**
+Tap a trigger (Craving, Stress, Bad Mood, With Smokers, Coffee, Alcohol, After a
+Meal, Boredom, Habit) to tag the entry, or **+ Add** to type your own; it's offered
+from then on. It is only a suggestion: the entry is already logged, and *Skip*, a
+tap outside the card or simply ignoring it leaves it untagged.
+
+In a habit's settings, *Triggers* turns the suggestion off or edits the list
+(remove, move up, add). The statistics show **What Sets It Off?**: the share of each
+trigger. You can also set or change the trigger of an entry in the *Entries* list.
+
 ### Duration trackers
 
 Some habits are about *how long*, not *how often*: for example **Box Breathing**,

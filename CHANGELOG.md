@@ -33,6 +33,13 @@ All notable changes to this project are documented here. The format follows
 - **The period is chosen in Customize**; the Day/Week/Month/Year tabs are gone, and
   explanations name the chosen period instead of saying "(or week…)" (#26).
 - Charts are explained only from their titles; touching a chart only selects (#26).
+- **What set it off?** After logging a count habit, a card suggests tagging the
+  entry with a trigger (presets from the research, or type your own). It's only a
+  suggestion: skipping or ignoring it leaves the entry untagged. Each habit's
+  triggers can be edited or turned off in its settings; the statistics show the share
+  of each trigger, and entries can be tagged later from the Entries list (#28).
+- The **+** next to a habit in the app logs through the same confirmation (and
+  trigger suggestion) as its widget.
 
 ### Fixed
 - Quick taps on a widget were sometimes registered seconds late (#29).

@@ -17,6 +17,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
+import android.widget.Switch
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.Period
@@ -115,6 +116,7 @@ class HabitEditActivity : Activity() {
         HabitWidgetProvider.onPinned = widgetListener
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
         findViewById<View>(R.id.edit_statistics).setOnClickListener { customizeStatistics() }
+        findViewById<View>(R.id.edit_triggers).setOnClickListener { editTriggers() }
         findViewById<View>(R.id.edit_clear).setOnClickListener { confirmClearEntries() }
 
         buildColorRow()
@@ -129,7 +131,8 @@ class HabitEditActivity : Activity() {
         if (habitId == NEW) {
             title.setText(R.string.new_habit)
             // Pinning, clearing and deleting need a saved habit.
-            listOf(R.id.edit_home_section, R.id.edit_danger_card).forEach { findViewById<View>(it).visible = false }
+            // Pinning, clearing, deleting and the triggers need a saved habit (new ones suggest the presets).
+            listOf(R.id.edit_home_section, R.id.edit_danger_card, R.id.edit_triggers_section).forEach { findViewById<View>(it).visible = false }
             if (savedInstanceState == null) {
                 Async.load({ repository.habits().size }) { count ->
                     color = HabitColors.ALL[count % HabitColors.ALL.size]
@@ -150,6 +153,7 @@ class HabitEditActivity : Activity() {
                 }
                 original = habit
                 entryCount = count
+                showTriggerSettings(habit)
                 if (savedInstanceState == null) {
                     nameField.setText(habit.name)
                     nameField.setSelection(habit.name.length)
@@ -343,6 +347,32 @@ class HabitEditActivity : Activity() {
             original = saved
             habitId = saved.id
             then(saved)
+        }
+    }
+
+    /** Count habits: whether logging suggests a trigger, and which (saved right away). */
+    private fun showTriggerSettings(habit: Habit) {
+        val count = habit.type == HabitType.COUNT
+        findViewById<View>(R.id.edit_triggers_section).visible = count
+        if (!count) return
+        val suggest = findViewById<Switch>(R.id.edit_suggest_triggers)
+        suggest.setOnCheckedChangeListener(null)
+        suggest.isChecked = repository.settings.suggestTriggers(habit.id)
+        suggest.setOnCheckedChangeListener { _, on ->
+            repository.settings.setSuggestTriggers(habit.id, on)
+            findViewById<View>(R.id.edit_triggers).isEnabled = on
+            findViewById<View>(R.id.edit_triggers).alpha = if (on) 1f else 0.4f
+        }
+        findViewById<View>(R.id.edit_triggers).apply {
+            isEnabled = suggest.isChecked
+            alpha = if (suggest.isChecked) 1f else 0.4f
+        }
+    }
+
+    private fun editTriggers() {
+        val habit = original ?: return
+        TriggersDialog.show(this, repository.settings.triggers(habit.id)) { chosen ->
+            repository.settings.setTriggers(habit.id, chosen)
         }
     }
 

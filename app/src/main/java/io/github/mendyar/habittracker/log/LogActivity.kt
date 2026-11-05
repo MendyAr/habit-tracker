@@ -6,16 +6,21 @@ import android.content.Intent
 import android.os.Build
 import android.graphics.Rect
 import android.os.Bundle
+import android.text.InputFilter
+import android.text.InputType
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.EditText
+import android.widget.FrameLayout
 import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.Entry
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.data.Sessions
+import io.github.mendyar.habittracker.data.Triggers
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.launcher.LauncherSync
@@ -38,6 +43,10 @@ import io.github.mendyar.habittracker.widget.HabitWidgetProvider
  * Duration habits follow [Sessions]. While the confirmation shows, a tap on the spot
  * of the widget that opened it counts as another tap of that widget.
  *
+ * After logging a count habit, a short confirmation is followed by a suggestion to
+ * tag what set it off ([TriggerPickerView]). The entry is already logged: skipping or
+ * ignoring it leaves the entry untagged.
+ *
  * The main app icon logs nothing: it opens the app, on the habit list, or on the
  * statistics of the only habit. (This class stays the launcher entry because
  * launchers drop the home-screen icon of an app whose launcher component is renamed.)
@@ -53,6 +62,14 @@ class LogActivity : Activity() {
 
     /** Whether a tap is being recorded (a new one waits until it is). */
     private var recording = false
+    private var picker: TriggerPickerView? = null
+
+    /** The confirmation on screen (for tests). */
+    internal val confirmationView: LogAnimationView get() = animation
+
+    /** The trigger suggestion, while it shows (for tests). */
+    internal val triggerPicker: TriggerPickerView? get() = picker
+    private lateinit var root: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,7 +82,7 @@ class LogActivity : Activity() {
         layoutBehindSystemBars()
 
         animation = LogAnimationView(this)
-        animation.onFinished = ::finishQuietly
+        animation.onFinished = ::confirmationDone
         animation.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_UP) {
                 // Screen coordinates: the window is full screen, but go by the view's own position.
@@ -76,7 +93,9 @@ class LogActivity : Activity() {
         }
         // Accessibility services click instead of touching.
         animation.setOnClickListener { animation.skip() }
-        setContentView(animation)
+        root = FrameLayout(this)
+        root.addView(animation)
+        setContentView(root)
 
         habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
         if (habitId == -1L) {
@@ -131,7 +150,7 @@ class LogActivity : Activity() {
 
     /** Another tap of the same widget while its confirmation shows. */
     private fun tapAgain() {
-        if (finishing || recording || dialog?.isShowing == true) return
+        if (finishing || recording || dialog?.isShowing == true || picker != null) return
         tap()
     }
 
@@ -177,7 +196,76 @@ class LogActivity : Activity() {
         val ready = result ?: return
         if (!windowShown || finishing || animation.isStarted) return
         haptic()
-        animation.start(ready.color, ready.label, ready.hint, ready.mark, ready.value)
+        animation.start(ready.color, ready.label, ready.hint, ready.mark, ready.value, short = ready.suggestTriggers)
+    }
+
+    /** The confirmation ended: suggest a trigger if this entry gets one, else close. */
+    private fun confirmationDone() {
+        val logged = result
+        if (logged == null || !logged.suggestTriggers || picker != null || finishing) {
+            finishQuietly()
+            return
+        }
+        showPicker(logged)
+    }
+
+    private fun showPicker(logged: Result) {
+        val app = applicationContext
+        val view = TriggerPickerView(
+            this,
+            logged.color,
+            logged.label,
+            logged.triggers,
+            onPick = { name ->
+                Async.io { HabitRepository.get(app).setTrigger(logged.entryId, name) }
+                Async.mainDelayed(PICKED_MS) { finishQuietly() }
+            },
+            onAdd = { askForNewTrigger(logged) },
+            onSkip = ::finishQuietly,
+        )
+        picker = view
+        root.addView(view)
+        view.appear(animation.motionEnabled())
+        // Ignored: the entry stays untagged.
+        Async.mainDelayed(PICKER_TIMEOUT_MS) { if (dialog?.isShowing != true) finishQuietly() }
+    }
+
+    /** "+ Add": a new trigger, typed; it tags this entry and is offered from now on. */
+    private fun askForNewTrigger(logged: Result) {
+        val app = applicationContext
+        val field = EditText(this).apply {
+            setHint(R.string.picker_add_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            filters = arrayOf(InputFilter.LengthFilter(Triggers.MAX_LENGTH))
+            setSingleLine()
+        }
+        val box = FrameLayout(this).apply {
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+            addView(field)
+        }
+        dialog = AlertDialog.Builder(this, R.style.Theme_HabitTracker_Dialog)
+            .setTitle(R.string.picker_add_title)
+            .setView(box)
+            .setPositiveButton(R.string.add) { _, _ ->
+                val name = Triggers.clean(field.text.toString())
+                if (name != null) {
+                    Async.io {
+                        val repository = HabitRepository.get(app)
+                        repository.setTrigger(logged.entryId, name)
+                        repository.settings.setTriggers(logged.habitId, Triggers.added(repository.settings.triggers(logged.habitId), name))
+                    }
+                }
+                finishQuietly()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> finishQuietly() }
+            .setOnCancelListener { finishQuietly() }
+            .create()
+            .apply {
+                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+                show()
+            }
+        field.requestFocus()
     }
 
     private class Result(
@@ -187,6 +275,11 @@ class LogActivity : Activity() {
         val mark: LogAnimationView.Mark = LogAnimationView.Mark.CHECK,
         /** Shown large under the label, e.g. a session's length. */
         val value: String? = null,
+        /** The entry just logged, and whether to suggest tagging what set it off. */
+        val entryId: Long = -1,
+        val habitId: Long = -1,
+        val suggestTriggers: Boolean = false,
+        val triggers: List<String> = emptyList(),
     )
 
     private sealed class Outcome {
@@ -249,7 +342,7 @@ class LogActivity : Activity() {
     /** Runs on the I/O thread: logs [habit] at [now] and describes the confirmation. */
     private fun log(habit: Habit, now: Long): Result {
         val repository = HabitRepository.get(this)
-        repository.log(habit.id, now)
+        val entryId = repository.log(habit.id, now)
 
         val period = repository.settings.period(habit.id)
         val math = PeriodMath()
@@ -257,7 +350,16 @@ class LogActivity : Activity() {
         val label = getString(R.string.logged_label, habit.name, Formats(this).countPhrase(period, count))
 
         Shortcuts.reportUsed(this, habit.id)
-        return Result(habit.color, label, null)
+        val suggest = habit.type == HabitType.COUNT && repository.settings.suggestTriggers(habit.id)
+        return Result(
+            habit.color,
+            label,
+            null,
+            entryId = entryId,
+            habitId = habit.id,
+            suggestTriggers = suggest,
+            triggers = if (suggest) repository.settings.triggers(habit.id) else emptyList(),
+        )
     }
 
     /** A session running for hours was probably forgotten: finish it now, or discard it? */
@@ -354,5 +456,11 @@ class LogActivity : Activity() {
 
         /** How far around the tapped widget a tap still counts as tapping it. */
         const val TAP_SLACK_DP = 8
+
+        /** How long a picked trigger shows as chosen before the window closes. */
+        const val PICKED_MS = 350L
+
+        /** An ignored trigger suggestion closes by itself after this long. */
+        const val PICKER_TIMEOUT_MS = 12_000L
     }
 }

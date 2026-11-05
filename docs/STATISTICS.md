@@ -17,7 +17,7 @@ next to them, with a note saying what pulls them up.
 The defaults are exactly the set of the owner's research report, *What to measure
 when tracking smoking* ("Habit tracking metrics"): a typical day without the party
 effect, cigarettes per day with flagged outlier days, the share by hour, the first
-cigarette of the day, the median per weekday, triggers (planned, #28), and for Box
+cigarette of the day, the median per weekday, what sets it off, and for Box
 Breathing the median time to calm with its trend. Everything else is an option in
 *Customize*.
 
@@ -98,7 +98,11 @@ Default for count habits, in this order:
   Q1 to Q3 (line); the weekday with the highest median is darker. Every finished day
   counts, days without entries as 0. With fewer than 4 of a weekday the caption says
   it is still rough.
-- **Entries**: every entry of the selected period.
+- **What Sets It Off?**: of the entries in the window tagged with a trigger, the
+  share of each trigger, most common first (darker). The caption says how many of the
+  window's entries were tagged; untagged entries are left out of the shares.
+- **Entries**: every entry of the selected period, with its trigger. Tap one to
+  delete it or to set its trigger.
 
 Optional: **Time of Day Curve** (the share of days with an entry *around* each time:
 each entry adds a bell curve of height 1, σ = 20 min, combined per day as "at least

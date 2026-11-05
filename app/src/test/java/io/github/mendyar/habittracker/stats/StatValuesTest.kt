@@ -74,7 +74,7 @@ class StatValuesTest {
             StatsConfig().statsFor(io.github.mendyar.habittracker.data.HabitType.COUNT),
         )
         assertEquals(
-            setOf(StatsCard.HISTORY, StatsCard.HOURS, StatsCard.FIRST_ENTRY, StatsCard.WEEKDAYS, StatsCard.ENTRIES),
+            setOf(StatsCard.HISTORY, StatsCard.HOURS, StatsCard.FIRST_ENTRY, StatsCard.WEEKDAYS, StatsCard.TRIGGERS, StatsCard.ENTRIES),
             StatsConfig().cardsFor(io.github.mendyar.habittracker.data.HabitType.COUNT),
         )
         assertEquals(

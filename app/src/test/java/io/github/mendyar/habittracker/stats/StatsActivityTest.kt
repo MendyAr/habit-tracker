@@ -92,7 +92,7 @@ class StatsActivityTest {
         assertTrue(texts.indexOf(context.getString(R.string.group_spread)) in texts.indexOf("Mean without flagged days")..texts.indexOf("IQR (middle half)"))
 
         // The cards of the report; the time-of-day curve is optional.
-        for (card in listOf(R.id.history_card, R.id.hours_card, R.id.first_card, R.id.weekdays_card, R.id.entries_card)) {
+        for (card in listOf(R.id.history_card, R.id.hours_card, R.id.first_card, R.id.weekdays_card, R.id.triggers_card, R.id.entries_card)) {
             assertEquals(View.VISIBLE, activity.findViewById<View>(card).visibility)
         }
         for (card in listOf(R.id.time_card, R.id.trend_card, R.id.durations_card)) {
@@ -190,6 +190,28 @@ class StatsActivityTest {
 
         activity.findViewById<View>(R.id.hours_title).performClick()
         assertEquals(context.getString(R.string.help_hours), latestMessage())
+    }
+
+    @Test
+    fun whatSetsItOffShowsTheShareOfEachTrigger() {
+        val habit = repository.createHabit("Smoking", "smoking", null, HabitColors.DEFAULT)
+        val now = System.currentTimeMillis()
+        val tags = listOf("Coffee", "Coffee", "Coffee", "Stress", null)
+        tags.forEachIndexed { i, tag ->
+            val id = repository.log(habit.id, now - (i + 1) * 3_600_000L)
+            if (tag != null) repository.setTrigger(id, tag)
+        }
+        val activity = open(habit.id)
+        val list = activity.findViewById<ViewGroup>(R.id.triggers_list)
+        awaitCondition { list.childCount == 2 }
+        val formats = Formats(context)
+        assertEquals("Coffee: ${formats.percent(0.75)}", list.getChildAt(0).contentDescription)
+        assertEquals("Stress: ${formats.percent(0.25)}", list.getChildAt(1).contentDescription)
+        assertEquals(
+            context.getString(R.string.triggers_caption, "4", "5"),
+            activity.findViewById<TextView>(R.id.triggers_caption).text.toString(),
+        )
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.triggers_card).visibility)
     }
 
     private fun open(habitId: Long): StatsActivity =

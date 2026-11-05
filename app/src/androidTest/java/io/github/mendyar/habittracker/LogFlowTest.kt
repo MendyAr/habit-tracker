@@ -60,6 +60,7 @@ class LogFlowTest {
     @Test
     fun pinnedIconLogsAndLeavesNoActivityBehind() {
         val habit = firstHabit()
+        repository.settings.setSuggestTriggers(habit.id, false)
         context.startActivity(Shortcuts.logIntent(context, habit.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(habit.id).size == 1 }
         // The confirmation lasts about 2 s, then the window closes.
@@ -70,10 +71,34 @@ class LogFlowTest {
     fun pinnedShortcutIntentLogsItsHabit() {
         val default = repository.createHabit("Walk", "walk", null, HabitColors.ALL[8])
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        repository.settings.setSuggestTriggers(water.id, false)
         context.startActivity(Shortcuts.logIntent(context, water.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         waitUntil { repository.timestamps(water.id).size == 1 }
         assertEquals(0, repository.timestamps(default.id).size)
         waitUntil(timeoutMs = 8_000) { resumedActivities() == 0 }
+    }
+
+    @Test
+    fun afterLoggingAPickedTriggerTagsTheEntry() {
+        val habit = firstHabit()
+        context.startActivity(Shortcuts.logIntent(context, habit.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        waitUntil { repository.timestamps(habit.id).size == 1 }
+        // The short confirmation, then the suggestion.
+        var picker: io.github.mendyar.habittracker.log.TriggerPickerView? = null
+        waitUntil(timeoutMs = 8_000) {
+            val activity = resumedActivity() as? LogActivity
+            if (activity != null) instrumentation.runOnMainSync { picker = activity.triggerPicker }
+            picker != null
+        }
+        instrumentation.runOnMainSync { clickText(picker!!, "Craving") }
+        waitUntil { repository.taggedEntries(habit.id).map { it.second } == listOf("Craving") }
+        waitUntil(timeoutMs = 5_000) { resumedActivities() == 0 }
+    }
+
+    private fun clickText(view: android.view.View, text: String): Boolean {
+        if (view is android.widget.TextView && view.text.toString() == text) return view.performClick()
+        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) if (clickText(view.getChildAt(i), text)) return true
+        return false
     }
 
     @Test

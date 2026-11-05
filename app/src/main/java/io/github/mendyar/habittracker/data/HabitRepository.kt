@@ -161,14 +161,32 @@ class HabitRepository(
     /** Entries of [habitId] in [[from], [to]), newest first, at most [limit]. */
     fun entries(habitId: Long, from: Long, to: Long, limit: Int): List<Entry> = database.readableDatabase
         .rawQuery(
-            "SELECT _id, ts, duration FROM entries WHERE habit_id = ? AND ts >= ? AND ts < ? ORDER BY ts DESC LIMIT $limit",
+            "SELECT _id, ts, duration, trigger_tag FROM entries WHERE habit_id = ? AND ts >= ? AND ts < ? ORDER BY ts DESC LIMIT $limit",
             arrayOf(habitId.toString(), from.toString(), to.toString()),
         )
         .use { c ->
             generateSequence {
-                if (c.moveToNext()) Entry(c.getLong(0), habitId, c.getLong(1), if (c.isNull(2)) null else c.getLong(2)) else null
+                if (c.moveToNext()) {
+                    Entry(c.getLong(0), habitId, c.getLong(1), if (c.isNull(2)) null else c.getLong(2), c.getString(3))
+                } else {
+                    null
+                }
             }.toList()
         }
+
+    /** Tags the entry [entryId] with what set it off; null removes the tag. */
+    fun setTrigger(entryId: Long, trigger: String?) {
+        val values = ContentValues().apply { if (trigger == null) putNull("trigger_tag") else put("trigger_tag", trigger) }
+        database.writableDatabase.update("entries", values, "_id = ?", arrayOf(entryId.toString()))
+    }
+
+    /** The time and trigger of every tagged entry of [habitId], oldest first. */
+    fun taggedEntries(habitId: Long): List<Pair<Long, String>> = database.readableDatabase
+        .rawQuery(
+            "SELECT ts, trigger_tag FROM entries WHERE habit_id = ? AND trigger_tag IS NOT NULL ORDER BY ts",
+            arrayOf(habitId.toString()),
+        )
+        .use { c -> generateSequence { if (c.moveToNext()) c.getLong(0) to c.getString(1) else null }.toList() }
 
     /** Time of the most recent entry per habit id (habits never logged are absent). */
     fun lastLogged(): Map<Long, Long> = database.readableDatabase

@@ -118,6 +118,8 @@ class StatsActivity : Activity() {
     private var hourShare: HourShare? = null
     private var weekdays: WeekdayCounts? = null
     private var trendSessions: List<Entry> = emptyList()
+    private var tagged: List<Pair<Long, String>> = emptyList()
+    private lateinit var triggersCard: View
     private lateinit var entriesTitle: TextView
     private lateinit var entriesList: LinearLayout
     private lateinit var entriesFooter: TextView
@@ -159,6 +161,7 @@ class StatsActivity : Activity() {
         weekdaysChart = findViewById(R.id.weekdays_chart)
         weekdaysChart.onSelect = ::renderWeekdayReadout
         weekdaysCaption = findViewById(R.id.weekdays_caption)
+        triggersCard = findViewById(R.id.triggers_card)
         trendCard = findViewById(R.id.trend_card)
         trendReadout = findViewById(R.id.trend_readout)
         trendChart = findViewById(R.id.trend_chart)
@@ -181,6 +184,7 @@ class StatsActivity : Activity() {
         findViewById<View>(R.id.hours_title).setOnClickListener { explain(getString(R.string.card_hours), help(R.string.help_hours)) }
         findViewById<View>(R.id.first_title).setOnClickListener { explain(getString(R.string.card_first_entry), help(R.string.help_first_entry_card)) }
         findViewById<View>(R.id.weekdays_title).setOnClickListener { explain(getString(R.string.card_weekdays), help(R.string.help_weekdays)) }
+        findViewById<View>(R.id.triggers_title).setOnClickListener { explain(getString(R.string.card_triggers), help(R.string.help_triggers)) }
         findViewById<View>(R.id.trend_title).setOnClickListener { explain(getString(R.string.card_session_trend), help(R.string.help_session_trend)) }
         findViewById<View>(R.id.durations_title).setOnClickListener { explain(getString(R.string.durations), help(R.string.help_durations)) }
         timeTitle.setOnClickListener {
@@ -188,7 +192,7 @@ class StatsActivity : Activity() {
         }
         entriesTitle.setOnClickListener { explain(getString(R.string.entries), help(R.string.help_entries)) }
         selectedCount.setOnClickListener { explain(getString(R.string.count_card_title), help(R.string.help_count_card)) }
-        listOf(R.id.stats_title, R.id.history_title, R.id.hours_title, R.id.first_title, R.id.weekdays_title, R.id.trend_title, R.id.durations_title, R.id.time_title)
+        listOf(R.id.stats_title, R.id.history_title, R.id.hours_title, R.id.first_title, R.id.weekdays_title, R.id.triggers_title, R.id.trend_title, R.id.durations_title, R.id.time_title)
             .forEach { findViewById<View>(it).setBackgroundResource(selectableBackground()) }
         findViewById<View>(R.id.habit_switcher).setOnClickListener(::showHabitMenu)
         findViewById<View>(R.id.edit_button).setOnClickListener {
@@ -240,7 +244,13 @@ class StatsActivity : Activity() {
         outState.putLong(STATE_SELECTED, selected)
     }
 
-    private class Loaded(val habit: Habit, val habits: List<Habit>, val timestamps: LongArray, val sessions: List<Entry>)
+    private class Loaded(
+        val habit: Habit,
+        val habits: List<Habit>,
+        val timestamps: LongArray,
+        val sessions: List<Entry>,
+        val tagged: List<Pair<Long, String>>,
+    )
 
     /** Reloads the habit and its timestamps; entries may have been logged from the home screen. */
     private fun load() {
@@ -249,7 +259,7 @@ class StatsActivity : Activity() {
             val all = repository.habits()
             // The requested habit, else any; null when there are none.
             val h = repository.habit(id) ?: all.firstOrNull()
-            h?.let { Loaded(it, all, repository.timestamps(it.id), repository.sessions(it.id)) }
+            h?.let { Loaded(it, all, repository.timestamps(it.id), repository.sessions(it.id), repository.taggedEntries(it.id)) }
         }) { loaded ->
             if (isFinishing) return@load
             if (loaded == null) {
@@ -262,6 +272,7 @@ class StatsActivity : Activity() {
             habits = loaded.habits
             timestamps = loaded.timestamps
             sessions = loaded.sessions
+            tagged = loaded.tagged
             requestedHabitId = loaded.habit.id
             repository.settings.lastViewedHabitId = loaded.habit.id
             config = StatsConfig.decode(repository.settings.statsConfig(loaded.habit.id))
@@ -349,6 +360,7 @@ class StatsActivity : Activity() {
         renderHours(bounds, h.color)
         renderFirstEntry(values)
         renderWeekdays(bounds, now, h.color)
+        renderTriggers(bounds, h.color)
         renderTrend(windowSessions, h.color)
         applyCards()
         renderTimeOfDay(bounds, now, h.color)
@@ -447,6 +459,72 @@ class StatsActivity : Activity() {
             formats.number(w.medians[index]),
             getString(R.string.value_range, formats.number(w.q1[index]), formats.number(w.q3[index])),
         )
+    }
+
+    /** The share of each trigger among the tagged entries of the window, most first. */
+    private fun renderTriggers(bounds: LongRange, color: Int) {
+        val list = findViewById<LinearLayout>(R.id.triggers_list)
+        list.removeAllViews()
+        val inWindow = tagged.filter { it.first in bounds }
+        val counts = inWindow.groupingBy { it.second }.eachCount().entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        val caption = findViewById<TextView>(R.id.triggers_caption)
+        if (counts.isEmpty()) {
+            caption.text = getString(R.string.triggers_empty)
+            return
+        }
+        val total = inWindow.size
+        val entriesInWindow = StatsEngine.countBetween(timestamps, bounds.first, bounds.last + 1)
+        caption.text = getString(R.string.triggers_caption, formats.number(total), formats.number(entriesInWindow))
+        val top = counts.first().value
+        counts.forEachIndexed { i, (name, n) ->
+            val share = n.toDouble() / total
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                minimumHeight = dp(36)
+                contentDescription = getString(R.string.trigger_share_description, name, formats.percent(share))
+            }
+            // The name wraps rather than being cut off.
+            row.addView(
+                TextView(this).apply {
+                    text = name
+                    textSize = 14f
+                    setTextColor(colorOf(R.color.text_primary))
+                    setPadding(0, dp(4), dp(8), dp(4))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f),
+            )
+            val track = LinearLayout(this).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(colorOf(R.color.surface_variant))
+                }
+            }
+            track.addView(
+                View(this).apply {
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(4).toFloat()
+                        setColor(color)
+                        alpha = if (i == 0) 230 else 110
+                    }
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, n.toFloat()),
+            )
+            track.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (top - n).toFloat() + top * 0.0001f))
+            row.addView(track, LinearLayout.LayoutParams(0, dp(14), 0.45f))
+            row.addView(
+                TextView(this).apply {
+                    text = formats.percent(share)
+                    textSize = 14f
+                    gravity = android.view.Gravity.END
+                    setTextColor(colorOf(R.color.text_secondary))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.15f),
+            )
+            list.addView(row)
+        }
     }
 
     /** Duration habits: each session in the window with the median of the last 7 and the target. */
@@ -619,7 +697,7 @@ class StatsActivity : Activity() {
             val row = inflater.inflate(R.layout.item_entry, entriesList, false)
             val time = if (period == Period.DAY) formats.time(entry.timestamp) else formats.dateTime(entry.timestamp)
             val label = when {
-                habit?.type != HabitType.DURATION -> time
+                habit?.type != HabitType.DURATION -> entry.trigger?.let { getString(R.string.entry_trigger, time, it) } ?: time
                 entry.duration == null -> getString(R.string.entry_running, time)
                 else -> getString(R.string.entry_with_duration, time, formats.elapsed(entry.duration))
             }
@@ -722,6 +800,7 @@ class StatsActivity : Activity() {
         hoursCard.visible = StatsCard.HOURS in cards
         firstCard.visible = StatsCard.FIRST_ENTRY in cards
         weekdaysCard.visible = StatsCard.WEEKDAYS in cards
+        triggersCard.visible = StatsCard.TRIGGERS in cards
         trendCard.visible = StatsCard.SESSION_TREND in cards
         durationsCard.visible = StatsCard.DURATIONS in cards
         timeCard.visible = StatsCard.WHEN in cards
@@ -826,8 +905,9 @@ class StatsActivity : Activity() {
         }) { load() }
     }
 
+    /** An entry tapped in the list: delete it, or (count habits) set what set it off. */
     private fun confirmDelete(entry: Entry, label: String) {
-        AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle(R.string.delete_entry_title)
             .setMessage(getString(R.string.delete_entry_message, label))
             .setPositiveButton(R.string.delete) { _, _ ->
@@ -835,6 +915,24 @@ class StatsActivity : Activity() {
                     repository.deleteEntry(entry.id)
                     LauncherSync.afterLog(this)
                 }) { load() }
+            }
+            .setNegativeButton(R.string.cancel, null)
+        if (habit?.type == HabitType.COUNT) builder.setNeutralButton(R.string.entry_set_trigger) { _, _ -> chooseTrigger(entry) }
+        builder.show()
+    }
+
+    /** Sets or changes an entry's trigger, from the habit's triggers (and the entry's own). */
+    private fun chooseTrigger(entry: Entry) {
+        val h = habit ?: return
+        val names = (repository.settings.triggers(h.id) + listOfNotNull(entry.trigger)).distinct()
+        val options = names + getString(R.string.trigger_none)
+        val checked = entry.trigger?.let { names.indexOf(it) } ?: options.lastIndex
+        AlertDialog.Builder(this)
+            .setTitle(R.string.picker_title)
+            .setSingleChoiceItems(options.toTypedArray(), checked) { dialog, which ->
+                dialog.dismiss()
+                val chosen = names.getOrNull(which)
+                Async.load({ repository.setTrigger(entry.id, chosen) }) { load() }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
