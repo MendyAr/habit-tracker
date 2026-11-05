@@ -1,9 +1,9 @@
 # Habit Tracker
 
-**Tap an icon to count a habit, without leaving your home screen.**
+**Tap a widget to count a habit, without leaving your home screen.**
 
 A minimalist Android app. Each habit you track (smoking, water, walks, sleep,
-meditation…) gets its own home-screen icon. Tap it and a timestamp is recorded,
+meditation…) gets its own home-screen widget. Tap it and a timestamp is recorded,
 confirmed by a short animation in the middle of the screen that shows the habit and
 today's count, and you stay where you were.
 The Habit Tracker app icon opens the app: your habits and their statistics.
@@ -40,8 +40,11 @@ To update, install the newer APK over the old one; your data stays.
 | **Tap** the Habit Tracker app icon | Open the app: the list of your habits, or the statistics of your only habit. The app icon never logs anything by itself. |
 | In the list, **+** at the top | Add a habit: name it, pick an icon and a colour. Tap a habit for its statistics, or its own **+** to log it. |
 | **Long-press** the app icon | Jump to *New Habit* or to a habit's statistics (Android 7.1+). |
-| In a habit's settings → *Add Icon to Home Screen* | Give the habit its own icon. **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. If the icon is already there, the app says so. |
-| In a habit's settings → *Add One-Tap Widget* | Same, as a widget in the habit's colour that confirms inside itself. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one. |
+| In a habit's settings → *Add One-Tap Widget* | Give the habit its own widget (the app offers it right after you create a habit). **Tapping it logs that habit**: a check pops up with today's count, and you stay on your home screen. Pick its size (1 × 1 to 4 × 4), confirm, and you're taken to the home screen to see it. Touch & hold it to resize it any time. Each habit can have one; if it's already there, the app says so. |
+| Your launcher's widget list → *Habit Tracker* | The same widget, placed by hand (the only way before Android 8): it asks which habit to show. |
+
+Habit icons pinned to the home screen by earlier versions keep working, but the
+app no longer creates new ones: widgets do everything icons did, and more.
 
 The first time you open the app, a short tutorial shows the basics (skip it any
 time, or replay it from *How to Use* at the bottom of the habit list).
@@ -112,7 +115,7 @@ Open a habit's settings (the pencil on its statistics, or tap it in *Habits*):
   home-screen items, so its icon is greyed out and its widget shows *Habit Deleted*
   until you long-press them and choose *Remove*.
 
-Renaming or re-iconing a habit updates its home-screen icon and widget too.
+Renaming or re-iconing a habit updates its widget (and any older home-screen icon) too.
 
 ### How Time of Day is calculated
 

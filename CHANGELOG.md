@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **Habits go on the home screen as widgets only**: *Add Icon to Home Screen* is
+  gone, and after creating a habit the app offers its widget instead. Icons added by
+  earlier versions keep working (#32).
+- Widgets no longer offer *Reconfigure* in the launcher's long-press menu (#32).
+
 ## [2.0.0] - 2026-11-04
 
 ### Changed

@@ -41,7 +41,7 @@ import java.io.File
 
 /**
  * Creates or edits a habit: name, colour, a built-in or user-supplied icon, its
- * home-screen icon / widget, clearing its entries and deletion.
+ * home-screen widget, clearing its entries and deletion.
  */
 class HabitEditActivity : Activity() {
 
@@ -100,11 +100,14 @@ class HabitEditActivity : Activity() {
             if (actionId == EditorInfo.IME_ACTION_DONE) nameField.clearFocus()
             false
         }
-        findViewById<View>(R.id.edit_add_home).setOnClickListener { save(::pinIcon) }
+        // Habits go on the home screen as widgets. Android 8+ lets the app add one;
+        // before that, the hint says how to add it from the launcher.
+        val canPinWidgets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
         findViewById<View>(R.id.edit_add_widget).apply {
-            visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            visible = canPinWidgets
             setOnClickListener { save(::addWidget) }
         }
+        findViewById<View>(R.id.edit_widget_hint).visible = !canPinWidgets
         HabitWidgetProvider.onPinned = widgetListener
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
         findViewById<View>(R.id.edit_statistics).setOnClickListener { customizeStatistics() }
@@ -149,6 +152,8 @@ class HabitEditActivity : Activity() {
                     iconKey = habit.icon
                     customIcon = habit.customIcon
                     color = habit.color
+                    // Just created, and the user chose to add its widget.
+                    if (intent.getBooleanExtra(EXTRA_ADD_WIDGET, false)) addWidget(habit)
                 }
                 refresh()
             }
@@ -346,12 +351,13 @@ class HabitEditActivity : Activity() {
     private fun finishSaved(saved: Habit) {
         val created = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, NEW) == NEW
         setResult(RESULT_OK, Intent().putExtra(Shortcuts.EXTRA_HABIT_ID, saved.id))
-        if (created && !intent.getBooleanExtra(EXTRA_FOR_WIDGET, false)) {
+        if (created && !intent.getBooleanExtra(EXTRA_FOR_WIDGET, false) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AlertDialog.Builder(this)
-                .setTitle(R.string.add_to_home_title)
-                .setMessage(getString(R.string.add_to_home_message, saved.name))
+                .setTitle(R.string.add_widget_title)
+                .setMessage(getString(R.string.add_widget_message, saved.name))
                 .setPositiveButton(R.string.add) { _, _ ->
-                    pinIcon(saved)
+                    // Continues in the editor of the saved habit, which adds the widget.
+                    startActivity(intent(this, saved.id).putExtra(EXTRA_ADD_WIDGET, true))
                     finish()
                 }
                 .setNegativeButton(R.string.not_now) { _, _ -> finish() }
@@ -359,16 +365,6 @@ class HabitEditActivity : Activity() {
                 .show()
         } else {
             finish()
-        }
-    }
-
-    /** Asks for the habit's home-screen icon; needs this screen in the foreground. */
-    private fun pinIcon(habit: Habit) {
-        when (Shortcuts.requestPin(this, habit)) {
-            PinResult.ALREADY_EXISTS -> toast(getString(R.string.icon_exists, habit.name))
-            PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
-            PinResult.SENT -> toast(R.string.pin_legacy_done)
-            PinResult.REQUESTED -> Unit
         }
     }
 
@@ -461,7 +457,7 @@ class HabitEditActivity : Activity() {
             when (result) {
                 PinResult.REQUESTED -> widgetRequestedFor = habit.id
                 PinResult.ALREADY_EXISTS -> toast(getString(R.string.widget_exists, habit.name))
-                PinResult.UNSUPPORTED, PinResult.SENT -> toast(R.string.pin_unsupported)
+                PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
             }
         }
     }
@@ -547,6 +543,9 @@ class HabitEditActivity : Activity() {
         private const val STATE_COLOR = "color"
         private const val SHOW_PLACED_WIDGET_MS = 5_000L
         const val EXTRA_FOR_WIDGET = "for_widget"
+
+        /** Opens the editor of a habit just created and adds its widget. */
+        const val EXTRA_ADD_WIDGET = "add_widget"
 
         /** Opens the editor for [habitId], or for a new habit when null. */
         fun intent(context: Context, habitId: Long?): Intent =

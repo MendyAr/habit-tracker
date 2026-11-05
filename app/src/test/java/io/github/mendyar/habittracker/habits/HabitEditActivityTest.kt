@@ -116,18 +116,42 @@ class HabitEditActivityTest {
     }
 
     @Test
-    fun addingTheIconAgainSaysItIsAlreadyOnTheHomeScreen() {
+    fun habitsGoOnTheHomeScreenAsWidgetsOnly() {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val activity = open(water.id)
         activity.awaitLoaded("Water")
-        val addIcon = activity.findViewById<TextView>(R.id.edit_add_home)
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.edit_add_widget).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.edit_widget_hint).visibility)
+        // No way left to create a home-screen icon.
+        assertTrue(findByText(activity.window.decorView, "Icon to Home Screen") == null)
+    }
 
-        addIcon.performClick()
-        awaitCondition { Shortcuts.isPinned(context, water.id) }
-        ShadowToast.reset()
+    @Test
+    @org.robolectric.annotation.Config(sdk = [25])
+    fun beforeAndroid8TheEditorSaysHowToAddAWidgetFromTheLauncher() {
+        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
+        val activity = open(water.id)
+        activity.awaitLoaded("Water")
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.edit_add_widget).visibility)
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.edit_widget_hint).visibility)
+    }
 
-        addIcon.performClick()
-        awaitCondition { ShadowToast.getTextOfLatestToast() == context.getString(R.string.icon_exists, "Water") }
+    @Test
+    fun afterCreatingAHabitTheEditorOffersItsWidget() {
+        val activity = open(null)
+        activity.findViewById<EditText>(R.id.edit_name).setText("Walk")
+        activity.findViewById<TextView>(R.id.save_button).performClick()
+        awaitCondition { ShadowAlertDialog.getLatestAlertDialog()?.isShowing == true }
+        val dialog = ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
+        assertEquals(context.getString(R.string.add_widget_title), shadowOf(dialog).title.toString())
+
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        val walk = repository.habits().first { it.name == "Walk" }
+        val next = shadowOf(activity).nextStartedActivity
+        assertEquals(HabitEditActivity::class.java.name, next.component?.className)
+        assertEquals(walk.id, next.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1))
+        assertTrue(next.getBooleanExtra(HabitEditActivity.EXTRA_ADD_WIDGET, false))
+        assertTrue(activity.isFinishing)
     }
 
     @Test
@@ -246,6 +270,14 @@ class HabitEditActivityTest {
             io.github.mendyar.habittracker.data.HabitType.DURATION,
             repository.habits().first { it.name == "Box breathing" }.type,
         )
+    }
+
+    private fun findByText(view: View, text: String): View? {
+        if (view is TextView && view.visibility == View.VISIBLE && view.text.contains(text)) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) findByText(view.getChildAt(i), text)?.let { return it }
+        }
+        return null
     }
 
     private fun findByDescription(view: View, description: String): View? {

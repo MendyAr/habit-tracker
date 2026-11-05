@@ -145,11 +145,11 @@
     <string name="tour_done">Got It</string>
     <string name="tour_page_description">Page %1$d of %2$d</string>
     <string name="tour_welcome_title">Track Habits in One Tap</string>
-    <string name="tour_welcome_text">Each habit gets its own icon or widget on your home screen. Tap it and it\'s logged, without opening anything.</string>
+    <string name="tour_welcome_text">Each habit gets its own widget on your home screen. Tap it and it\'s logged, without opening the app.</string>
     <string name="tour_add_title">Add a Habit</string>
     <string name="tour_add_text">In the habit list, tap + at the top. Give it a name, an icon (or your own image) and a colour, and choose Count or Duration.</string>
     <string name="tour_log_title">Log From Your Home Screen</string>
-    <string name="tour_log_text">In a habit\'s settings, tap Add Icon to Home Screen or Add One-Tap Widget. A tap on it logs the habit and shows a quick confirmation. In the app, the + next to a habit logs it too.</string>
+    <string name="tour_log_text">In a habit\'s settings, tap Add One-Tap Widget, or add Habit Tracker from your launcher\'s widget list. A tap on the widget logs the habit and shows a quick confirmation. In the app, the + next to a habit logs it too.</string>
     <string name="tour_duration_title">Duration Trackers</string>
     <string name="tour_duration_text">For things like Box Breathing: tap to start, tap again when you\'re done. The app records how long it took. These icons carry a small stopwatch.</string>
     <string name="tour_stats_title">See Your Statistics</string>
@@ -269,18 +269,17 @@
     <string name="remove_image_description">Remove your image and use a built-in icon</string>
     <string name="image_failed">That image couldn\'t be used</string>
     <string name="home_screen">Home Screen</string>
-    <string name="add_to_home">Add Icon to Home Screen</string>
     <string name="add_widget">Add One-Tap Widget</string>
     <string name="pin_unsupported">Your launcher doesn\'t support this</string>
-    <string name="pin_legacy_done">Icon sent to your home screen</string>
+    <string name="add_widget_from_launcher">To add a widget, touch &amp; hold an empty spot on your home screen, tap Widgets and drag Habit Tracker onto it</string>
     <string name="delete_habit">Delete Habit</string>
     <string name="delete_habit_title">Delete “%1$s”?</string>
     <plurals name="delete_habit_message">
         <item quantity="one">Its %d entry will be deleted too. This can\'t be undone.</item>
         <item quantity="other">All %d entries will be deleted too. This can\'t be undone.</item>
     </plurals>
-    <string name="add_to_home_title">Add to Home Screen?</string>
-    <string name="add_to_home_message">Tapping the new icon logs “%1$s” without opening the app.</string>
+    <string name="add_widget_title">Add a Widget?</string>
+    <string name="add_widget_message">Tapping its widget on your home screen logs “%1$s” without opening the app.</string>
 
     <!-- v1.1 -->
     <string name="habits_empty">No habits yet.\nTap + to add one.</string>
@@ -289,7 +288,6 @@
     <string name="widget_choose">Choose Habit</string>
     <string name="widget_deleted">Habit Deleted</string>
     <string name="widget_exists">%1$s already has a widget on your home screen</string>
-    <string name="icon_exists">%1$s already has an icon on your home screen</string>
     <string name="widget_size_title">Widget Size</string>
     <string name="widget_size_option">%1$d × %2$d</string>
     <string name="widget_size_description">%1$d by %2$d cells</string>

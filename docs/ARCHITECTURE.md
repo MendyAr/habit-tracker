@@ -82,21 +82,18 @@ Long-pressing the app icon shows the app's shortcuts (Android 7.1+). The app
 publishes one dynamic shortcut per habit (most recently logged first) that opens
 `StatsActivity` for that habit, plus a static "New Habit" shortcut.
 
-### One icon per habit
+### Habit icons (legacy)
 
-Android fixes an app's own launcher icon and label at install time, so habits
-get their own **pinned shortcuts** (`ShortcutManager.requestPinShortcut` on
-Android 8+, the `INSTALL_SHORTCUT` broadcast before that). Their label and icon
-are updated whenever the habit is renamed or re-iconed (`LauncherSync`), and
-they are disabled with a message when the habit is deleted (Android has no API
-to remove a pinned shortcut or a widget, so launchers grey them out). Nothing is
-ever created implicitly: a fresh install starts with an empty habit list.
+Up to 2.0 the editor could pin a **home-screen icon** per habit (a pinned
+shortcut). Since 2.1 habits go on the home screen as widgets only, but icons
+users already have keep working: they still launch `LogActivity` with the habit
+id (`Shortcuts.logIntent`), their label and icon follow renames (`LauncherSync`),
+and they are disabled with a message when the habit is deleted (Android has no
+API to remove a pinned shortcut or a widget, so launchers grey them out).
 
-Launchers silently ignore a request to pin a shortcut that is already pinned, so
-`Shortcuts.requestPin` first checks `ShortcutManager.getPinnedShortcuts()`
-(launchers unpin a shortcut when the user removes its icon) and reports
-`PinResult.ALREADY_EXISTS`. Before Android 8 the legacy broadcast gives no way
-to know.
+The widget providers don't declare `reconfigurable`, so launchers don't offer to
+re-pick a widget's habit from its long-press menu. Nothing is ever created
+implicitly: a fresh install starts with an empty habit list.
 
 ### Adding a widget from the app
 
