@@ -141,7 +141,7 @@ class LogActivity : Activity() {
      * Whether the point ([x], [y]) on the screen is where the tapped widget or icon is
      * (with a little slack): the user tapped it again through this transparent window.
      */
-    private fun onTappedSpot(x: Float, y: Float): Boolean {
+    internal fun isOnTappedSpot(x: Float, y: Float): Boolean {
         val bounds = intent.sourceBounds ?: return false
         if (habitId == -1L || bounds.isEmpty) return false
         val slack = (TAP_SLACK_DP * resources.displayMetrics.density).toInt()
@@ -150,7 +150,7 @@ class LogActivity : Activity() {
 
     /** A tap at ([x], [y]) on the screen while the confirmation shows. */
     internal fun confirmationTouched(x: Float, y: Float) {
-        if (onTappedSpot(x, y)) tapAgain() else animation.skip()
+        if (isOnTappedSpot(x, y)) tapAgain() else animation.skip()
     }
 
     /** Another tap of the same widget while its confirmation shows. */

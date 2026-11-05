@@ -241,33 +241,21 @@ class LogActivityTest {
     }
 
     @Test
-    fun aTapOnTheWidgetsSpotDuringTheConfirmationIsAnotherTap() {
-        val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
-        val activity = widgetTap(breathing.id)
-        val confirmation = confirmationOf(activity)
-        awaitCondition { confirmation.shownText == "Box breathing · Starting" }
-
-        // The user taps the widget again, through the transparent window.
-        activity.confirmationTouched(150f, 150f)
-        awaitWithDetails(activity, confirmation) { confirmation.shownText == "Box breathing · Already Started" }
-        assertFalse(activity.isFinishing)
-        assertEquals(1, repository.timestamps(breathing.id).size)
-
-        // A tap anywhere else dismisses the confirmation.
-        activity.confirmationTouched(20f, 400f)
-        assertTrue(activity.isFinishing)
-    }
-
-    @Test
-    fun aSecondTapOnACountWidgetsSpotAsksBeforeLoggingAgain() {
+    fun tapsOnTheWidgetsSpotCountAsTapsOfTheWidget() {
+        // The launcher reports where the tapped widget is; a tap there (with a little
+        // slack) during the confirmation is another tap of it, anywhere else dismisses.
+        // (Tapping the real widget twice is checked on emulators by ScreensTest.)
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val activity = widgetTap(water.id)
-        val confirmation = confirmationOf(activity)
-        awaitCondition { confirmation.isStarted }
+        val slack = 8 * context.resources.displayMetrics.density
+        assertTrue(activity.isOnTappedSpot(150f, 150f))
+        assertTrue(activity.isOnTappedSpot(100f - slack + 1, 150f))
+        assertFalse(activity.isOnTappedSpot(20f, 400f))
+        assertFalse(activity.isOnTappedSpot(150f, 200f + slack + 2))
 
-        activity.confirmationTouched(150f, 150f)
-        awaitWithDetails(activity, confirmation) { (ShadowAlertDialog.getLatestAlertDialog() as? AlertDialog)?.isShowing == true }
-        assertEquals(1, repository.timestamps(water.id).size)
+        // Without a widget position (e.g. an old pinned icon), every tap dismisses.
+        val icon = Robolectric.buildActivity(LogActivity::class.java, Shortcuts.logIntent(context, water.id)).setup().get()
+        assertFalse(icon.isOnTappedSpot(150f, 150f))
     }
 
     @Test
@@ -420,19 +408,6 @@ class LogActivityTest {
         if (activity.intent.sourceBounds == null) activity.intent.sourceBounds = Rect(100, 100, 200, 200)
         activity.onEnterAnimationComplete()
         return activity
-    }
-
-    private fun awaitWithDetails(activity: LogActivity, confirmation: LogAnimationView, condition: () -> Boolean) {
-        try {
-            awaitCondition(condition = condition)
-        } catch (e: AssertionError) {
-            val origin = IntArray(2).also { confirmation.getLocationOnScreen(it) }
-            throw AssertionError(
-                "bounds=${activity.intent.sourceBounds} origin=${origin.toList()} size=${confirmation.width}x${confirmation.height} " +
-                    "shown='${confirmation.shownText}' finishing=${activity.isFinishing}",
-                e,
-            )
-        }
     }
 
     private fun touch(view: android.view.View, x: Float, y: Float) {
