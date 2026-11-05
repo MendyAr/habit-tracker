@@ -201,8 +201,10 @@ class LogActivity : Activity() {
 
     /** The confirmation ended: suggest a trigger if this entry gets one, else close. */
     private fun confirmationDone() {
+        // Already suggesting (the confirmation can report its end twice): keep it open.
+        if (picker != null || finishing) return
         val logged = result
-        if (logged == null || !logged.suggestTriggers || picker != null || finishing) {
+        if (logged == null || !logged.suggestTriggers) {
             finishQuietly()
             return
         }

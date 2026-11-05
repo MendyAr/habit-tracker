@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.1.0] - 2026-11-06
 
 ### Changed
 - **Habits go on the home screen as widgets only**: *Add Icon to Home Screen* is
@@ -40,6 +40,9 @@ All notable changes to this project are documented here. The format follows
   of each trigger, and entries can be tagged later from the Entries list (#28).
 - The **+** next to a habit in the app logs through the same confirmation (and
   trigger suggestion) as its widget.
+- **How to Use** describes widgets, triggers and the new tap rules, and What's new
+  lists this release's changes. A test now fails if a release forgets to review them
+  (#33).
 
 - **A calmer widget that blends with your home screen**: a translucent panel in your
   wallpaper's colours (Android 12+; light or dark grey before that, dark in the dark

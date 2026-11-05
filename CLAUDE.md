@@ -5,9 +5,10 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 
 ## State (2026-11)
 
-- Latest release: **v2.0.0** (versionCode 5), published from `main` (#13, #16, #17, #18, #23 done).
+- Latest release: **v2.1.0** (versionCode 6) once merged (#26–#33 done); v2.0.0 (versionCode 5) before.
 - `main` is the default branch. Work on a feature branch and open a PR to `main`.
 - Open work: none planned beyond Dependabot (see *Roadmap* below); new ideas go in GitHub issues.
+- The app creates **widgets only** (#32); never re-add icon pinning without asking the owner.
 - The owner (MendyAr) writes in Hebrew or English; keep the code, commits, issues and docs in English.
 
 ## Build, test, release
@@ -24,7 +25,9 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
   `WidgetDeviceTest`), then `am instrument`, and pulls screenshots. To run locally, do the same.
 - CI (`.github/workflows/ci.yml`): build/unit/lint plus emulators API 21, 29, 35. The API 35 job
   prints screenshots base64 between `=====SHOT name` / `=====END` markers in its log.
-- **Release**: bump `VERSION_NAME`/`VERSION_CODE` in `gradle.properties`, add a CHANGELOG section,
+- **Release**: see CONTRIBUTING.md, *Releasing*: also review the tutorial and What's new and add the
+  version code to `Onboarding.REVIEWED_VERSIONS` (OnboardingTest fails otherwise). Bump
+  `VERSION_NAME`/`VERSION_CODE` in `gradle.properties`, add a CHANGELOG section,
   then merge to `main`. When CI is green on `main`, `release.yml` publishes `v<VERSION_NAME>` with the
   signed APK and its sha256, taking the notes from CHANGELOG. Nothing to do by hand.
 - Signing: the public sideload key `keystore/sideload.jks` (password and alias `habittracker`) is
@@ -36,11 +39,18 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 - `core/`: pure Kotlin (no Android). `PeriodMath`, `StatsEngine`, `DayProfile` (time-of-day curve).
 - `app/`: Android **framework only, no AndroidX at runtime** (keep it that way), minSdk 21.
   - `log/LogActivity`: transparent, animation-free; **it is the launcher (MAIN/LAUNCHER) entry**, which
-    opens the app (never logs); pinned habit icons (`Shortcuts.logIntent`) log or start/finish a session.
-  - `widget/HabitWidgetProvider`: one widget per habit. Nested `Medium`/`Large`/`ExtraLarge` are the
+    opens the app (never logs). Widget taps (`HabitWidgetProvider.tapIntent`), the in-app + and
+    icons pinned by older versions log there: confirmation, `data/Sessions` tap rules, then for count
+    habits the trigger suggestion (`TriggerPickerView`). A tap on the widget's spot (intent
+    `sourceBounds`) during the confirmation counts as another tap.
+  - `widget/HabitWidgetProvider`: one widget per habit, a translucent neutral panel (system colours on
+    Android 12+) with the habit's coloured disc; no `reconfigurable`. Nested `Medium`/`Large`/`ExtraLarge` are the
     same widget at 2×2–4×4 default sizes (hidden from the picker, enabled on API 28+ via
     `@bool/sized_widgets`) used when adding a widget from the editor.
-  - `data/`: SQLite (`habits`, `entries`, AUTOINCREMENT ids) + `Settings` (SharedPreferences).
+  - `data/`: SQLite v3 (`habits`, `entries` with `duration` and `trigger_tag`, AUTOINCREMENT ids) +
+    `Settings` (SharedPreferences: period, stats config, triggers list, suggest switch…).
+  - `stats/`: `StatKind`/`StatGroup`/`StatsCard` (defaults = the research report), `StatValues`,
+    `StatsCustomizeDialog` (the only place to change the period), charts. See docs/STATISTICS.md.
   - `ui/Async`: one serial I/O thread. All DB work and **all widget bind/update calls** run on it.
 
 ## Gotchas learned the hard way
@@ -75,6 +85,10 @@ Proposed grouping; confirm with the owner before starting:
   `data/Sessions`, stopwatch badge, live widget timer) · #18/#23 `stats/StatKind` catalogue,
   `StatsConfig` per habit, `StatsCustomizeDialog`, `docs/STATISTICS.md`.
 - Trigger tags (#28): planned again by the owner and done in 2.1 (picker after logging, DB v3).
+- **2.1 (done):** #26 period only in Customize, period-aware help, chart help from titles, grouped
+  stats · #27 research-report defaults (`Habit tracking metrics` artifact) · #28 triggers · #29 widget
+  taps open LogActivity (no more queued taps) · #30 widget design · #31 Starting/Already Started/Ended/
+  Already Ended (3 s) · #32 widgets only · #33 tutorial and What's new reviewed per release.
 - Dependabot PRs: #6–#9 are stale (built on v1.0) and #21 (AGP 9.5) is a major jump. Don't merge
   them blindly; re-test each on current `main` (e.g. one combined PR), and close #4-style no-ops.
 

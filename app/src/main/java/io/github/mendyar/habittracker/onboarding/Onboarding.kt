@@ -16,9 +16,16 @@ object Onboarding {
     /**
      * Versions whose "What's new" page has content, as version codes. A release
      * with user-visible changes adds its code here and its items to
-     * `whats_new_items`.
+     * `whats_new_items` (which lists the latest one's changes).
      */
-    private val WHATS_NEW_VERSIONS = setOf(5)
+    internal val WHATS_NEW_VERSIONS = setOf(5, 6)
+
+    /**
+     * Every version code whose tutorial and "What's new" were reviewed before release,
+     * with or without new items. A test fails when the app's version code isn't here,
+     * so a release can't forget them (see CONTRIBUTING.md, Releasing).
+     */
+    internal val REVIEWED_VERSIONS = setOf(5, 6)
 
     /** What to show now, or null. Runs database I/O: call it off the main thread. */
     fun pending(context: Context): Mode? {
