@@ -5,7 +5,7 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 
 ## State (2026-11)
 
-- Latest release: **v2.0.0** (versionCode 5) once PR to `main` is merged (#13, #16, #17, #18, #23 done).
+- Latest release: **v2.0.0** (versionCode 5), published from `main` (#13, #16, #17, #18, #23 done).
 - `main` is the default branch. Work on a feature branch and open a PR to `main`.
 - Open work: none planned beyond Dependabot (see *Roadmap* below); new ideas go in GitHub issues.
 - The owner (MendyAr) writes in Hebrew or English; keep the code, commits, issues and docs in English.
@@ -74,8 +74,7 @@ Proposed grouping; confirm with the owner before starting:
   items to `whats_new_items` when a release has user-visible changes) · #17 duration trackers (DB v2,
   `data/Sessions`, stopwatch badge, live widget timer) · #18/#23 `stats/StatKind` catalogue,
   `StatsConfig` per habit, `StatsCustomizeDialog`, `docs/STATISTICS.md`.
-- **Possible next:** trigger tags when logging (ranked "strong evidence" in the owner's research
-  artifact, needs a one-tap tag UI).
+- Trigger tags when logging: considered and dropped by the owner (not planned).
 - Dependabot PRs: #6–#9 are stale (built on v1.0) and #21 (AGP 9.5) is a major jump. Don't merge
   them blindly; re-test each on current `main` (e.g. one combined PR), and close #4-style no-ops.
 
