@@ -87,7 +87,7 @@ class LogActivity : Activity() {
             if (event.actionMasked == MotionEvent.ACTION_UP) {
                 // Screen coordinates: the window is full screen, but go by the view's own position.
                 val origin = IntArray(2).also { animation.getLocationOnScreen(it) }
-                if (onTappedSpot(origin[0] + event.x, origin[1] + event.y)) tapAgain() else animation.skip()
+                confirmationTouched(origin[0] + event.x, origin[1] + event.y)
             }
             true
         }
@@ -146,6 +146,11 @@ class LogActivity : Activity() {
         if (habitId == -1L || bounds.isEmpty) return false
         val slack = (TAP_SLACK_DP * resources.displayMetrics.density).toInt()
         return Rect(bounds).apply { inset(-slack, -slack) }.contains(x.toInt(), y.toInt())
+    }
+
+    /** A tap at ([x], [y]) on the screen while the confirmation shows. */
+    internal fun confirmationTouched(x: Float, y: Float) {
+        if (onTappedSpot(x, y)) tapAgain() else animation.skip()
     }
 
     /** Another tap of the same widget while its confirmation shows. */

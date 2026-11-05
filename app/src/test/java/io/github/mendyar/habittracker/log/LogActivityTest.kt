@@ -248,13 +248,13 @@ class LogActivityTest {
         awaitCondition { confirmation.shownText == "Box breathing · Starting" }
 
         // The user taps the widget again, through the transparent window.
-        touchOnScreen(confirmation, 150, 150)
+        activity.confirmationTouched(150f, 150f)
         awaitWithDetails(activity, confirmation) { confirmation.shownText == "Box breathing · Already Started" }
         assertFalse(activity.isFinishing)
         assertEquals(1, repository.timestamps(breathing.id).size)
 
         // A tap anywhere else dismisses the confirmation.
-        touch(confirmation, 20f, 600f)
+        activity.confirmationTouched(20f, 400f)
         assertTrue(activity.isFinishing)
     }
 
@@ -265,7 +265,7 @@ class LogActivityTest {
         val confirmation = confirmationOf(activity)
         awaitCondition { confirmation.isStarted }
 
-        touchOnScreen(confirmation, 150, 150)
+        activity.confirmationTouched(150f, 150f)
         awaitWithDetails(activity, confirmation) { (ShadowAlertDialog.getLatestAlertDialog() as? AlertDialog)?.isShowing == true }
         assertEquals(1, repository.timestamps(water.id).size)
     }
@@ -433,12 +433,6 @@ class LogActivityTest {
                 e,
             )
         }
-    }
-
-    /** A tap at the screen position ([x], [y]), wherever [view] is on the screen. */
-    private fun touchOnScreen(view: android.view.View, x: Int, y: Int) {
-        val origin = IntArray(2).also { view.getLocationOnScreen(it) }
-        touch(view, (x - origin[0]).toFloat(), (y - origin[1]).toFloat())
     }
 
     private fun touch(view: android.view.View, x: Float, y: Float) {

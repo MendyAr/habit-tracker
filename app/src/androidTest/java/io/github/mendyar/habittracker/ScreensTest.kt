@@ -283,7 +283,8 @@ class ScreensTest {
         assertNotNull("The widget isn't on the home screen", widget)
 
         // A real tap on the widget starts a session, with the confirmation mid-screen.
-        widget!!.click()
+        val widgetBounds = widget!!.visibleBounds
+        widget.click()
         val tappedAt = System.currentTimeMillis()
         var view: LogAnimationView? = null
         waitUntil {
@@ -299,6 +300,11 @@ class ScreensTest {
         assertTrue("The tap was handled late", repository.running(breathing.id)!!.timestamp - tappedAt < 2_000)
         Thread.sleep(500)
         screenshot("11_widget_tap", settleMs = 0)
+
+        // A second real tap on the widget, through the confirmation window: nothing changes.
+        device.click(widgetBounds.centerX(), widgetBounds.centerY())
+        waitUntil { view!!.shownText.endsWith("Already Started") }
+        assertEquals(1, repository.timestamps(breathing.id).size)
         instrumentation.runOnMainSync { view!!.skip() }
 
         // Back on the home screen, the widget counts up.
