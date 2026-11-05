@@ -146,6 +146,7 @@ class HabitEditActivityTest {
         assertTrue(findByText(dialog.window!!.decorView, context.getString(R.string.add_widget_title)) != null)
 
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(android.os.Looper.getMainLooper()).idle() // dialog clicks are delivered through the looper
         val walk = repository.habits().first { it.name == "Walk" }
         val next = shadowOf(activity).nextStartedActivity
         assertEquals(HabitEditActivity::class.java.name, next.component?.className)

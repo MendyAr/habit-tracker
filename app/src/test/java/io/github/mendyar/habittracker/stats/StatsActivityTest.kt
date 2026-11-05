@@ -160,6 +160,7 @@ class StatsActivityTest {
         val dialog = ShadowAlertDialog.getLatestAlertDialog() as AlertDialog
         (findText(dialog.window!!.decorView, context.getString(R.string.period_month)) as RadioButton).isChecked = true
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(android.os.Looper.getMainLooper()).idle() // dialog clicks are delivered through the looper
 
         assertEquals(context.getString(R.string.stats_title_month), title.text.toString())
         assertEquals(context.getString(R.string.history_month), activity.findViewById<TextView>(R.id.history_title).text.toString())
