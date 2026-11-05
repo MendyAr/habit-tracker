@@ -55,13 +55,16 @@ Some habits are about *how long*, not *how often*: for example **Box Breathing**
 where you want to see how long it takes you to calm down. When you add a habit,
 choose **Duration** instead of **Count**:
 
-- **Tap its icon or widget to start**: a stopwatch sweeps round (*Box Breathing ·
-  started*). **Tap again when you're done**: a check shows the time it took
-  (*Box Breathing · 4:32*). A second tap within a few seconds doesn't stop it.
-- Its icon and widget carry a small **stopwatch badge**, and while a session runs
-  the widget **counts up live**.
+- **Tap its widget to start**: a stopwatch sweeps round (*Box Breathing ·
+  Starting*). **Tap again when you're done**: a check shows *Box Breathing · Ended*
+  with the time it took, large, below it (**4:32**).
+- Double taps are safe: a tap within 3 seconds of the start shows *Already
+  Started*, and a tap within 3 seconds of the end shows *Already Ended* with the
+  same time. After that, a tap starts a new session.
+- Its widget carries a small **stopwatch badge**, and while a session runs it
+  **counts up live** in place of the name.
 - Forgot to stop it? A tap on a session that has run for hours asks whether to
-  **finish it now or discard it** (a widget asks for a second tap). In the
+  **finish it now or discard it**. In the
   statistics you can also tap a running session to finish or discard it, or add a
   session by hand.
 - Its statistics describe the session lengths: the typical (median) session, the
@@ -135,18 +138,18 @@ and counting each day at most once) keep "every day at 8:00" at exactly 100%.
 ## Good to know
 
 - **Double taps**: logging the same habit again within a minute asks *Log Again?*
-  first (a widget wants a second tap instead). Choose *Don't Ask Again* for habits
-  you really do log in quick succession.
+  first. Choose *Don't Ask Again* for habits you really do log in quick succession.
+  While the confirmation shows, tapping the widget again counts as a tap; tapping
+  anywhere else closes the confirmation.
 - **"Can a new widget open in resize mode?"** Android gives apps no way to open
   the launcher's resize handles, which is why the app asks for the size first.
   Some launchers show the handles by themselves when you place a widget by hand:
   touch & hold its preview in the launcher's dialog and drop it where you want it,
   instead of tapping *Add*.
-- **"Does anything open when I tap?"** Android can only run an app's code on an
-  icon tap by starting a window. Habit Tracker's window is completely
+- **"Does anything open when I tap?"** To show the confirmation in the middle of
+  the screen, a widget tap starts a window. Habit Tracker's window is completely
   transparent, has no open or close animation, and closes itself after the
-  confirmation, so you only ever see your home screen. The widget variant
-  doesn't open a window at all.
+  confirmation, so you only ever see your home screen.
 - **Why doesn't the app icon log?** So that nothing is ever logged without you
   meaning it: opening the app (also from the installer's *Open* button after an
   update) never records anything. Each habit's own icon or widget does the logging,

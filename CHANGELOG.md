@@ -11,6 +11,18 @@ All notable changes to this project are documented here. The format follows
   gone, and after creating a habit the app offers its widget instead. Icons added by
   earlier versions keep working (#32).
 - Widgets no longer offer *Reconfigure* in the launcher's long-press menu (#32).
+- **A widget tap shows the full confirmation in the middle of the screen**, like a
+  habit icon, including *Log Again?* (#29).
+- **Duration habits** (e.g. Box Breathing): *Starting*, then *Ended* with the time
+  large below it. A tap within 3 seconds of the start shows *Already Started*, and
+  within 3 seconds of the end *Already Ended* with the same time; nothing changes
+  (#31).
+- While the confirmation shows, tapping the widget again counts as another tap.
+
+### Fixed
+- Quick taps on a widget were sometimes registered seconds late (#29).
+- A running session's timer now replaces the widget's name, so it also shows on a
+  1 × 1 widget (#29).
 
 ## [2.0.0] - 2026-11-04
 

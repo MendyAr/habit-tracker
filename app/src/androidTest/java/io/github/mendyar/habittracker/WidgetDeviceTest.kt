@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.widget.HabitWidgetProvider
@@ -85,21 +86,47 @@ class WidgetDeviceTest {
         waitUntil { label(id) == "Water" }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Tap the hosted widget exactly as a launcher would.
+            // Tap the hosted widget exactly as a launcher would: it opens the logging window.
             instrumentation.runOnMainSync {
                 host.createView(context, id, manager.getAppWidgetInfo(id)).findViewById<View>(R.id.widget_root).performClick()
             }
         } else {
             // Before Android 7 a host view that is not in a window cannot fire its click
-            // PendingIntent, so deliver the broadcast that the tap sends.
-            context.sendBroadcast(
-                Intent(HabitWidgetProvider.ACTION_LOG)
-                    .setClass(context, HabitWidgetProvider::class.java)
-                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
-            )
+            // PendingIntent, so start what the tap starts.
+            context.startActivity(HabitWidgetProvider.tapIntent(context, water.id))
         }
         waitUntil { repository.timestamps(water.id).size == 1 }
         assertEquals(0, repository.timestamps(other.id).size)
+    }
+
+    @Test
+    fun aDurationWidgetShowsALiveTimerWhileASessionRuns() {
+        val breathing = repository.createHabit("Box Breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
+        val id = placeWidget()
+        assertTrue(onIo { HabitWidgetProvider.bind(context, id, breathing.id) })
+        waitUntil { label(id) == "Box Breathing" }
+
+        repository.log(breathing.id, System.currentTimeMillis() - 65_000)
+        onIo { HabitWidgetProvider.updateFor(context, breathing.id) }
+        waitUntil { timer(id)?.startsWith("1:0") == true }
+        // It counts up by itself.
+        val first = timer(id)
+        waitUntil(timeoutMs = 4_000) { timer(id) != first }
+    }
+
+    /** The live timer of the hosted widget, or null while it is hidden. */
+    private fun timer(id: Int): String? {
+        var text: String? = null
+        instrumentation.runOnMainSync {
+            val view = host.createView(context, id, manager.getAppWidgetInfo(id))
+            val chronometer = view.findViewById<android.widget.Chronometer>(R.id.widget_timer)
+            if (chronometer?.visibility == View.VISIBLE) {
+                // A view outside a window doesn't tick: attach-time text is enough to compare.
+                chronometer.measure(0, 0)
+                text = chronometer.text?.toString()
+            }
+        }
+        return text
     }
 
     @Test

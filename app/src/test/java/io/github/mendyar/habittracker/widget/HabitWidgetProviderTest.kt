@@ -3,6 +3,7 @@ package io.github.mendyar.habittracker.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
@@ -12,6 +13,7 @@ import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.icons.HabitColors
 import io.github.mendyar.habittracker.launcher.Shortcuts
+import io.github.mendyar.habittracker.log.LogActivity
 import io.github.mendyar.habittracker.ui.Async
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -122,36 +124,29 @@ class HabitWidgetProviderTest {
     }
 
     @Test
-    fun tappingAWidgetLogsItsHabitOnly() {
-        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
+    fun tappingAWidgetOpensTheLoggingWindowForItsHabit() {
+        repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        val id = placeWidget()
-        HabitWidgetProvider.bind(context, id, water.id)
-        context.sendBroadcast(
-            Intent(HabitWidgetProvider.ACTION_LOG)
-                .setClass(context, HabitWidgetProvider::class.java)
-                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
-        )
-        awaitCondition { repository.timestamps(water.id).size == 1 }
-        // Let the confirmation flip back so no work outlives the test.
-        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
-        Async.awaitIdle()
-        assertEquals(0, repository.timestamps(walk.id).size)
+        val tap = HabitWidgetProvider.tapIntent(context, water.id)
+        assertEquals(LogActivity::class.java.name, tap.component?.className)
+        assertEquals(water.id, tap.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1))
+        assertTrue(tap.flags and Intent.FLAG_ACTIVITY_NO_ANIMATION != 0)
     }
 
     @Test
-    fun tappingAWidgetOfADeletedHabitLogsNothing() {
+    fun aTapOnAWidgetDrawnByAnOlderVersionRedrawsItWithoutLogging() {
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
         val id = placeWidget()
         HabitWidgetProvider.bind(context, id, water.id)
-        repository.deleteHabit(water.id)
         context.sendBroadcast(
             Intent(HabitWidgetProvider.ACTION_LOG)
                 .setClass(context, HabitWidgetProvider::class.java)
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
         )
-        Thread.sleep(300)
-        assertTrue(repository.habits().all { repository.timestamps(it.id).isEmpty() })
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        Async.awaitIdle()
+        assertEquals(0, repository.timestamps(water.id).size)
+        assertEquals("Water", label(id))
     }
 
     @Test
@@ -200,46 +195,18 @@ class HabitWidgetProviderTest {
     }
 
     @Test
-    fun aWidgetTapMomentsAfterTheLastEntryNeedsASecondTap() {
-        val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
-        repository.log(water.id, System.currentTimeMillis() - 10_000)
-        val id = placeWidget()
-        HabitWidgetProvider.bind(context, id, water.id)
-        val tap = Intent(HabitWidgetProvider.ACTION_LOG)
-            .setClass(context, HabitWidgetProvider::class.java)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-
-        context.sendBroadcast(tap)
-        shadowOf(android.os.Looper.getMainLooper()).idle()
-        Async.awaitIdle()
-        assertEquals(1, repository.timestamps(water.id).size) // the widget asks for a second tap
-
-        context.sendBroadcast(tap)
-        awaitCondition { repository.timestamps(water.id).size == 2 }
-        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(5))
-        Async.awaitIdle()
-    }
-
-    @Test
-    fun aDurationWidgetStartsAndFinishesSessionsAndShowsItsBadge() {
+    fun aDurationWidgetShowsItsBadgeAndALiveTimerWhileASessionRuns() {
         val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
         val id = placeWidget()
         HabitWidgetProvider.bind(context, id, breathing.id)
-        val badge = HabitWidgetProvider.views(context, id).apply(context, FrameLayout(context)).findViewById<android.view.View>(R.id.widget_badge)
-        assertEquals(android.view.View.VISIBLE, badge.visibility)
-        val tap = Intent(HabitWidgetProvider.ACTION_LOG)
-            .setClass(context, HabitWidgetProvider::class.java)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+        fun shown() = HabitWidgetProvider.views(context, id).apply(context, FrameLayout(context))
+        assertEquals(View.VISIBLE, shown().findViewById<View>(R.id.widget_badge).visibility)
+        assertEquals(View.GONE, shown().findViewById<View>(R.id.widget_timer).visibility)
 
-        context.sendBroadcast(tap)
-        awaitCondition { repository.running(breathing.id) != null }
-        // Make the session a minute old, then finish it with a second tap.
-        val session = repository.running(breathing.id)!!
-        repository.deleteEntry(session.id)
-        repository.log(breathing.id, System.currentTimeMillis() - 60_000)
-        context.sendBroadcast(tap)
-        awaitCondition { repository.sessions(breathing.id).size == 1 }
-        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
-        Async.awaitIdle()
+        repository.log(breathing.id, System.currentTimeMillis() - 65_000)
+        val running = shown()
+        assertEquals(View.VISIBLE, running.findViewById<View>(R.id.widget_timer).visibility)
+        // The timer takes the name's place, so it fits even a 1 × 1 widget.
+        assertEquals(View.GONE, running.findViewById<View>(R.id.widget_label).visibility)
     }
 }

@@ -102,6 +102,14 @@ class HabitRepository(
         )
         .use { c -> if (c.moveToFirst()) Entry(c.getLong(0), habitId, c.getLong(1)) else null }
 
+    /** The finished session of [habitId] that ended last, if any. */
+    fun lastFinished(habitId: Long): Entry? = database.readableDatabase
+        .rawQuery(
+            "SELECT _id, ts, duration FROM entries WHERE habit_id = ? AND duration IS NOT NULL ORDER BY ts + duration DESC LIMIT 1",
+            arrayOf(habitId.toString()),
+        )
+        .use { c -> if (c.moveToFirst()) Entry(c.getLong(0), habitId, c.getLong(1), c.getLong(2)) else null }
+
     /** Finishes the session [entryId] at [end], recording its duration. */
     fun finish(entryId: Long, end: Long) {
         database.writableDatabase.execSQL(

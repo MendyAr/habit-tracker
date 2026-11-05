@@ -4,8 +4,10 @@
 
     <!-- Log confirmation -->
     <string name="logged_label">%1$s · %2$s</string>
-    <string name="logged_started">%1$s · started</string>
-    <string name="logged_running">%1$s · running for %2$s</string>
+    <string name="session_starting">%1$s · Starting</string>
+    <string name="session_already_started">%1$s · Already Started</string>
+    <string name="session_ended">%1$s · Ended</string>
+    <string name="session_already_ended">%1$s · Already Ended</string>
     <string name="long_running_title">Still Running?</string>
     <string name="long_running_message">%1$s has been running for %2$s. Finish it now, or discard it if you forgot to stop it?</string>
     <string name="finish_now">Finish Now</string>
@@ -19,9 +21,6 @@
     <string name="duplicate_manual_message">%1$s already has an entry at %2$s. Add another one?</string>
     <string name="log_again">Log Again</string>
     <string name="dont_ask_again">Don\'t Ask Again</string>
-    <string name="widget_started">Started</string>
-    <string name="widget_finish_long">Running %1$s.\nTap again to finish.</string>
-    <string name="widget_tap_again">Just logged.\nTap again to log again.</string>
     <plurals name="count_today">
         <item quantity="one">%d today</item>
         <item quantity="other">%d today</item>

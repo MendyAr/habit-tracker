@@ -36,12 +36,13 @@ io.github.mendyar.habittracker
 ### Tap: log a timestamp
 
 ```
-pinned habit icon
-        │  io.github.mendyar.habittracker.action.LOG (+ habit id)
+habit widget (or a habit icon pinned by an older version)
+        │  io.github.mendyar.habittracker.action.LOG (+ habit id, + the widget's source bounds)
         ▼
 LogActivity  (Theme.HabitTracker.Log: translucent, no window animation, no preview,
              own task affinity, excludeFromRecents, noHistory)
-        │ 1. insert entry on the I/O thread (or ask "Log Again?" right after one)
+        │ 1. insert entry on the I/O thread (or ask "Log Again?" right after one;
+        │    duration habits follow data/Sessions)
         │ 2. once the window is on screen (onEnterAnimationComplete), LogAnimationView draws
         │    a disc + check in the middle of the screen and a pill with the habit and count;
         │    about 2 s in total
@@ -65,10 +66,19 @@ its launcher component is renamed. Logging only from a habit's own icon or widge
 means opening the app, including from the installer's *Open* button after an
 update, never records anything.
 
-The **widget** (`HabitWidgetProvider`) avoids even that: a tap sends a
-broadcast, the entry is written in the background and the tapped widget's
-`ViewFlipper` animates to a check with the count and back (a partial update of
-that widget only; others are not redrawn). No window is involved at all.
+A **widget** (`HabitWidgetProvider`) tap starts the same activity, through an
+activity `PendingIntent` (`HabitWidgetProvider.tapIntent`), so a widget confirms
+exactly like an icon. Up to 2.0 widgets logged in a broadcast receiver and
+flipped to a check in place; the receiver held each broadcast open (`goAsync`)
+until the widget flipped back, and since an app's broadcasts are delivered one at
+a time, quick taps were queued and registered seconds late. Widgets drawn by
+those versions still send `ACTION_LOG`; the provider just redraws them.
+
+The confirmation window covers the home screen, so a second tap on the widget
+lands on it. Launchers pass the widget's position as the intent's
+`sourceBounds`; `LogActivity` treats a tap there (8 dp of slack) as another tap
+of the widget (e.g. "Already Started"), and a tap anywhere else dismisses the
+confirmation.
 
 Each habit has at most one widget. A widget is bound to its habit explicitly
 (picker, or the pin request from the editor) and never falls back to another
@@ -131,10 +141,12 @@ entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration)   index (
 ```
 
 For a **duration** habit an entry is a session: `ts` is its start and `duration`
-(ms) is null while it runs. A tap on its icon or widget starts a session, or
-finishes the running one (`HabitRepository.running/finish`); a tap within 5 s of
-the start leaves it running, and a session older than 3 hours asks before it is
-finished (`data/Sessions`). Version 1 databases are upgraded in place by adding
+(ms) is null while it runs. Taps on its widget or icon follow `data/Sessions`:
+the first starts a session (*Starting*), a tap within 3 s of the start changes
+nothing (*Already Started*), a later one finishes it (*Ended*, with its length
+large below), a tap within 3 s of the end changes nothing (*Already Ended*, the
+same length, from `HabitRepository.lastFinished`), and after that a tap starts a
+new session. A session older than 3 hours asks before it is finished. Version 1 databases are upgraded in place by adding
 the two columns; existing data stays count data.
 
 `ts` is epoch milliseconds (UTC). Bucketing into local days, weeks (locale's

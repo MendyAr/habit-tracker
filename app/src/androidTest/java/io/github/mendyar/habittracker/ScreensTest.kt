@@ -23,6 +23,7 @@ import androidx.test.uiautomator.Until
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitEditActivity
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
@@ -215,6 +216,8 @@ class ScreensTest {
     /**
      * The real "Add One-Tap Widget" flow with the system launcher: choose a size,
      * accept the launcher's dialog, and land on the home screen with the widget.
+     * Then a real tap on the widget: the confirmation shows in the middle of the
+     * screen at once, and the duration habit's widget shows its live timer.
      * Skipped where adding widgets from apps is not supported (before Android 9 the
      * size cannot be chosen).
      */
@@ -224,10 +227,10 @@ class ScreensTest {
         assumeTrue(AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported)
         seed()
         usePlainWallpaper()
-        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
-        launch(HabitEditActivity.intent(context, walk.id))
+        val breathing = repository.createHabit("Box Breathing", "box_breathing", null, HabitColors.ALL[2], HabitType.DURATION)
+        launch(HabitEditActivity.intent(context, breathing.id))
         val editor = waitForActivity()
-        waitUntil { editor.findViewById<TextView>(R.id.edit_name).text.toString() == "Walk" }
+        waitUntil { editor.findViewById<TextView>(R.id.edit_name).text.toString() == "Box Breathing" }
         instrumentation.runOnMainSync { editor.findViewById<View>(R.id.edit_add_widget).performClick() }
 
         val medium = device.wait(Until.findObject(By.desc(context.getString(R.string.widget_size_description, 2, 2))), 5_000)
@@ -240,8 +243,8 @@ class ScreensTest {
         assertNotNull("No launcher confirmation; screen shows ${device.currentPackageName}", add)
         add!!.click()
 
-        waitUntil(timeoutMs = 15_000) { HabitWidgetProvider.widgetFor(context, walk.id) != null }
-        val id = HabitWidgetProvider.widgetFor(context, walk.id)!!
+        waitUntil(timeoutMs = 15_000) { HabitWidgetProvider.widgetFor(context, breathing.id) != null }
+        val id = HabitWidgetProvider.widgetFor(context, breathing.id)!!
         val manager = AppWidgetManager.getInstance(context)
         assertTrue(id in manager.getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider)))
         // The editor closed itself and the home screen, with the widget, is in front.
@@ -252,8 +255,34 @@ class ScreensTest {
         ).trim().lines().last().substringBefore('/')
         val inFront = device.wait(Until.hasObject(By.pkg(launcher).depth(0)), 8_000)
         assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
-        device.wait(Until.findObject(By.text("Walk")), 3_000)
+        val widget = device.wait(Until.findObject(By.desc(context.getString(R.string.widget_log_description, "Box Breathing"))), 5_000)
         screenshot("8_widget_added")
+        assertNotNull("The widget isn't on the home screen", widget)
+
+        // A real tap on the widget starts a session, with the confirmation mid-screen.
+        widget!!.click()
+        val tappedAt = System.currentTimeMillis()
+        var view: LogAnimationView? = null
+        waitUntil {
+            val activity = resumedActivity() as? LogActivity
+            if (activity != null) {
+                instrumentation.runOnMainSync {
+                    val content = activity.findViewById<ViewGroup>(android.R.id.content)
+                    view = (content.getChildAt(0) as? LogAnimationView)?.takeIf { it.isStarted }
+                }
+            }
+            view != null
+        }
+        instrumentation.runOnMainSync { freeze(view!!, atMs = 900f) }
+        assertTrue("The tap was handled late", repository.running(breathing.id)!!.timestamp - tappedAt < 2_000)
+        Thread.sleep(500)
+        screenshot("11_widget_tap", settleMs = 0)
+        instrumentation.runOnMainSync { view!!.skip() }
+
+        // Back on the home screen, the widget counts up.
+        waitUntil { resumedActivity() == null }
+        Thread.sleep(2_500)
+        screenshot("12_widget_timer")
     }
 
     /**

@@ -4,8 +4,10 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
+import android.graphics.Rect
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import io.github.mendyar.habittracker.R
@@ -26,12 +28,15 @@ import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.widget.HabitWidgetProvider
 
 /**
- * Entry point of the launcher icon and of every pinned habit icon.
+ * Entry point of the launcher icon, of every habit widget and of habit icons pinned
+ * by earlier versions.
  *
- * A pinned habit icon records a timestamp, plays [LogAnimationView] in the middle
- * of the (still visible) home screen in a transparent window and finishes without
- * any transition, so the user never leaves the screen they tapped on. A tap moments
- * after the habit's last entry asks first, since it is usually a double tap.
+ * A habit's widget (or icon) records a timestamp, plays [LogAnimationView] in the
+ * middle of the (still visible) home screen in a transparent window and finishes
+ * without any transition, so the user never leaves the screen they tapped on. A tap
+ * moments after the habit's last entry asks first, since it is usually a double tap.
+ * Duration habits follow [Sessions]. While the confirmation shows, a tap on the spot
+ * of the widget that opened it counts as another tap of that widget.
  *
  * The main app icon logs nothing: it opens the app, on the habit list, or on the
  * statistics of the only habit. (This class stays the launcher entry because
@@ -44,6 +49,10 @@ class LogActivity : Activity() {
     private var result: Result? = null
     private var windowShown = false
     private var dialog: AlertDialog? = null
+    private var habitId = -1L
+
+    /** Whether a tap is being recorded (a new one waits until it is). */
+    private var recording = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,16 +66,32 @@ class LogActivity : Activity() {
 
         animation = LogAnimationView(this)
         animation.onFinished = ::finishQuietly
+        animation.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                if (onTappedSpot(event.rawX, event.rawY)) tapAgain() else animation.skip()
+            }
+            true
+        }
+        // Accessibility services click instead of touching.
         animation.setOnClickListener { animation.skip() }
         setContentView(animation)
 
-        val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
+        habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
         if (habitId == -1L) {
             openApp()
             return
         }
+        tap()
+        startEnterFallback()
+    }
+
+    /** Records a tap of the habit and shows its outcome. */
+    private fun tap() {
         val now = System.currentTimeMillis()
+        recording = true
         Async.load({ record(habitId, now) }) { outcome ->
+            recording = false
+            if (finishing) return@load
             when (outcome) {
                 // The habit was deleted: its greyed-out icon opens the habit list.
                 null -> {
@@ -76,17 +101,43 @@ class LogActivity : Activity() {
                     )
                     finishQuietly()
                 }
-                is Outcome.Duplicate -> askAboutDuplicate(outcome)
-                is Outcome.LongRunning -> askAboutLongSession(outcome)
-                is Outcome.Logged -> {
-                    result = outcome.result
-                    startAnimationWhenVisible()
+                is Outcome.Duplicate -> {
+                    animation.reset()
+                    askAboutDuplicate(outcome)
                 }
+                is Outcome.LongRunning -> {
+                    animation.reset()
+                    askAboutLongSession(outcome)
+                }
+                is Outcome.Logged -> show(outcome.result)
             }
         }
         // Queued after the write on the same serial thread, so the animation is not delayed by it.
         Async.io { LauncherSync.afterLog(applicationContext) }
-        startEnterFallback()
+    }
+
+    /**
+     * Whether the point ([x], [y]) on the screen is where the tapped widget or icon is
+     * (with a little slack): the user tapped it again through this transparent window.
+     */
+    private fun onTappedSpot(x: Float, y: Float): Boolean {
+        val bounds = intent.sourceBounds ?: return false
+        if (habitId == -1L || bounds.isEmpty) return false
+        val slack = (TAP_SLACK_DP * resources.displayMetrics.density).toInt()
+        return Rect(bounds).apply { inset(-slack, -slack) }.contains(x.toInt(), y.toInt())
+    }
+
+    /** Another tap of the same widget while its confirmation shows. */
+    private fun tapAgain() {
+        if (finishing || recording || dialog?.isShowing == true) return
+        tap()
+    }
+
+    /** Shows the confirmation of [outcome], replacing the one on screen. */
+    private fun show(outcome: Result) {
+        result = outcome
+        animation.reset()
+        startAnimationWhenVisible()
     }
 
     /**
@@ -124,7 +175,7 @@ class LogActivity : Activity() {
         val ready = result ?: return
         if (!windowShown || finishing || animation.isStarted) return
         haptic()
-        animation.start(ready.color, ready.label, ready.hint, ready.mark)
+        animation.start(ready.color, ready.label, ready.hint, ready.mark, ready.value)
     }
 
     private class Result(
@@ -132,6 +183,8 @@ class LogActivity : Activity() {
         val label: String,
         val hint: String?,
         val mark: LogAnimationView.Mark = LogAnimationView.Mark.CHECK,
+        /** Shown large under the label, e.g. a session's length. */
+        val value: String? = null,
     )
 
     private sealed class Outcome {
@@ -161,31 +214,32 @@ class LogActivity : Activity() {
     }
 
     /**
-     * Runs on the I/O thread: starts a session of the duration habit [habit], or
-     * finishes the running one. A tap within seconds of the start leaves it running
-     * (a double tap shouldn't record a meaningless session).
+     * Runs on the I/O thread: a tap of the duration habit [habit] at [now], following
+     * [Sessions]: starts a session, finishes the running one, or (moments after
+     * either) changes nothing and says so.
      */
     private fun toggleSession(habit: Habit, now: Long): Result {
         val repository = HabitRepository.get(this)
         val formats = Formats(this)
         val session = repository.running(habit.id)
-        val result = when {
-            session == null -> {
+        val stopwatch = LogAnimationView.Mark.STOPWATCH
+        val result = if (session == null) {
+            val last = repository.lastFinished(habit.id)
+            val lastEnd = last?.end
+            if (last != null && lastEnd != null && now - lastEnd in 0 until Sessions.GRACE_MS) {
+                Result(habit.color, getString(R.string.session_already_ended, habit.name), null, value = formats.elapsed(last.duration ?: 0L))
+            } else {
                 repository.log(habit.id, now)
-                Result(habit.color, getString(R.string.logged_started, habit.name), null, LogAnimationView.Mark.STOPWATCH)
+                Result(habit.color, getString(R.string.session_starting, habit.name), null, stopwatch)
             }
-            now - session.timestamp < Sessions.MIN_MS -> Result(
-                habit.color,
-                getString(R.string.logged_running, habit.name, formats.elapsed(now - session.timestamp)),
-                null,
-                LogAnimationView.Mark.STOPWATCH,
-            )
-            else -> {
-                repository.finish(session.id, now)
-                Result(habit.color, getString(R.string.logged_label, habit.name, formats.elapsed(now - session.timestamp)), null)
-            }
+        } else if (now - session.timestamp < Sessions.GRACE_MS) {
+            Result(habit.color, getString(R.string.session_already_started, habit.name), null, stopwatch)
+        } else {
+            repository.finish(session.id, now)
+            Result(habit.color, getString(R.string.session_ended, habit.name), null, value = formats.elapsed(now - session.timestamp))
         }
         Shortcuts.reportUsed(this, habit.id)
+        // Its widget shows the live timer while a session runs.
         HabitWidgetProvider.updateFor(applicationContext, habit.id)
         return result
     }
@@ -214,10 +268,7 @@ class LogActivity : Activity() {
                 getString(R.string.long_running_message, long.habit.name, Formats(this).duration((long.now - long.session.timestamp) / 60_000.0)),
             )
             .setPositiveButton(R.string.finish_now) { _, _ ->
-                Async.load({ toggleSession(long.habit, System.currentTimeMillis()) }) {
-                    result = it
-                    startAnimationWhenVisible()
-                }
+                Async.load({ toggleSession(long.habit, System.currentTimeMillis()) }, ::show)
             }
             .setNeutralButton(R.string.discard) { _, _ ->
                 Async.io {
@@ -241,10 +292,7 @@ class LogActivity : Activity() {
             duplicate.previous,
             duplicate.now,
             onLog = {
-                Async.load({ log(habit, System.currentTimeMillis()) }) {
-                    result = it
-                    startAnimationWhenVisible()
-                }
+                Async.load({ log(habit, System.currentTimeMillis()) }, ::show)
             },
             onCancel = ::finishQuietly,
         )
@@ -301,5 +349,8 @@ class LogActivity : Activity() {
 
     private companion object {
         const val ENTER_TIMEOUT_MS = 1_000L
+
+        /** How far around the tapped widget a tap still counts as tapping it. */
+        const val TAP_SLACK_DP = 8
     }
 }
