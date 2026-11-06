@@ -15,24 +15,23 @@ import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import io.github.mendyar.habittracker.R
-import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
-import io.github.mendyar.habittracker.data.Sessions
-import io.github.mendyar.habittracker.icons.HabitIconDrawable
-import io.github.mendyar.habittracker.icons.HabitIcons
-import io.github.mendyar.habittracker.launcher.LauncherSync
+import io.github.mendyar.habittracker.icons.IconFactory
 import io.github.mendyar.habittracker.launcher.PinResult
 import io.github.mendyar.habittracker.launcher.Shortcuts
 import io.github.mendyar.habittracker.ui.Async
-import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.ui.colorOf
 
 /**
- * A resizable home-screen widget, at most one per habit. It is a tile in the
- * habit's colour with its icon; tapping it logs a timestamp entirely in place:
- * no window opens, only the tapped widget flips to a check with the count and back.
+ * A resizable home-screen widget, at most one per habit. It is a translucent
+ * neutral panel that blends with the wallpaper (on Android 12+ in the system's
+ * wallpaper-derived colours), with the habit's icon as a disc in its colour; tapping it opens [io.github.mendyar.habittracker.log.LogActivity], which logs a
+ * timestamp and shows its confirmation in the middle of the home screen in a
+ * transparent window, exactly like a pinned habit icon. (Logging in the receiver
+ * held each tap's broadcast open until the widget flipped back, which delayed the
+ * next taps by seconds.)
  *
  * A widget whose habit is not chosen yet, or was deleted, says so and opens the
  * habit picker when tapped. It never silently switches to another habit.
@@ -75,7 +74,21 @@ open class HabitWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_LOG -> logFromWidget(context, intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1))
+            // A tap on a widget still drawn by a version that logged in place: redraw it,
+            // so its next tap opens the confirmation window.
+            ACTION_LOG -> {
+                val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
+                if (widgetId == -1) return
+                val pending: PendingResult? = goAsync()
+                val app = context.applicationContext
+                Async.io {
+                    try {
+                        update(app, AppWidgetManager.getInstance(app), widgetId)
+                    } finally {
+                        pending?.finish()
+                    }
+                }
+            }
             ACTION_PINNED -> {
                 val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
                 val habitId = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, -1)
@@ -95,162 +108,11 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun logFromWidget(context: Context, widgetId: Int) {
-        if (widgetId == -1) return
-        val pending: PendingResult? = goAsync()
-        val app = context.applicationContext
-        Async.io {
-            val repository = HabitRepository.get(app)
-            val habit = repository.habit(repository.settings.widgetHabit(widgetId))
-            if (habit == null) {
-                pending?.finish()
-                return@io
-            }
-            val now = System.currentTimeMillis()
-            // Only the tapped widget changes; the others are left alone.
-            val manager = AppWidgetManager.getInstance(app)
-            val tap = (taps[widgetId] ?: 0) + 1
-            taps[widgetId] = tap
-
-            if (habit.type == HabitType.DURATION) {
-                toggleSession(app, manager, widgetId, habit, now, tap, pending)
-                return@io
-            }
-
-            // A tap moments after the last entry is usually a double tap: log only if the
-            // user taps again while the widget asks.
-            val armed = (armedUntil[widgetId] ?: 0L) > now
-            if (!armed && repository.recentDuplicate(habit.id, now) != null) {
-                armedUntil[widgetId] = now + ASK_AGAIN_MS
-                manager.partiallyUpdateAppWidget(
-                    widgetId,
-                    RemoteViews(app.packageName, R.layout.widget_habit).apply {
-                        setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(R.drawable.ic_ui_add)))
-                        setTextViewText(R.id.widget_count, app.getString(R.string.widget_tap_again))
-                        setDisplayedChild(R.id.widget_flipper, 1)
-                    },
-                )
-                flipBackLater(app, manager, widgetId, tap, ASK_AGAIN_MS, pending)
-                return@io
-            }
-            armedUntil.remove(widgetId)
-
-            repository.log(habit.id, now)
-            val period = repository.settings.period(habit.id)
-            val math = PeriodMath()
-            val count = repository.count(habit.id, math.startOf(period, now), math.endOf(period, now))
-            manager.partiallyUpdateAppWidget(
-                widgetId,
-                RemoteViews(app.packageName, R.layout.widget_habit).apply {
-                    setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(R.drawable.ic_ui_check)))
-                    setTextViewText(R.id.widget_count, Formats(app).countPhrase(period, count))
-                    setDisplayedChild(R.id.widget_flipper, 1)
-                },
-            )
-            Shortcuts.reportUsed(app, habit.id)
-            LauncherSync.afterLog(app)
-            flipBackLater(app, manager, widgetId, tap, CONFIRM_MS, pending)
-        }
-    }
-
-    /**
-     * A tap on a duration habit's widget: starts a session or finishes the running one.
-     * A widget can't ask, so a session running for hours (probably forgotten) is only
-     * finished by a second tap while the widget says so; a tap within seconds of the
-     * start leaves it running.
-     */
-    private fun toggleSession(
-        app: Context,
-        manager: AppWidgetManager,
-        widgetId: Int,
-        habit: Habit,
-        now: Long,
-        tap: Int,
-        pending: PendingResult?,
-    ) {
-        val repository = HabitRepository.get(app)
-        val formats = Formats(app)
-        val session = repository.running(habit.id)
-        val armed = (armedUntil[widgetId] ?: 0L) > now
-        val elapsed = session?.let { now - it.timestamp } ?: 0L
-        var delay = CONFIRM_MS
-        val (glyph, text) = when {
-            session == null -> {
-                repository.log(habit.id, now)
-                R.drawable.ic_habit_timer to app.getString(R.string.widget_started)
-            }
-            elapsed < Sessions.MIN_MS -> R.drawable.ic_habit_timer to formats.elapsed(elapsed)
-            elapsed > Sessions.LONG_RUNNING_MS && !armed -> {
-                armedUntil[widgetId] = now + ASK_AGAIN_MS
-                delay = ASK_AGAIN_MS
-                R.drawable.ic_habit_timer to app.getString(R.string.widget_finish_long, formats.duration(elapsed / 60_000.0))
-            }
-            else -> {
-                armedUntil.remove(widgetId)
-                repository.finish(session.id, now)
-                R.drawable.ic_ui_check to formats.elapsed(elapsed)
-            }
-        }
-        manager.partiallyUpdateAppWidget(
-            widgetId,
-            RemoteViews(app.packageName, R.layout.widget_habit).apply {
-                setImageViewBitmap(R.id.widget_done, glyphBitmap(app, app.getDrawable(glyph)))
-                setTextViewText(R.id.widget_count, text)
-                setDisplayedChild(R.id.widget_flipper, 1)
-            },
-        )
-        Shortcuts.reportUsed(app, habit.id)
-        // Redrawn in full afterwards: the live timer appears or disappears.
-        flipBackLater(app, manager, widgetId, tap, delay, pending, redraw = true)
-    }
-
-    /**
-     * Shows the widget's icon again after [delayMs], unless the widget was tapped again
-     * meanwhile (that tap shows its own confirmation and flips back itself). With
-     * [redraw] the whole widget is rebuilt instead of just flipped.
-     */
-    private fun flipBackLater(
-        app: Context,
-        manager: AppWidgetManager,
-        widgetId: Int,
-        tap: Int,
-        delayMs: Long,
-        pending: PendingResult?,
-        redraw: Boolean = false,
-    ) {
-        Async.mainDelayed(delayMs) {
-            Async.io {
-                try {
-                    if (taps[widgetId] == tap && redraw) {
-                        update(app, manager, widgetId)
-                    } else if (taps[widgetId] == tap) {
-                        manager.partiallyUpdateAppWidget(
-                            widgetId,
-                            RemoteViews(app.packageName, R.layout.widget_habit).apply {
-                                setDisplayedChild(R.id.widget_flipper, 0)
-                            },
-                        )
-                    }
-                } finally {
-                    pending?.finish()
-                }
-            }
-        }
-    }
-
     companion object {
+        /** The tap action of widgets drawn by versions up to 2.0. */
         internal const val ACTION_LOG = "io.github.mendyar.habittracker.action.WIDGET_LOG"
         internal const val ACTION_PINNED = "io.github.mendyar.habittracker.action.WIDGET_PINNED"
-        private const val CONFIRM_MS = 1400L
-        private const val ASK_AGAIN_MS = 4000L
-
-        /** Per widget: number of taps so far, so only the latest one flips the widget back. */
-        private val taps = java.util.concurrent.ConcurrentHashMap<Int, Int>()
-
-        /** Per widget: until when a tap logs despite a recent entry (the user tapped twice). */
-        private val armedUntil = java.util.concurrent.ConcurrentHashMap<Int, Long>()
         private const val UNBOUND = -1L
-        private const val NEUTRAL_TILE = 0xFF8A8F8C.toInt()
 
         private fun Context.settingsHabit(widgetId: Int) = HabitRepository.get(this).settings.widgetHabit(widgetId)
 
@@ -347,23 +209,16 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             val habitId = repository.settings.widgetHabit(widgetId)
             val habit = repository.habit(habitId)
             val views = RemoteViews(context.packageName, R.layout.widget_habit)
-            views.setDisplayedChild(R.id.widget_flipper, 0)
             if (habit != null) {
-                views.setInt(R.id.widget_bg, "setColorFilter", habit.color)
                 views.setImageViewBitmap(R.id.widget_icon, iconBitmap(context, habit))
                 views.setTextViewText(R.id.widget_label, habit.name)
-                views.setImageViewBitmap(R.id.widget_done, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_check)))
                 views.setContentDescription(R.id.widget_root, context.getString(R.string.widget_log_description, habit.name))
                 showSession(context, views, habit)
-                val tap = Intent(ACTION_LOG)
-                    .setClass(context, HabitWidgetProvider::class.java)
-                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-                views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getBroadcast(context, widgetId, tap, immutable()))
+                views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, widgetId, tapIntent(context, habit.id), fillable()))
             } else {
                 // Not chosen yet, or its habit was deleted: say so, and let a tap pick a habit.
                 val label = if (habitId == UNBOUND) R.string.widget_choose else R.string.widget_deleted
-                views.setInt(R.id.widget_bg, "setColorFilter", NEUTRAL_TILE)
-                views.setImageViewBitmap(R.id.widget_icon, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_add)))
+                views.setImageViewBitmap(R.id.widget_icon, glyphBitmap(context, context.getDrawable(R.drawable.ic_ui_add), context.colorOf(R.color.widget_text)))
                 views.setTextViewText(R.id.widget_label, context.getString(label))
                 views.setContentDescription(R.id.widget_root, context.getString(label))
                 val pick = Intent(context, WidgetConfigActivity::class.java)
@@ -374,39 +229,53 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             return views
         }
 
-        /** Duration habits: the stopwatch badge, and a live timer while a session runs. */
+        /** Duration habits: a live timer while a session runs (the icon carries the stopwatch badge). */
         private fun showSession(context: Context, views: RemoteViews, habit: Habit) {
             val duration = habit.type == HabitType.DURATION
-            views.setViewVisibility(R.id.widget_badge, if (duration) View.VISIBLE else View.GONE)
-            if (duration) views.setImageViewBitmap(R.id.widget_badge, glyphBitmap(context, context.getDrawable(R.drawable.ic_habit_timer)))
             val session = if (duration) HabitRepository.get(context).running(habit.id) else null
             if (session != null) {
                 val base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - session.timestamp)
                 views.setChronometer(R.id.widget_timer, base, null, true)
                 views.setViewVisibility(R.id.widget_timer, View.VISIBLE)
+                // The timer takes the name's place, so it fits even a 1 × 1 widget.
+                views.setViewVisibility(R.id.widget_label, View.GONE)
             } else {
                 views.setChronometer(R.id.widget_timer, SystemClock.elapsedRealtime(), null, false)
                 views.setViewVisibility(R.id.widget_timer, View.GONE)
+                views.setViewVisibility(R.id.widget_label, View.VISIBLE)
             }
         }
+
+        /**
+         * What a tap on a habit's widget starts: the same transparent logging window as a
+         * habit icon. The launcher adds the widget's position (source bounds), so taps on
+         * that spot during the confirmation count as taps of the widget.
+         */
+        internal fun tapIntent(context: Context, habitId: Long): Intent =
+            Shortcuts.logIntent(context, habitId)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
 
         private fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {
             manager.updateAppWidget(widgetId, views(context, widgetId))
         }
 
+        /**
+         * Mutable on purpose: the launcher fills in the tapped widget's position (source
+         * bounds), which Android drops from immutable PendingIntents. Safe, as the intent
+         * names its component explicitly.
+         */
+        private fun fillable() = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+
         private fun immutable() = PendingIntent.FLAG_UPDATE_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
-        /** The habit's glyph in white, or its own image cropped to a circle. */
+        /** The habit's icon as on the home screen: a disc in its colour with the glyph, or its own image. */
         internal fun iconBitmap(context: Context, habit: Habit): Bitmap =
-            if (habit.customIcon != null) {
-                render(context, HabitIconDrawable(null, android.graphics.BitmapFactory.decodeFile(habit.customIcon), habit.color))
-            } else {
-                glyphBitmap(context, context.getDrawable(HabitIcons.find(habit.icon).drawable))
-            }
+            IconFactory.circleBitmap(context, habit, (ICON_DP * context.resources.displayMetrics.density).toInt())
 
-        private fun glyphBitmap(context: Context, glyph: Drawable?): Bitmap {
-            glyph?.mutate()?.setTint(context.colorOf(android.R.color.white))
+        private fun glyphBitmap(context: Context, glyph: Drawable?, color: Int): Bitmap {
+            glyph?.mutate()?.setTint(color)
             return render(context, glyph)
         }
 

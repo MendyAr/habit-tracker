@@ -25,7 +25,8 @@ import android.view.animation.OvershootInterpolator
  * The confirmation shown when a timestamp is logged: the screen dims slightly, a
  * large disc in the habit's colour pops up in the middle with a check that draws
  * itself, two rings ripple outwards with a burst of small dots, and a pill with the
- * habit's name and count floats below it. Everything then fades away and
+ * habit's name and count floats below it (with an optional large value, such as a
+ * session's length, and a hint). Long texts shrink to fit. Everything then fades away and
  * [onFinished] is invoked. With system animations turned off it shows the same
  * confirmation without motion, for the same time.
  *
@@ -41,6 +42,9 @@ class LogAnimationView(context: Context) : View(context) {
 
     /** Whether [start] has been called. */
     val isStarted: Boolean get() = started
+
+    /** The texts of the confirmation on screen (label, value, hint), one per line. */
+    val shownText: String get() = if (started) listOfNotNull(label, value, hint).joinToString("\n") else ""
 
     private val density = resources.displayMetrics.density
 
@@ -64,6 +68,11 @@ class LogAnimationView(context: Context) : View(context) {
         color = WHITE
         textSize = sp(13f)
     }
+    private val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = WHITE
+        textSize = sp(40f)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    }
 
     private val checkPath = Path()
     private val partialCheck = Path()
@@ -75,6 +84,7 @@ class LogAnimationView(context: Context) : View(context) {
     private var label = ""
     private var mark = Mark.CHECK
     private var hint: String? = null
+    private var value: String? = null
     private var holdMs = HOLD_MS
     private var elapsed = 0f
     private var animator: ValueAnimator? = null
@@ -85,8 +95,12 @@ class LogAnimationView(context: Context) : View(context) {
     /** Whether system animations are on; replaceable in tests. */
     internal var motionEnabled: () -> Boolean = ::animationsEnabled
 
-    /** Starts the animation in the colour of the logged habit. */
-    fun start(color: Int, label: String, hint: String?, mark: Mark = Mark.CHECK) {
+    /**
+     * Starts the animation in the colour of the logged habit: [label] in the pill, with
+     * [value] large on the line below it and [hint] small under that, if given. A
+     * [short] confirmation (something else follows) is held for less time.
+     */
+    fun start(color: Int, label: String, hint: String?, mark: Mark = Mark.CHECK, value: String? = null, short: Boolean = false) {
         if (started) return
         started = true
         this.mark = mark
@@ -95,8 +109,13 @@ class LogAnimationView(context: Context) : View(context) {
         dotPaint.color = color
         this.label = label
         this.hint = hint
-        holdMs = if (hint != null) HOLD_WITH_HINT_MS else HOLD_MS
-        announceForAccessibility(if (hint != null) "$label. $hint" else label)
+        this.value = value
+        holdMs = when {
+            short -> SHORT_HOLD_MS
+            hint != null || value != null -> HOLD_WITH_HINT_MS
+            else -> HOLD_MS
+        }
+        announceForAccessibility(listOfNotNull(label, value, hint).joinToString(". "))
         val total = (holdMs + EXIT_MS).toFloat()
         if (!motionEnabled()) {
             // Reduced motion: the fully shown confirmation, still, for as long as usual.
@@ -130,6 +149,17 @@ class LogAnimationView(context: Context) : View(context) {
             handler.removeCallbacks(finishStill)
             onFinished?.invoke()
         }
+    }
+
+    /** Clears the confirmation without finishing, so [start] can show a new one. */
+    fun reset() {
+        handler.removeCallbacks(finishStill)
+        animator?.removeAllListeners()
+        animator?.cancel()
+        animator = null
+        started = false
+        elapsed = 0f
+        invalidate()
     }
 
     private fun animationsEnabled(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -227,14 +257,22 @@ class LogAnimationView(context: Context) : View(context) {
 
     private fun drawPill(canvas: Canvas, cx: Float, cy: Float, radius: Float, amount: Float, fade: Float) {
         if (amount <= 0f) return
-        val hintText = hint
-        val padH = 14 * density
-        val padV = 8 * density
+        val padH = 16 * density
+        val padV = 9 * density
         val gap = 14 * density
         val lineGap = 2 * density
-        val textWidth = maxOf(textPaint.measureText(label), hintText?.let { hintPaint.measureText(it) } ?: 0f)
-        val w = minOf(textWidth + 2 * padH, width - 16 * density)
-        val h = textPaint.textSize + (if (hintText != null) hintPaint.textSize + lineGap else 0f) + 2 * padV
+        val lines = listOfNotNull(label to textPaint, value?.let { it to valuePaint }, hint?.let { it to hintPaint })
+        // Long names shrink to fit the screen instead of being cut off.
+        val maxText = width - 16 * density - 2 * padH
+        val sizes = lines.map { (text, paint) ->
+            val natural = paint.textSize
+            val measured = paint.measureText(text)
+            if (measured > maxText && measured > 0f) natural * maxText / measured else natural
+        }
+        val widths = lines.mapIndexed { i, (text, paint) -> withSize(paint, sizes[i]) { paint.measureText(text) } }
+        val heights = lines.mapIndexed { i, (_, paint) -> withSize(paint, sizes[i]) { paint.descent() - paint.ascent() } }
+        val w = (widths.maxOrNull() ?: 0f) + 2 * padH
+        val h = heights.sum() + lineGap * (lines.size - 1) + 2 * padV
         val lift = (1f - ease.getInterpolation(amount)) * 10 * density
         val top = cy + radius + gap - lift
         val left = (cx - w / 2f).coerceIn(8 * density, maxOf(8 * density, width - 8 * density - w))
@@ -242,15 +280,26 @@ class LogAnimationView(context: Context) : View(context) {
 
         val alpha = ease.getInterpolation(amount) * fade
         pillPaint.alpha = (Color.alpha(PILL) * alpha).toInt()
-        canvas.drawRoundRect(pillRect, h / 2f, h / 2f, pillPaint)
+        val corner = minOf(h / 2f, 24 * density)
+        canvas.drawRoundRect(pillRect, corner, corner, pillPaint)
 
-        textPaint.alpha = (255 * alpha).toInt()
-        val baseline = top + padV - textPaint.ascent()
-        canvas.drawText(label, pillRect.centerX() - textPaint.measureText(label) / 2f, baseline, textPaint)
-        if (hintText != null) {
-            hintPaint.alpha = (215 * alpha).toInt()
-            val hintBaseline = baseline + textPaint.descent() + lineGap - hintPaint.ascent()
-            canvas.drawText(hintText, pillRect.centerX() - hintPaint.measureText(hintText) / 2f, hintBaseline, hintPaint)
+        var y = top + padV
+        lines.forEachIndexed { i, (text, paint) ->
+            withSize(paint, sizes[i]) {
+                paint.alpha = ((if (paint === hintPaint) 215 else 255) * alpha).toInt()
+                canvas.drawText(text, pillRect.centerX() - widths[i] / 2f, y - paint.ascent(), paint)
+            }
+            y += heights[i] + lineGap
+        }
+    }
+
+    private inline fun <T> withSize(paint: Paint, size: Float, block: () -> T): T {
+        val natural = paint.textSize
+        paint.textSize = size
+        try {
+            return block()
+        } finally {
+            paint.textSize = natural
         }
     }
 
@@ -263,6 +312,7 @@ class LogAnimationView(context: Context) : View(context) {
         const val DISC_RADIUS_DP = 60
         const val HOLD_MS = 1700L
         const val HOLD_WITH_HINT_MS = 2800L
+        const val SHORT_HOLD_MS = 900L
         const val EXIT_MS = 350L
 
         /** Elapsed time at which everything is fully shown (used without motion). */

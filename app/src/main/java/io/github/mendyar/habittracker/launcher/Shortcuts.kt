@@ -15,7 +15,9 @@ import io.github.mendyar.habittracker.stats.StatsActivity
 
 /**
  * Launcher integration:
- *  - pinned home-screen icons, one per habit, that log a timestamp when tapped;
+ *  - pinned home-screen icons, one per habit, that log a timestamp when tapped.
+ *    The app no longer creates them (habits go on the home screen as widgets), but
+ *    icons users already have keep working, and follow renames and deletions;
  *  - dynamic shortcuts shown when the app icon is long-pressed (Android 7.1+),
  *    one "statistics" entry per habit, most recently logged first.
  */
@@ -23,8 +25,6 @@ object Shortcuts {
     const val ACTION_LOG = "io.github.mendyar.habittracker.action.LOG"
     const val ACTION_STATS = "io.github.mendyar.habittracker.action.STATS"
     const val EXTRA_HABIT_ID = "habit_id"
-
-    private const val LEGACY_INSTALL = "com.android.launcher.action.INSTALL_SHORTCUT"
 
     /** Intent that logs a timestamp for [habitId] without opening any screen. */
     fun logIntent(context: Context, habitId: Long): Intent =
@@ -45,29 +45,6 @@ object Shortcuts {
     fun logShortcutId(habitId: Long) = "log_$habitId"
 
     fun statsShortcutId(habitId: Long) = "stats_$habitId"
-
-    /**
-     * Asks the launcher to add a home-screen icon for [habit]. On Android 8+ the
-     * system shows a confirmation, unless the icon is already on the home screen
-     * (the launcher would silently ignore a second request). Older launchers
-     * receive the legacy broadcast, which cannot tell whether an icon exists.
-     */
-    fun requestPin(context: Context, habit: Habit): PinResult {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = context.getSystemService(ShortcutManager::class.java) ?: return PinResult.UNSUPPORTED
-            if (isPinned(context, habit.id)) return PinResult.ALREADY_EXISTS
-            if (!manager.isRequestPinShortcutSupported) return PinResult.UNSUPPORTED
-            val requested = manager.requestPinShortcut(logShortcut(context, habit), null)
-            return if (requested) PinResult.REQUESTED else PinResult.UNSUPPORTED
-        }
-        @Suppress("DEPRECATION")
-        val legacy = Intent(LEGACY_INSTALL)
-            .putExtra(Intent.EXTRA_SHORTCUT_INTENT, logIntent(context, habit.id))
-            .putExtra(Intent.EXTRA_SHORTCUT_NAME, habit.name)
-            .putExtra(Intent.EXTRA_SHORTCUT_ICON, IconFactory.circleBitmap(context, habit, legacyIconSize(context)))
-        context.sendBroadcast(legacy)
-        return PinResult.SENT
-    }
 
     /**
      * Whether the home screen shows [habitId]'s icon (Android 7.1+; launchers

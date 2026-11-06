@@ -76,6 +76,8 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // OnboardingTest checks that this version's tutorial and What's new were reviewed.
+        unitTests.all { it.systemProperty("app.versionCode", providers.gradleProperty("VERSION_CODE").get()) }
     }
 
     packaging {
@@ -100,4 +102,14 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.uiautomator)
+}
+
+// Failed tests print their messages and causes in the CI log.
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = false
+    }
 }

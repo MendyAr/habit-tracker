@@ -160,4 +160,66 @@ class HabitRepositoryTest {
         assertNull(upgraded.running(habit.id)?.duration)
         context.deleteDatabase(name)
     }
+
+    @Test
+    fun upgradingFromVersion2KeepsSessionsAndAddsTriggers() {
+        val name = "upgrade-v2-test.db"
+        context.deleteDatabase(name)
+        android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { db ->
+            db.execSQL("CREATE TABLE habits (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, icon TEXT NOT NULL, custom_icon TEXT, color INTEGER NOT NULL, created_at INTEGER NOT NULL, type INTEGER NOT NULL DEFAULT 0)")
+            db.execSQL("CREATE TABLE entries (_id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id INTEGER NOT NULL REFERENCES habits(_id) ON DELETE CASCADE, ts INTEGER NOT NULL, duration INTEGER)")
+            db.execSQL("INSERT INTO habits (name, icon, color, created_at, type) VALUES ('Breathing', 'box_breathing', 1, 5, 1)")
+            db.execSQL("INSERT INTO entries (habit_id, ts, duration) VALUES (1, 100, 60000)")
+            db.version = 2
+        }
+        val prefs = context.getSharedPreferences("upgrade-v2", Context.MODE_PRIVATE)
+        val upgraded = HabitRepository(HabitDatabase(context, name), Settings(prefs))
+        val habit = upgraded.habits().single()
+        assertEquals(HabitType.DURATION, habit.type)
+        assertEquals(60_000L, upgraded.sessions(habit.id).single().duration)
+        val entry = upgraded.entries(habit.id, 0, 1_000, 10).single()
+        assertNull(entry.trigger)
+        upgraded.setTrigger(entry.id, "Stress")
+        assertEquals("Stress", upgraded.entries(habit.id, 0, 1_000, 10).single().trigger)
+        context.deleteDatabase(name)
+    }
+
+    @Test
+    fun entriesCanBeTaggedWithATrigger() {
+        val smoking = repository.createHabit("Smoking", "smoking", null, HabitColors.DEFAULT)
+        val first = repository.log(smoking.id, 100)
+        val second = repository.log(smoking.id, 200)
+        repository.log(smoking.id, 300)
+        repository.setTrigger(first, "Coffee")
+        repository.setTrigger(second, "Coffee")
+        assertEquals(listOf(100L to "Coffee", 200L to "Coffee"), repository.taggedEntries(smoking.id))
+        repository.setTrigger(second, null)
+        assertEquals(listOf(100L to "Coffee"), repository.taggedEntries(smoking.id))
+    }
+
+    @Test
+    fun eachHabitOffersThePresetTriggersUntilChangedAndCanTurnThemOff() {
+        val prefs = context.getSharedPreferences("triggers", Context.MODE_PRIVATE).apply { edit().clear().commit() }
+        val settings = Settings(prefs)
+        assertEquals(Triggers.PRESETS, settings.triggers(1))
+        assertTrue(settings.suggestTriggers(1))
+        settings.setTriggers(1, listOf("Phone Call", "Coffee"))
+        settings.setSuggestTriggers(2, false)
+        assertEquals(listOf("Phone Call", "Coffee"), settings.triggers(1))
+        assertEquals(Triggers.PRESETS, settings.triggers(2))
+        assertFalse(settings.suggestTriggers(2))
+        settings.setTriggers(1, emptyList())
+        assertEquals(emptyList<String>(), settings.triggers(1))
+        settings.forgetHabit(1)
+        assertEquals(Triggers.PRESETS, settings.triggers(1))
+    }
+
+    @Test
+    fun typedTriggersAreTidied() {
+        assertEquals("Phone Call", Triggers.clean("  Phone\n  Call "))
+        assertNull(Triggers.clean("   "))
+        assertTrue(Triggers.clean("A very long trigger name that goes on and on")!!.length <= Triggers.MAX_LENGTH)
+        assertEquals(listOf("Coffee", "Tea"), Triggers.added(listOf("Coffee"), "Tea"))
+        assertEquals(listOf("Coffee"), Triggers.added(listOf("Coffee"), "coffee"))
+    }
 }

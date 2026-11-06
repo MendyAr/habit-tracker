@@ -39,6 +39,24 @@ class Settings(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean("confirm_dup_$habitId", confirm).apply()
     }
 
+    /**
+     * Whether logging [habitId] then suggests tagging what set it off (count habits;
+     * on unless turned off).
+     */
+    fun suggestTriggers(habitId: Long): Boolean = prefs.getBoolean("suggest_triggers_$habitId", true)
+
+    fun setSuggestTriggers(habitId: Long, suggest: Boolean) {
+        prefs.edit().putBoolean("suggest_triggers_$habitId", suggest).apply()
+    }
+
+    /** The triggers offered after logging [habitId], in order; the presets until changed. */
+    fun triggers(habitId: Long): List<String> =
+        prefs.getString("triggers_$habitId", null)?.let { decodeList(it) } ?: Triggers.PRESETS
+
+    fun setTriggers(habitId: Long, triggers: List<String>) {
+        prefs.edit().putString("triggers_$habitId", encodeList(triggers)).apply()
+    }
+
     /** The tracker's customised statistics, in `StatsConfig.encode()` form; null for the default. */
     fun statsConfig(habitId: Long): String? = prefs.getString("stats_config_$habitId", null)
 
@@ -90,8 +108,15 @@ class Settings(private val prefs: SharedPreferences) {
             .remove("range_to_$habitId")
             .remove("confirm_dup_$habitId")
             .remove("stats_config_$habitId")
+            .remove("suggest_triggers_$habitId")
+            .remove("triggers_$habitId")
             .apply()
     }
+
+    /** One name per line; names never contain line breaks (see [Triggers.clean]). */
+    private fun encodeList(items: List<String>) = items.joinToString("\n")
+
+    private fun decodeList(text: String) = if (text.isEmpty()) emptyList() else text.split("\n")
 
     private companion object {
         const val FILE = "settings"

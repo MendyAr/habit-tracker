@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget background; tinted with the habit's colour at runtime (setColorFilter). -->
+<!--
+    Widget background: a soft, semi-transparent neutral panel that lets the wallpaper
+    show through. On Android 12+ its colour comes from the system palette, which
+    follows the wallpaper; the habit's colour is only on the icon.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#FFFFFFFF" />
-    <corners android:radius="20dp" />
+    <solid android:color="@color/widget_surface" />
+    <corners android:radius="@dimen/widget_radius" />
 </shape>

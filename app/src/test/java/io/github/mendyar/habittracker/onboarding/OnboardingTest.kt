@@ -84,11 +84,34 @@ class OnboardingTest {
         val title = activity.findViewById<TextView>(R.id.tour_title)
         val next = activity.findViewById<TextView>(R.id.tour_next)
         assertEquals(context.getString(R.string.tour_welcome_title), title.text.toString())
-        repeat(5) { next.performClick() }
+        repeat(6) { next.performClick() }
         assertEquals(context.getString(R.string.tour_edit_title), title.text.toString())
         assertEquals(context.getString(R.string.tour_done), next.text.toString())
         next.performClick()
         assertTrue(activity.isFinishing)
+    }
+
+    @Test
+    fun theTutorialExplainsTriggers() {
+        val activity = Robolectric.buildActivity(
+            OnboardingActivity::class.java,
+            OnboardingActivity.intent(context, Onboarding.Mode.TUTORIAL),
+        ).setup().get()
+        val title = activity.findViewById<TextView>(R.id.tour_title)
+        val next = activity.findViewById<TextView>(R.id.tour_next)
+        val titles = (0 until 7).map { title.text.toString().also { next.performClick() } }
+        assertTrue(context.getString(R.string.tour_triggers_title) in titles)
+        // Nothing about pinning icons any more: habits go on the home screen as widgets.
+        assertFalse(context.getString(R.string.tour_log_text).contains("Icon"))
+    }
+
+    @Test
+    fun thisVersionsTutorialAndWhatsNewWereReviewed() {
+        // A release bumps VERSION_CODE; add it to REVIEWED_VERSIONS (and, with user-visible
+        // changes, to WHATS_NEW_VERSIONS with new whats_new_items) after updating the tutorial.
+        val code = System.getProperty("app.versionCode")?.toIntOrNull() ?: Onboarding.versionCode(context)
+        assertTrue("Review the tutorial and What's new for version code $code", code in Onboarding.REVIEWED_VERSIONS)
+        assertTrue(Onboarding.WHATS_NEW_VERSIONS.all { it in Onboarding.REVIEWED_VERSIONS })
     }
 
     @Test

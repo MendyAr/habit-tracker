@@ -36,12 +36,13 @@ io.github.mendyar.habittracker
 ### Tap: log a timestamp
 
 ```
-pinned habit icon
-        │  io.github.mendyar.habittracker.action.LOG (+ habit id)
+habit widget (or a habit icon pinned by an older version)
+        │  io.github.mendyar.habittracker.action.LOG (+ habit id, + the widget's source bounds)
         ▼
 LogActivity  (Theme.HabitTracker.Log: translucent, no window animation, no preview,
              own task affinity, excludeFromRecents, noHistory)
-        │ 1. insert entry on the I/O thread (or ask "Log Again?" right after one)
+        │ 1. insert entry on the I/O thread (or ask "Log Again?" right after one;
+        │    duration habits follow data/Sessions)
         │ 2. once the window is on screen (onEnterAnimationComplete), LogAnimationView draws
         │    a disc + check in the middle of the screen and a pill with the habit and count;
         │    about 2 s in total
@@ -65,16 +66,33 @@ its launcher component is renamed. Logging only from a habit's own icon or widge
 means opening the app, including from the installer's *Open* button after an
 update, never records anything.
 
-The **widget** (`HabitWidgetProvider`) avoids even that: a tap sends a
-broadcast, the entry is written in the background and the tapped widget's
-`ViewFlipper` animates to a check with the count and back (a partial update of
-that widget only; others are not redrawn). No window is involved at all.
+A **widget** (`HabitWidgetProvider`) tap starts the same activity, through an
+activity `PendingIntent` (`HabitWidgetProvider.tapIntent`), so a widget confirms
+exactly like an icon. Up to 2.0 widgets logged in a broadcast receiver and
+flipped to a check in place; the receiver held each broadcast open (`goAsync`)
+until the widget flipped back, and since an app's broadcasts are delivered one at
+a time, quick taps were queued and registered seconds late. Widgets drawn by
+those versions still send `ACTION_LOG`; the provider just redraws them.
+
+The confirmation window covers the home screen, so a second tap on the widget
+lands on it. Launchers pass the widget's position as the intent's
+`sourceBounds` (filled into the click intent, so its PendingIntent is mutable;
+Android drops fill-ins from immutable ones); `LogActivity` treats a tap there (8 dp of slack) as another tap
+of the widget (e.g. "Already Started"), and a tap anywhere else dismisses the
+confirmation.
 
 Each habit has at most one widget. A widget is bound to its habit explicitly
 (picker, or the pin request from the editor) and never falls back to another
 habit: an unbound widget shows *Choose Habit*, one whose habit was deleted shows
-*Habit Deleted*, and tapping either opens the picker. Widgets are resizable and
-fill their space with the habit's colour.
+*Habit Deleted*, and tapping either opens the picker. Widgets are resizable.
+
+The widget blends with the home screen: its panel (`drawable/widget_tile`) is a
+translucent neutral, `@color/widget_surface`, which on Android 12+ is the system's
+wallpaper-derived `system_neutral1_50` (dark theme: `system_neutral1_900`) at 86%
+opacity (`color-v31`, `color-night-v31`), with the launcher's own corner radius;
+before that a translucent white or dark grey. The habit's colour is only on the
+icon (a disc with its stopwatch badge for duration habits, `IconFactory.circleBitmap`), and the text is
+dark on light (light in the dark theme), so it stays readable on any wallpaper.
 
 ### Long-press: statistics
 
@@ -82,21 +100,18 @@ Long-pressing the app icon shows the app's shortcuts (Android 7.1+). The app
 publishes one dynamic shortcut per habit (most recently logged first) that opens
 `StatsActivity` for that habit, plus a static "New Habit" shortcut.
 
-### One icon per habit
+### Habit icons (legacy)
 
-Android fixes an app's own launcher icon and label at install time, so habits
-get their own **pinned shortcuts** (`ShortcutManager.requestPinShortcut` on
-Android 8+, the `INSTALL_SHORTCUT` broadcast before that). Their label and icon
-are updated whenever the habit is renamed or re-iconed (`LauncherSync`), and
-they are disabled with a message when the habit is deleted (Android has no API
-to remove a pinned shortcut or a widget, so launchers grey them out). Nothing is
-ever created implicitly: a fresh install starts with an empty habit list.
+Up to 2.0 the editor could pin a **home-screen icon** per habit (a pinned
+shortcut). Since 2.1 habits go on the home screen as widgets only, but icons
+users already have keep working: they still launch `LogActivity` with the habit
+id (`Shortcuts.logIntent`), their label and icon follow renames (`LauncherSync`),
+and they are disabled with a message when the habit is deleted (Android has no
+API to remove a pinned shortcut or a widget, so launchers grey them out).
 
-Launchers silently ignore a request to pin a shortcut that is already pinned, so
-`Shortcuts.requestPin` first checks `ShortcutManager.getPinnedShortcuts()`
-(launchers unpin a shortcut when the user removes its icon) and reports
-`PinResult.ALREADY_EXISTS`. Before Android 8 the legacy broadcast gives no way
-to know.
+The widget providers don't declare `reconfigurable`, so launchers don't offer to
+re-pick a widget's habit from its long-press menu. Nothing is ever created
+implicitly: a fresh install starts with an empty habit list.
 
 ### Adding a widget from the app
 
@@ -126,19 +141,32 @@ a version listed in `WHATS_NEW_VERSIONS` (its items are `R.array.whats_new_items
 
 ## Data
 
-SQLite, two tables (schema version 2):
+SQLite, two tables (schema version 3):
 
 ```
 habits(_id, name, icon, custom_icon, color, created_at, type)   type: 0 count, 1 duration
-entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration)   index (habit_id, ts)
+entries(_id, habit_id → habits(_id) ON DELETE CASCADE, ts, duration, trigger_tag)   index (habit_id, ts)
 ```
 
 For a **duration** habit an entry is a session: `ts` is its start and `duration`
-(ms) is null while it runs. A tap on its icon or widget starts a session, or
-finishes the running one (`HabitRepository.running/finish`); a tap within 5 s of
-the start leaves it running, and a session older than 3 hours asks before it is
-finished (`data/Sessions`). Version 1 databases are upgraded in place by adding
+(ms) is null while it runs. Taps on its widget or icon follow `data/Sessions`:
+the first starts a session (*Starting*), a tap within 3 s of the start changes
+nothing (*Already Started*), a later one finishes it (*Ended*, with its length
+large below), a tap within 3 s of the end changes nothing (*Already Ended*, the
+same length, from `HabitRepository.lastFinished`), and after that a tap starts a
+new session. A session older than 3 hours asks before it is finished. Version 1 databases are upgraded in place by adding
 the two columns; existing data stays count data.
+
+**Trigger tags** (version 3): `trigger_tag` is what set a count entry off, as the
+name the user picked (null when none). After `LogActivity` logs a count habit, a
+short confirmation is followed by `TriggerPickerView`, a card of wrapping chips in
+the middle of the screen (a chip never cuts a name: it wraps). Picking tags the
+entry; *Skip*, a tap outside or 12 s without a choice leave it untagged. *+ Add*
+types a new trigger, which tags the entry and is appended to the habit's list.
+Each habit's list (presets in `data/Triggers` until changed) and its on/off switch
+are in `Settings` (`triggers_<id>`, `suggest_triggers_<id>`), edited in the habit
+editor (`TriggersDialog`). Renaming isn't offered, so stored names never go stale;
+a removed trigger stays on the entries it tagged.
 
 `ts` is epoch milliseconds (UTC). Bucketing into local days, weeks (locale's
 first day of week), months and years happens at read time in `core`, so

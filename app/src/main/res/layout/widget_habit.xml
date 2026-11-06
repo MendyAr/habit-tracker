@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Resizable widget: a tile in the habit's colour (widget_bg, tinted at runtime) with the
-    icon in the middle. Flipper child 0 is the habit, child 1 the "logged" confirmation.
-    Duration trackers add a stopwatch badge in the corner and, while a session runs, a
-    live timer under the name.
+    Resizable widget: a translucent neutral panel (widget_bg) with the habit's icon, a disc
+    in its colour, in the middle. A tap opens the logging window (LogActivity).
+    Duration trackers' icons carry a stopwatch badge and, while a session runs, a live
+    timer replaces the name.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -17,74 +17,35 @@
         android:layout_height="match_parent"
         android:importantForAccessibility="no"
         android:scaleType="fitXY"
-        android:src="@drawable/widget_tile"
-        android:tint="@color/ic_launcher_background" />
+        android:src="@drawable/widget_tile" />
 
-    <ViewFlipper
-        android:id="@+id/widget_flipper"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:inAnimation="@anim/widget_in"
-        android:outAnimation="@anim/widget_out">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="8dp">
 
-        <LinearLayout
+        <ImageView
+            android:id="@+id/widget_icon"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="8dp">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:importantForAccessibility="no"
+            android:scaleType="centerInside"
+            android:src="@mipmap/ic_launcher_round" />
 
-            <ImageView
-                android:id="@+id/widget_icon"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:importantForAccessibility="no"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_habit_check" />
+        <TextView
+            android:id="@+id/widget_label"
+            style="@style/WidgetLabel"
+            android:text="@string/widget_preview_name" />
 
-            <TextView
-                android:id="@+id/widget_label"
-                style="@style/WidgetLabel"
-                android:text="@string/widget_preview_name" />
+        <Chronometer
+            android:id="@+id/widget_timer"
+            style="@style/WidgetLabel"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
 
-            <Chronometer
-                android:id="@+id/widget_timer"
-                style="@style/WidgetLabel"
-                android:textSize="14sp"
-                android:visibility="gone" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="8dp">
-
-            <ImageView
-                android:id="@+id/widget_done"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:importantForAccessibility="no"
-                android:scaleType="centerInside" />
-
-            <TextView
-                android:id="@+id/widget_count"
-                style="@style/WidgetLabel"
-                android:gravity="center"
-                android:maxLines="2"
-                android:singleLine="false" />
-        </LinearLayout>
-    </ViewFlipper>
-
-    <ImageView
-        android:id="@+id/widget_badge"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_gravity="top|end"
-        android:layout_margin="8dp"
-        android:importantForAccessibility="no"
-        android:visibility="gone" />
 </FrameLayout>

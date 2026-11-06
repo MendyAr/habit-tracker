@@ -17,8 +17,10 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
+import android.widget.Switch
 import android.widget.TextView
 import io.github.mendyar.habittracker.R
+import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.data.Habit
 import io.github.mendyar.habittracker.data.HabitRepository
 import io.github.mendyar.habittracker.data.HabitType
@@ -41,7 +43,7 @@ import java.io.File
 
 /**
  * Creates or edits a habit: name, colour, a built-in or user-supplied icon, its
- * home-screen icon / widget, clearing its entries and deletion.
+ * home-screen widget, clearing its entries and deletion.
  */
 class HabitEditActivity : Activity() {
 
@@ -56,6 +58,9 @@ class HabitEditActivity : Activity() {
 
     /** The statistics chosen in this editor, saved with the habit; null if untouched. */
     private var statsConfig: StatsConfig? = null
+
+    /** The period chosen in this editor's statistics setup, saved with the habit; null if untouched. */
+    private var statsPeriod: Period? = null
 
     /** The habit whose widget the launcher is placing, while it asks the user. */
     private var widgetRequestedFor = NEW
@@ -100,14 +105,18 @@ class HabitEditActivity : Activity() {
             if (actionId == EditorInfo.IME_ACTION_DONE) nameField.clearFocus()
             false
         }
-        findViewById<View>(R.id.edit_add_home).setOnClickListener { save(::pinIcon) }
+        // Habits go on the home screen as widgets. Android 8+ lets the app add one;
+        // before that, the hint says how to add it from the launcher.
+        val canPinWidgets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
         findViewById<View>(R.id.edit_add_widget).apply {
-            visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            visible = canPinWidgets
             setOnClickListener { save(::addWidget) }
         }
+        findViewById<View>(R.id.edit_widget_hint).visible = !canPinWidgets
         HabitWidgetProvider.onPinned = widgetListener
         findViewById<View>(R.id.edit_delete).setOnClickListener { confirmDelete() }
         findViewById<View>(R.id.edit_statistics).setOnClickListener { customizeStatistics() }
+        findViewById<View>(R.id.edit_triggers).setOnClickListener { editTriggers() }
         findViewById<View>(R.id.edit_clear).setOnClickListener { confirmClearEntries() }
 
         buildColorRow()
@@ -122,7 +131,8 @@ class HabitEditActivity : Activity() {
         if (habitId == NEW) {
             title.setText(R.string.new_habit)
             // Pinning, clearing and deleting need a saved habit.
-            listOf(R.id.edit_home_section, R.id.edit_danger_card).forEach { findViewById<View>(it).visible = false }
+            // Pinning, clearing, deleting and the triggers need a saved habit (new ones suggest the presets).
+            listOf(R.id.edit_home_section, R.id.edit_danger_card, R.id.edit_triggers_section).forEach { findViewById<View>(it).visible = false }
             if (savedInstanceState == null) {
                 Async.load({ repository.habits().size }) { count ->
                     color = HabitColors.ALL[count % HabitColors.ALL.size]
@@ -143,12 +153,15 @@ class HabitEditActivity : Activity() {
                 }
                 original = habit
                 entryCount = count
+                showTriggerSettings(habit)
                 if (savedInstanceState == null) {
                     nameField.setText(habit.name)
                     nameField.setSelection(habit.name.length)
                     iconKey = habit.icon
                     customIcon = habit.customIcon
                     color = habit.color
+                    // Just created, and the user chose to add its widget.
+                    if (intent.getBooleanExtra(EXTRA_ADD_WIDGET, false)) addWidget(habit)
                 }
                 refresh()
             }
@@ -317,6 +330,7 @@ class HabitEditActivity : Activity() {
         val chosenColor = color
         val existing = original
         val chosenStats = statsConfig
+        val chosenPeriod = statsPeriod
         val type = if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
         Async.load({
             val saved = if (existing == null) {
@@ -326,6 +340,7 @@ class HabitEditActivity : Activity() {
                     .also { repository.updateHabit(it) }
             }
             chosenStats?.let { repository.settings.setStatsConfig(saved.id, it.takeUnless { c -> c.isDefault }?.encode()) }
+            chosenPeriod?.let { repository.settings.setPeriod(saved.id, it) }
             LauncherSync.refresh(this)
             saved
         }) { saved ->
@@ -335,23 +350,54 @@ class HabitEditActivity : Activity() {
         }
     }
 
+    /** Count habits: whether logging suggests a trigger, and which (saved right away). */
+    private fun showTriggerSettings(habit: Habit) {
+        val count = habit.type == HabitType.COUNT
+        findViewById<View>(R.id.edit_triggers_section).visible = count
+        if (!count) return
+        val suggest = findViewById<Switch>(R.id.edit_suggest_triggers)
+        suggest.setOnCheckedChangeListener(null)
+        suggest.isChecked = repository.settings.suggestTriggers(habit.id)
+        suggest.setOnCheckedChangeListener { _, on ->
+            repository.settings.setSuggestTriggers(habit.id, on)
+            findViewById<View>(R.id.edit_triggers).isEnabled = on
+            findViewById<View>(R.id.edit_triggers).alpha = if (on) 1f else 0.4f
+        }
+        findViewById<View>(R.id.edit_triggers).apply {
+            isEnabled = suggest.isChecked
+            alpha = if (suggest.isChecked) 1f else 0.4f
+        }
+    }
+
+    private fun editTriggers() {
+        val habit = original ?: return
+        TriggersDialog.show(this, repository.settings.triggers(habit.id)) { chosen ->
+            repository.settings.setTriggers(habit.id, chosen)
+        }
+    }
+
     /** The optional statistics setup: which statistics and charts this habit shows. */
     private fun customizeStatistics() {
         val current = statsConfig ?: StatsConfig.decode(original?.let { repository.settings.statsConfig(it.id) })
         val type = original?.type
             ?: if (findViewById<RadioButton>(R.id.edit_type_duration).isChecked) HabitType.DURATION else HabitType.COUNT
-        StatsCustomizeDialog.show(this, current, type) { chosen -> statsConfig = chosen }
+        val period = statsPeriod ?: original?.let { repository.settings.period(it.id) } ?: Period.DAY
+        StatsCustomizeDialog.show(this, current, type, period) { chosen, chosenPeriod ->
+            statsConfig = chosen
+            statsPeriod = chosenPeriod
+        }
     }
 
     private fun finishSaved(saved: Habit) {
         val created = intent.getLongExtra(Shortcuts.EXTRA_HABIT_ID, NEW) == NEW
         setResult(RESULT_OK, Intent().putExtra(Shortcuts.EXTRA_HABIT_ID, saved.id))
-        if (created && !intent.getBooleanExtra(EXTRA_FOR_WIDGET, false)) {
+        if (created && !intent.getBooleanExtra(EXTRA_FOR_WIDGET, false) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AlertDialog.Builder(this)
-                .setTitle(R.string.add_to_home_title)
-                .setMessage(getString(R.string.add_to_home_message, saved.name))
+                .setTitle(R.string.add_widget_title)
+                .setMessage(getString(R.string.add_widget_message, saved.name))
                 .setPositiveButton(R.string.add) { _, _ ->
-                    pinIcon(saved)
+                    // Continues in the editor of the saved habit, which adds the widget.
+                    startActivity(intent(this, saved.id).putExtra(EXTRA_ADD_WIDGET, true))
                     finish()
                 }
                 .setNegativeButton(R.string.not_now) { _, _ -> finish() }
@@ -359,16 +405,6 @@ class HabitEditActivity : Activity() {
                 .show()
         } else {
             finish()
-        }
-    }
-
-    /** Asks for the habit's home-screen icon; needs this screen in the foreground. */
-    private fun pinIcon(habit: Habit) {
-        when (Shortcuts.requestPin(this, habit)) {
-            PinResult.ALREADY_EXISTS -> toast(getString(R.string.icon_exists, habit.name))
-            PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
-            PinResult.SENT -> toast(R.string.pin_legacy_done)
-            PinResult.REQUESTED -> Unit
         }
     }
 
@@ -411,9 +447,11 @@ class HabitEditActivity : Activity() {
                 val tileDp = 18 + 10 * size.cells
                 option.addView(
                     ImageView(this).apply {
+                        // Like the widget: a neutral panel with the habit's disc.
                         background = GradientDrawable().apply {
                             cornerRadius = dp(4 + 2 * size.cells).toFloat()
-                            setColor(habit.color)
+                            setColor(colorOf(R.color.surface_variant))
+                            setStroke(dp(1), colorOf(R.color.divider))
                         }
                         setImageBitmap(icon)
                         scaleType = ImageView.ScaleType.FIT_CENTER
@@ -461,7 +499,7 @@ class HabitEditActivity : Activity() {
             when (result) {
                 PinResult.REQUESTED -> widgetRequestedFor = habit.id
                 PinResult.ALREADY_EXISTS -> toast(getString(R.string.widget_exists, habit.name))
-                PinResult.UNSUPPORTED, PinResult.SENT -> toast(R.string.pin_unsupported)
+                PinResult.UNSUPPORTED -> toast(R.string.pin_unsupported)
             }
         }
     }
@@ -547,6 +585,9 @@ class HabitEditActivity : Activity() {
         private const val STATE_COLOR = "color"
         private const val SHOW_PLACED_WIDGET_MS = 5_000L
         const val EXTRA_FOR_WIDGET = "for_widget"
+
+        /** Opens the editor of a habit just created and adds its widget. */
+        const val EXTRA_ADD_WIDGET = "add_widget"
 
         /** Opens the editor for [habitId], or for a new habit when null. */
         fun intent(context: Context, habitId: Long?): Intent =

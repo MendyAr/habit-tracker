@@ -14,8 +14,9 @@ import io.github.mendyar.habittracker.core.StatsEngine
 import io.github.mendyar.habittracker.ui.colorOf
 
 /**
- * A minimal bar chart of per-period counts. Touching or dragging across the
- * chart selects a bar and reports it through [onSelect].
+ * A minimal bar chart of per-period counts. Unusually high periods are drawn in
+ * red, and lines mark the median (solid) and the mean (dashed). Touching or
+ * dragging across the chart selects a bar and reports it through [onSelect].
  */
 class BarChartView @JvmOverloads constructor(
     context: Context,
@@ -45,16 +46,19 @@ class BarChartView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
     private val rect = RectF()
-    private val trendPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val medianPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        color = context.colorOf(R.color.text_secondary)
+        color = context.colorOf(R.color.text_primary)
         strokeWidth = 1.5f * density
-        strokeJoin = Paint.Join.ROUND
     }
-    private val outlierPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.colorOf(R.color.text_secondary) }
-    private val trendPath = android.graphics.Path()
-    private var trend = DoubleArray(0)
-    private var outliers = BooleanArray(0)
+    private val meanPaint = Paint(medianPaint).apply {
+        pathEffect = android.graphics.DashPathEffect(floatArrayOf(5 * density, 4 * density), 0f)
+    }
+    private val flaggedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.colorOf(R.color.danger) }
+    private val linePath = android.graphics.Path()
+    private var median = Double.NaN
+    private var mean = Double.NaN
+    private var flagged = BooleanArray(0)
 
     private var buckets: List<Bucket> = emptyList()
     private var selected = -1
@@ -67,6 +71,9 @@ class BarChartView @JvmOverloads constructor(
         barPaint.alpha = 110
         selectedPaint.color = color
         axisMax = StatsEngine.niceCeiling(buckets.maxOfOrNull { it.count } ?: 0)
+        median = Double.NaN
+        mean = Double.NaN
+        flagged = BooleanArray(0)
         contentDescription = if (buckets.isEmpty()) {
             context.getString(R.string.chart_empty)
         } else {
@@ -75,10 +82,12 @@ class BarChartView @JvmOverloads constructor(
         invalidate()
     }
 
-    /** A trend line (e.g. a rolling median; NaN where there is none) and the bars to mark as unusual. */
-    fun setTrend(trend: DoubleArray, outliers: BooleanArray) {
-        this.trend = trend
-        this.outliers = outliers
+    /** Lines at the [median] and the [mean] (NaN for none), and the bars to draw as unusually high. */
+    fun setReference(median: Double, mean: Double, flagged: BooleanArray) {
+        this.median = median
+        this.mean = mean
+        this.flagged = flagged
+        flaggedPaint.alpha = 200
         invalidate()
     }
 
@@ -121,31 +130,22 @@ class BarChartView @JvmOverloads constructor(
             val x = left + i * slot
             val h = maxOf(plotHeight * bucket.count / axisMax, if (bucket.count > 0) density * 2 else 0f)
             rect.set(x + gap / 2f, bottom - h, x + slot - gap / 2f, bottom)
-            canvas.drawRoundRect(rect, corner, corner, if (i == selected) selectedPaint else barPaint)
+            val paint = when {
+                i == selected -> selectedPaint
+                flagged.getOrElse(i) { false } -> flaggedPaint
+                else -> barPaint
+            }
+            canvas.drawRoundRect(rect, corner, corner, paint)
         }
 
-        // Trend line through the bar centres, and a dot above unusually high bars.
-        if (trend.size == buckets.size) {
-            trendPath.reset()
-            var drawing = false
-            trend.forEachIndexed { i, value ->
-                if (value.isNaN()) {
-                    drawing = false
-                    return@forEachIndexed
-                }
-                val x = left + (i + 0.5f) * slot
-                val y = bottom - (plotHeight * value / axisMax).toFloat()
-                if (drawing) trendPath.lineTo(x, y) else trendPath.moveTo(x, y)
-                drawing = true
-            }
-            canvas.drawPath(trendPath, trendPaint)
-        }
-        if (outliers.size == buckets.size) {
-            outliers.forEachIndexed { i, outlier ->
-                if (!outlier || i == selected) return@forEachIndexed
-                val h = plotHeight * buckets[i].count / axisMax
-                canvas.drawCircle(left + (i + 0.5f) * slot, bottom - h - 5 * density, 2.5f * density, outlierPaint)
-            }
+        // Median (solid) and mean (dashed) across the plot.
+        for ((value, paint) in listOf(median to medianPaint, mean to meanPaint)) {
+            if (value.isNaN()) continue
+            val y = bottom - (plotHeight * value / axisMax).toFloat()
+            linePath.reset()
+            linePath.moveTo(left, y)
+            linePath.lineTo(right, y)
+            canvas.drawPath(linePath, paint)
         }
 
         if (selected in buckets.indices) {

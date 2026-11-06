@@ -29,5 +29,9 @@ data class Habit(
 /**
  * A single logged timestamp. For a [HabitType.DURATION] habit it is the start of a
  * session, and [duration] (ms) is null while the session is still running.
+ * [trigger] is what set it off, if the user said (count habits).
  */
-data class Entry(val id: Long, val habitId: Long, val timestamp: Long, val duration: Long? = null)
+data class Entry(val id: Long, val habitId: Long, val timestamp: Long, val duration: Long? = null, val trigger: String? = null) {
+    /** When a finished session ended; null while it runs (or for a moment). */
+    val end: Long? get() = duration?.let { timestamp + it }
+}

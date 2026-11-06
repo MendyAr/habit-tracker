@@ -32,7 +32,8 @@ class HabitDatabase(context: Context, name: String? = NAME) :
                 _id INTEGER PRIMARY KEY AUTOINCREMENT,
                 habit_id INTEGER NOT NULL REFERENCES habits(_id) ON DELETE CASCADE,
                 ts INTEGER NOT NULL,
-                duration INTEGER
+                duration INTEGER,
+                trigger_tag TEXT
             )
             """.trimIndent(),
         )
@@ -46,10 +47,14 @@ class HabitDatabase(context: Context, name: String? = NAME) :
             db.execSQL("ALTER TABLE habits ADD COLUMN type INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE entries ADD COLUMN duration INTEGER")
         }
+        if (oldVersion < 3) {
+            // Trigger tags: what set an entry off (null = none given).
+            db.execSQL("ALTER TABLE entries ADD COLUMN trigger_tag TEXT")
+        }
     }
 
     companion object {
         const val NAME = "habits.db"
-        const val VERSION = 2
+        const val VERSION = 3
     }
 }

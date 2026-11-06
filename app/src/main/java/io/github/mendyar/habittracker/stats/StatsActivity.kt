@@ -19,6 +19,8 @@ import io.github.mendyar.habittracker.R
 import io.github.mendyar.habittracker.core.Bucket
 import io.github.mendyar.habittracker.core.DateRange
 import io.github.mendyar.habittracker.core.DayProfile
+import io.github.mendyar.habittracker.core.HourShare
+import io.github.mendyar.habittracker.core.WeekdayCounts
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.core.PositionProfile
@@ -37,18 +39,24 @@ import io.github.mendyar.habittracker.ui.Async
 import io.github.mendyar.habittracker.ui.DuplicateDialog
 import io.github.mendyar.habittracker.ui.Formats
 import io.github.mendyar.habittracker.widget.HabitWidgetProvider
+import io.github.mendyar.habittracker.ui.colorOf
 import io.github.mendyar.habittracker.ui.dp
 import io.github.mendyar.habittracker.ui.toast
 import io.github.mendyar.habittracker.ui.visible
 import java.util.Calendar
+import kotlin.math.roundToInt
 
 /**
- * Statistics of one habit: the count of a chosen day/week/month/year, average,
- * min, max, standard deviation and variance per period, a bar chart over a
- * user-defined window, how likely the habit is at each time of day over that
- * window, and the individual entries (which can be added or removed).
+ * Statistics of one habit, by default the set from the research report ("Habit
+ * tracking metrics"): the count of the selected day (week, month, year), a typical
+ * period without the party effect (median, trimmed mean, mean, IQR, standard
+ * deviation, mean without flagged periods), one bar per period with unusual ones
+ * flagged, the share of entries by hour, the first entry of the day, the median per
+ * weekday, and the entries. Duration habits show their session lengths and a trend
+ * per session. Customize changes the period and what is shown.
  *
- * The chosen period and chart window are remembered per habit.
+ * Tapping a card's title (or a value) explains it; charts themselves only select.
+ * The period, chart window and statistics setup are remembered per habit.
  */
 class StatsActivity : Activity() {
 
@@ -73,7 +81,6 @@ class StatsActivity : Activity() {
 
     private lateinit var habitIcon: ImageView
     private lateinit var habitName: TextView
-    private lateinit var periodButtons: Map<Period, TextView>
     private lateinit var selectedLabel: TextView
     private lateinit var selectedCount: TextView
     private lateinit var selectedCaption: TextView
@@ -94,6 +101,25 @@ class StatsActivity : Activity() {
     private lateinit var timeReadout: TextView
     private lateinit var timeChart: DayProfileView
     private lateinit var timeCaption: TextView
+    private lateinit var historyTitle: TextView
+    private lateinit var historyCaption: TextView
+    private lateinit var historyLegend: LegendView
+    private lateinit var hoursCard: View
+    private lateinit var hoursReadout: TextView
+    private lateinit var hoursChart: DayProfileView
+    private lateinit var firstCard: View
+    private lateinit var weekdaysCard: View
+    private lateinit var weekdaysReadout: TextView
+    private lateinit var weekdaysChart: WeekdayChartView
+    private lateinit var weekdaysCaption: TextView
+    private lateinit var trendCard: View
+    private lateinit var trendReadout: TextView
+    private lateinit var trendChart: SessionTrendView
+    private var hourShare: HourShare? = null
+    private var weekdays: WeekdayCounts? = null
+    private var trendSessions: List<Entry> = emptyList()
+    private var tagged: List<Pair<Long, String>> = emptyList()
+    private lateinit var triggersCard: View
     private lateinit var entriesTitle: TextView
     private lateinit var entriesList: LinearLayout
     private lateinit var entriesFooter: TextView
@@ -121,7 +147,26 @@ class StatsActivity : Activity() {
         durationsCard = findViewById(R.id.durations_card)
         durationsChart = findViewById(R.id.durations_chart)
         durationsChart.lengthLabel = formats::elapsed
-        findViewById<View>(R.id.durations_title).setOnClickListener { explain(R.string.durations, R.string.help_durations) }
+        historyTitle = findViewById(R.id.history_title)
+        historyCaption = findViewById(R.id.history_caption)
+        historyLegend = findViewById(R.id.history_legend)
+        hoursCard = findViewById(R.id.hours_card)
+        hoursReadout = findViewById(R.id.hours_readout)
+        hoursChart = findViewById(R.id.hours_chart)
+        hoursChart.percentLabel = formats::percent
+        hoursChart.onSelect = ::renderHourReadout
+        firstCard = findViewById(R.id.first_card)
+        weekdaysCard = findViewById(R.id.weekdays_card)
+        weekdaysReadout = findViewById(R.id.weekdays_readout)
+        weekdaysChart = findViewById(R.id.weekdays_chart)
+        weekdaysChart.onSelect = ::renderWeekdayReadout
+        weekdaysCaption = findViewById(R.id.weekdays_caption)
+        triggersCard = findViewById(R.id.triggers_card)
+        trendCard = findViewById(R.id.trend_card)
+        trendReadout = findViewById(R.id.trend_readout)
+        trendChart = findViewById(R.id.trend_chart)
+        trendChart.dateLabel = { formats.axisLabel(Period.DAY, it) }
+        trendChart.onSelect = ::renderTrendReadout
         historyCard = findViewById(R.id.history_card)
         timeCard = findViewById(R.id.time_card)
         entriesCard = findViewById(R.id.entries_card)
@@ -131,23 +176,24 @@ class StatsActivity : Activity() {
         entriesTitle = findViewById(R.id.entries_title)
         entriesList = findViewById(R.id.entries_list)
         entriesFooter = findViewById(R.id.entries_footer)
-        periodButtons = mapOf(
-            Period.DAY to findViewById(R.id.period_day),
-            Period.WEEK to findViewById(R.id.period_week),
-            Period.MONTH to findViewById(R.id.period_month),
-            Period.YEAR to findViewById(R.id.period_year),
-        )
-
-        periodButtons.forEach { (p, button) -> button.setOnClickListener { changePeriod(p) } }
-        // Tapping a title or value explains it in a line or two.
+        // Tapping a card's title (or a value) explains it in a line or two. The charts
+        // themselves only select what is touched.
         findViewById<View>(R.id.stats_customize).setOnClickListener { customize() }
-        statsTitle.setOnClickListener { explain(R.string.statistics_settings, R.string.help_stats_card) }
-        findViewById<View>(R.id.history_title).setOnClickListener { explain(R.string.history, R.string.help_history) }
+        statsTitle.setOnClickListener { explain(statsTitle.text, help(R.string.help_stats_card)) }
+        historyTitle.setOnClickListener { explain(historyTitle.text, help(R.string.help_history)) }
+        findViewById<View>(R.id.hours_title).setOnClickListener { explain(getString(R.string.card_hours), help(R.string.help_hours)) }
+        findViewById<View>(R.id.first_title).setOnClickListener { explain(getString(R.string.card_first_entry), help(R.string.help_first_entry_card)) }
+        findViewById<View>(R.id.weekdays_title).setOnClickListener { explain(getString(R.string.card_weekdays), help(R.string.help_weekdays)) }
+        findViewById<View>(R.id.triggers_title).setOnClickListener { explain(getString(R.string.card_triggers), help(R.string.help_triggers)) }
+        findViewById<View>(R.id.trend_title).setOnClickListener { explain(getString(R.string.card_session_trend), help(R.string.help_session_trend)) }
+        findViewById<View>(R.id.durations_title).setOnClickListener { explain(getString(R.string.durations), help(R.string.help_durations)) }
         timeTitle.setOnClickListener {
-            explain(R.string.time_of_day, if (period == Period.DAY) R.string.help_time_of_day else R.string.help_positions)
+            explain(timeTitle.text, help(if (period == Period.DAY) R.string.help_time_of_day else R.string.help_positions))
         }
-        entriesTitle.setOnClickListener { explain(R.string.entries, R.string.help_entries) }
-        selectedCount.setOnClickListener { explain(R.string.count_card_title, R.string.help_count_card) }
+        entriesTitle.setOnClickListener { explain(getString(R.string.entries), help(R.string.help_entries)) }
+        selectedCount.setOnClickListener { explain(getString(R.string.count_card_title), help(R.string.help_count_card)) }
+        listOf(R.id.stats_title, R.id.history_title, R.id.hours_title, R.id.first_title, R.id.weekdays_title, R.id.triggers_title, R.id.trend_title, R.id.durations_title, R.id.time_title)
+            .forEach { findViewById<View>(it).setBackgroundResource(selectableBackground()) }
         findViewById<View>(R.id.habit_switcher).setOnClickListener(::showHabitMenu)
         findViewById<View>(R.id.edit_button).setOnClickListener {
             habit?.let { startActivity(HabitEditActivity.intent(this, it.id)) }
@@ -198,7 +244,13 @@ class StatsActivity : Activity() {
         outState.putLong(STATE_SELECTED, selected)
     }
 
-    private class Loaded(val habit: Habit, val habits: List<Habit>, val timestamps: LongArray, val sessions: List<Entry>)
+    private class Loaded(
+        val habit: Habit,
+        val habits: List<Habit>,
+        val timestamps: LongArray,
+        val sessions: List<Entry>,
+        val tagged: List<Pair<Long, String>>,
+    )
 
     /** Reloads the habit and its timestamps; entries may have been logged from the home screen. */
     private fun load() {
@@ -207,7 +259,7 @@ class StatsActivity : Activity() {
             val all = repository.habits()
             // The requested habit, else any; null when there are none.
             val h = repository.habit(id) ?: all.firstOrNull()
-            h?.let { Loaded(it, all, repository.timestamps(it.id), repository.sessions(it.id)) }
+            h?.let { Loaded(it, all, repository.timestamps(it.id), repository.sessions(it.id), repository.taggedEntries(it.id)) }
         }) { loaded ->
             if (isFinishing) return@load
             if (loaded == null) {
@@ -220,6 +272,7 @@ class StatsActivity : Activity() {
             habits = loaded.habits
             timestamps = loaded.timestamps
             sessions = loaded.sessions
+            tagged = loaded.tagged
             requestedHabitId = loaded.habit.id
             repository.settings.lastViewedHabitId = loaded.habit.id
             config = StatsConfig.decode(repository.settings.statsConfig(loaded.habit.id))
@@ -235,12 +288,11 @@ class StatsActivity : Activity() {
         val h = habit ?: return
         habitIcon.setImageDrawable(IconFactory.drawable(this, h))
         habitName.text = h.name
-        periodButtons.forEach { (p, button) -> button.isSelected = p == period }
         renderSummary()
         renderSelection()
     }
 
-    /** Statistics, chart and window chips for the current period and range. */
+    /** Statistics, charts and window chips for the current period and range. */
     private fun renderSummary() {
         val h = habit ?: return
         val now = System.currentTimeMillis()
@@ -261,8 +313,10 @@ class StatsActivity : Activity() {
             },
         )
         // Duration habits: the finished sessions that started in the window.
-        val durations = sessions.filter { it.timestamp in bounds }.map { it.duration ?: 0L }.toLongArray()
-        renderStats(StatValues(this, formats, timestamps, buckets, bounds, now, math, config, durations))
+        val windowSessions = sessions.filter { it.timestamp in bounds && it.duration != null }
+        val durations = windowSessions.map { it.duration ?: 0L }.toLongArray()
+        val values = StatValues(this, formats, timestamps, buckets, bounds, now, math, config, durations, period)
+        renderStats(values)
         durationsChart.setData(durations, h.color)
 
         statsCaption.visible = summary != null
@@ -302,13 +356,207 @@ class StatsActivity : Activity() {
         rangeFrom.contentDescription = getString(R.string.range_from_description, from)
         rangeTo.contentDescription = getString(R.string.range_to_description, to)
 
-        chart.setData(buckets, selectedBucketIndex(), h.color)
-        val finished = buckets.count { it.end <= now }.coerceAtLeast(if (buckets.isEmpty()) 0 else 1)
-        val counts = DoubleArray(buckets.size) { buckets[it].count.toDouble() }
-        val flags = RobustStats.highOutliers(counts.copyOf(finished))
-        chart.setTrend(RobustStats.rollingMedian(counts), BooleanArray(buckets.size) { it < finished && flags[it] })
+        renderHistory(h, now)
+        renderHours(bounds, h.color)
+        renderFirstEntry(values)
+        renderWeekdays(bounds, now, h.color)
+        renderTriggers(bounds, h.color)
+        renderTrend(windowSessions, h.color)
         applyCards()
         renderTimeOfDay(bounds, now, h.color)
+    }
+
+    /** One bar per period; unusually high finished periods in red, with median and mean lines. */
+    private fun renderHistory(h: Habit, now: Long) {
+        val duration = h.type == HabitType.DURATION
+        historyTitle.setText(
+            when (period) {
+                Period.DAY -> if (duration) R.string.sessions_day else R.string.history_day
+                Period.WEEK -> if (duration) R.string.sessions_week else R.string.history_week
+                Period.MONTH -> if (duration) R.string.sessions_month else R.string.history_month
+                Period.YEAR -> if (duration) R.string.sessions_year else R.string.history_year
+            },
+        )
+        chart.setData(buckets, selectedBucketIndex(), h.color)
+        // The period still running is left out, as in the statistics (unless it is the only one).
+        val finishedCount = buckets.count { it.end <= now }.let { if (it == 0) buckets.size else it }
+        val counts = DoubleArray(finishedCount) { buckets[it].count.toDouble() }
+        val flags = RobustStats.highOutliers(counts)
+        val flagged = BooleanArray(buckets.size) { it < finishedCount && flags[it] }
+        val median = if (counts.isEmpty()) Double.NaN else RobustStats.median(counts)
+        val mean = if (counts.isEmpty()) Double.NaN else counts.average()
+        chart.setReference(median, mean, flagged)
+        historyLegend.setItems(
+            listOf(
+                LegendView.Item(LegendView.Mark.BAR, colorOf(R.color.danger), getString(R.string.legend_flagged)),
+                LegendView.Item(LegendView.Mark.LINE, colorOf(R.color.text_primary), getString(R.string.legend_median)),
+                LegendView.Item(LegendView.Mark.DASHED, colorOf(R.color.text_primary), getString(R.string.legend_mean)),
+            ),
+        )
+        historyCaption.visible = counts.isNotEmpty()
+        if (counts.isNotEmpty()) {
+            val all = getString(R.string.value_range, formats.number(counts.min()), formats.number(counts.max()))
+            historyCaption.text = getString(R.string.history_caption, formats.number(flags.count { it }), formats.units(period), all)
+        }
+    }
+
+    /** The share of all entries in each hour, the three busiest darker. */
+    private fun renderHours(bounds: LongRange, color: Int) {
+        val share = HourShare.of(timestamps, bounds.first, bounds.last, math)
+        hourShare = share
+        val top = share.top(TOP_HOURS)
+        val labels = (0 until 24).map { if (it % 6 == 0) formats.hourLabel(it) else "" }
+        hoursChart.setBars(share.shares, labels, -1, color, top.toSet())
+        hoursChart.contentDescription = if (share.total == 0) getString(R.string.chart_empty) else hoursSummary(share, top)
+        hoursReadout.visible = share.total > 0
+        if (share.total > 0) hoursReadout.text = hoursSummary(share, top)
+    }
+
+    private fun hoursSummary(share: HourShare, top: List<Int>): String =
+        getString(R.string.hours_caption, top.sorted().joinToString(", ") { formats.hourLabel(it) }, formats.percent(share.shareOf(top)))
+
+    /** The share of the hour the user touched. */
+    private fun renderHourReadout(hour: Int) {
+        val share = hourShare ?: return
+        val span = getString(R.string.value_range, formats.hourLabel(hour), formats.hourLabel((hour + 1) % 24))
+        hoursReadout.text = getString(R.string.hours_at, span, formats.percent(share.shares[hour]), formats.number(share.counts[hour]))
+    }
+
+    /** Median, Q1 and Q3 of the time of the first entry of each day. */
+    private fun renderFirstEntry(values: StatValues) {
+        val firsts = values.firstEntries()
+        val empty = getString(R.string.stat_empty)
+        fun at(q: Double) = if (firsts.isEmpty()) empty else formats.timeOfDay(RobustStats.quantile(firsts, q).roundToInt())
+        findViewById<TextView>(R.id.first_median).text = at(0.5)
+        findViewById<TextView>(R.id.first_q1).text = at(0.25)
+        findViewById<TextView>(R.id.first_q3).text = at(0.75)
+        val startHour = config.dayStartHour ?: StatValues.FIRST_ENTRY_HOUR
+        findViewById<TextView>(R.id.first_caption).text = getString(
+            R.string.first_entry_caption,
+            formats.hourLabel(startHour),
+            resources.getQuantityString(R.plurals.count_days, firsts.size, firsts.size),
+        )
+    }
+
+    /** The median count of each weekday with its middle half. */
+    private fun renderWeekdays(bounds: LongRange, now: Long, color: Int) {
+        val w = WeekdayCounts.of(timestamps, bounds.first, bounds.last, now, math)
+        weekdays = w
+        weekdaysChart.setData(w, w.weekdays.map { formats.weekday(it, short = true) }, color)
+        val peak = w.peakIndex
+        weekdaysReadout.visible = peak >= 0 && w.medians[peak] > 0
+        if (weekdaysReadout.visible) renderWeekdayReadout(peak)
+        val rough = if (w.minSamples < ROUGH_BELOW) "\n" + getString(R.string.weekdays_rough, formats.number(w.minSamples)) else ""
+        weekdaysCaption.text = getString(R.string.weekdays_caption) + rough
+    }
+
+    private fun renderWeekdayReadout(index: Int) {
+        val w = weekdays ?: return
+        if (w.medians[index].isNaN()) return
+        weekdaysReadout.text = getString(
+            R.string.weekdays_at,
+            formats.weekday(w.weekdays[index], short = false),
+            formats.number(w.medians[index]),
+            getString(R.string.value_range, formats.number(w.q1[index]), formats.number(w.q3[index])),
+        )
+    }
+
+    /** The share of each trigger among the tagged entries of the window, most first. */
+    private fun renderTriggers(bounds: LongRange, color: Int) {
+        val list = findViewById<LinearLayout>(R.id.triggers_list)
+        list.removeAllViews()
+        val inWindow = tagged.filter { it.first in bounds }
+        val counts = inWindow.groupingBy { it.second }.eachCount().entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        val caption = findViewById<TextView>(R.id.triggers_caption)
+        if (counts.isEmpty()) {
+            caption.text = getString(R.string.triggers_empty)
+            return
+        }
+        val total = inWindow.size
+        val entriesInWindow = StatsEngine.countBetween(timestamps, bounds.first, bounds.last + 1)
+        caption.text = getString(R.string.triggers_caption, formats.number(total), formats.number(entriesInWindow))
+        val top = counts.first().value
+        counts.forEachIndexed { i, (name, n) ->
+            val share = n.toDouble() / total
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                minimumHeight = dp(36)
+                contentDescription = getString(R.string.trigger_share_description, name, formats.percent(share))
+            }
+            // The name wraps rather than being cut off.
+            row.addView(
+                TextView(this).apply {
+                    text = name
+                    textSize = 14f
+                    setTextColor(colorOf(R.color.text_primary))
+                    setPadding(0, dp(4), dp(8), dp(4))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f),
+            )
+            val track = LinearLayout(this).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(colorOf(R.color.surface_variant))
+                }
+            }
+            track.addView(
+                View(this).apply {
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(4).toFloat()
+                        setColor(color)
+                        alpha = if (i == 0) 230 else 110
+                    }
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, n.toFloat()),
+            )
+            track.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (top - n).toFloat() + top * 0.0001f))
+            row.addView(track, LinearLayout.LayoutParams(0, dp(14), 0.45f))
+            row.addView(
+                TextView(this).apply {
+                    text = formats.percent(share)
+                    textSize = 14f
+                    gravity = android.view.Gravity.END
+                    setTextColor(colorOf(R.color.text_secondary))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.15f),
+            )
+            list.addView(row)
+        }
+    }
+
+    /** Duration habits: each session in the window with the median of the last 7 and the target. */
+    private fun renderTrend(windowSessions: List<Entry>, color: Int) {
+        trendSessions = windowSessions
+        val minutes = DoubleArray(windowSessions.size) { (windowSessions[it].duration ?: 0L) / 60_000.0 }
+        trendChart.setData(windowSessions.map { it.timestamp }.toLongArray(), minutes, config.sessionTarget.toDouble(), color)
+        trendChart.contentDescription = if (minutes.isEmpty()) getString(R.string.chart_empty) else getString(R.string.card_session_trend)
+        findViewById<LegendView>(R.id.trend_legend).setItems(
+            listOf(
+                LegendView.Item(LegendView.Mark.DOT, color, getString(R.string.legend_session)),
+                LegendView.Item(LegendView.Mark.LINE, color, getString(R.string.legend_rolling)),
+                LegendView.Item(
+                    LegendView.Mark.DASHED,
+                    colorOf(R.color.text_secondary),
+                    getString(R.string.caption_join, getString(R.string.legend_target), formats.duration(config.sessionTarget.toDouble())),
+                ),
+            ),
+        )
+        trendReadout.visible = minutes.isNotEmpty()
+        if (minutes.isNotEmpty()) renderTrendReadout(minutes.size - 1)
+    }
+
+    private fun renderTrendReadout(index: Int) {
+        val session = trendSessions.getOrNull(index) ?: return
+        val rolling = trendChart.rollingMedian.getOrNull(index) ?: return
+        trendReadout.text = getString(
+            R.string.session_at,
+            formats.shortDate(session.timestamp),
+            formats.elapsed(session.duration ?: 0L),
+            formats.elapsed((rolling * 60_000).toLong()),
+        )
     }
 
     /**
@@ -449,7 +697,7 @@ class StatsActivity : Activity() {
             val row = inflater.inflate(R.layout.item_entry, entriesList, false)
             val time = if (period == Period.DAY) formats.time(entry.timestamp) else formats.dateTime(entry.timestamp)
             val label = when {
-                habit?.type != HabitType.DURATION -> time
+                habit?.type != HabitType.DURATION -> entry.trigger?.let { getString(R.string.entry_trigger, time, it) } ?: time
                 entry.duration == null -> getString(R.string.entry_running, time)
                 else -> getString(R.string.entry_with_duration, time, formats.elapsed(entry.duration))
             }
@@ -472,31 +720,56 @@ class StatsActivity : Activity() {
         }
     }
 
-    /** The tracker's chosen statistics, three per row; tapping one explains it. */
+    /**
+     * The tracker's chosen statistics in labelled groups (Typical, Spread, Timing,
+     * Progress), one per row with a short note; tapping one explains it.
+     */
     private fun renderStats(values: StatValues) {
         statsGrid.removeAllViews()
         val inflater = LayoutInflater.from(this)
-        config.statsFor(habit?.type ?: HabitType.COUNT).chunked(STATS_PER_ROW).forEach { chunk ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(12), 0, 0)
+        val chosen = config.statsFor(habit?.type ?: HabitType.COUNT)
+        var first = true
+        StatGroup.entries.forEach { group ->
+            val kinds = chosen.filter { it.group == group }
+            if (kinds.isEmpty()) return@forEach
+            if (!first) {
+                statsGrid.addView(
+                    View(this).apply { setBackgroundColor(colorOf(R.color.divider)) },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(8) },
+                )
             }
-            chunk.forEach { kind ->
-                val cell = inflater.inflate(R.layout.item_stat, row, false)
+            statsGrid.addView(
+                TextView(this).apply {
+                    setText(group.label)
+                    setTextColor(colorOf(R.color.brand))
+                    textSize = 12f
+                    isAllCaps = true
+                    letterSpacing = 0.06f
+                    typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                    setPadding(0, dp(if (first) 12 else 14), 0, dp(2))
+                },
+            )
+            first = false
+            kinds.forEach { kind ->
+                val row = inflater.inflate(R.layout.item_stat_row, statsGrid, false)
+                val label = values.label(kind)
                 val value = values.text(kind)
-                cell.findViewById<TextView>(R.id.stat_value).text = value
-                cell.findViewById<TextView>(R.id.stat_label).setText(kind.label)
-                cell.contentDescription = getString(R.string.caption_join, getString(kind.label), value)
-                cell.setOnClickListener { explain(kind.label, kind.help) }
-                row.addView(cell)
+                val note = values.note(kind)
+                row.findViewById<TextView>(R.id.stat_label).text = label
+                row.findViewById<TextView>(R.id.stat_value).text = value
+                row.findViewById<TextView>(R.id.stat_note).apply {
+                    text = note
+                    visible = note != null
+                }
+                row.contentDescription = listOfNotNull(label, value, note).joinToString(", ")
+                row.setOnClickListener { explain(label, values.help(kind)) }
+                statsGrid.addView(row)
             }
-            repeat(STATS_PER_ROW - chunk.size) { row.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f)) }
-            statsGrid.addView(row)
         }
     }
 
     /** A one- or two-line explanation of a statistic or chart. */
-    private fun explain(title: Int, text: Int) {
+    private fun explain(title: CharSequence, text: String) {
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(text)
@@ -504,31 +777,44 @@ class StatsActivity : Activity() {
             .show()
     }
 
-    /** Lets the user choose this tracker's statistics; applies them right away. */
+    /** An explanation text that names this habit's period ("day", "days"…). */
+    private fun help(text: Int): String = getString(text, formats.unit(period), formats.units(period))
+
+    private fun selectableBackground(): Int =
+        android.util.TypedValue().also { theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true) }.resourceId
+
+    /** Lets the user choose this tracker's period and statistics; applies them right away. */
     private fun customize() {
         val h = habit ?: return
-        StatsCustomizeDialog.show(this, config, h.type) { chosen ->
+        StatsCustomizeDialog.show(this, config, h.type, period) { chosen, chosenPeriod ->
             config = chosen
             repository.settings.setStatsConfig(h.id, chosen.takeUnless { it.isDefault }?.encode())
+            changePeriod(chosenPeriod)
             render()
         }
     }
 
     private fun applyCards() {
-        historyCard.visible = StatsCard.HISTORY !in config.hiddenCards
-        timeCard.visible = StatsCard.WHEN !in config.hiddenCards
-        entriesCard.visible = StatsCard.ENTRIES !in config.hiddenCards
-        durationsCard.visible = habit?.type == HabitType.DURATION && StatsCard.DURATIONS !in config.hiddenCards
+        val cards = config.cardsFor(habit?.type ?: HabitType.COUNT)
+        historyCard.visible = StatsCard.HISTORY in cards
+        hoursCard.visible = StatsCard.HOURS in cards
+        firstCard.visible = StatsCard.FIRST_ENTRY in cards
+        weekdaysCard.visible = StatsCard.WEEKDAYS in cards
+        triggersCard.visible = StatsCard.TRIGGERS in cards
+        trendCard.visible = StatsCard.SESSION_TREND in cards
+        durationsCard.visible = StatsCard.DURATIONS in cards
+        timeCard.visible = StatsCard.WHEN in cards
+        entriesCard.visible = StatsCard.ENTRIES in cards
     }
 
     private fun selectedBucketIndex(): Int = buckets.indexOfFirst { selected >= it.start && selected < it.end }
 
+    /** The period everything is grouped by, chosen in Customize and remembered per habit. */
     private fun changePeriod(newPeriod: Period) {
         val h = habit ?: return
         if (newPeriod == period) return
         period = newPeriod
         repository.settings.setPeriod(h.id, newPeriod)
-        render()
     }
 
     private fun changeRange(newRange: DateRange) {
@@ -619,8 +905,9 @@ class StatsActivity : Activity() {
         }) { load() }
     }
 
+    /** An entry tapped in the list: delete it, or (count habits) set what set it off. */
     private fun confirmDelete(entry: Entry, label: String) {
-        AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle(R.string.delete_entry_title)
             .setMessage(getString(R.string.delete_entry_message, label))
             .setPositiveButton(R.string.delete) { _, _ ->
@@ -628,6 +915,24 @@ class StatsActivity : Activity() {
                     repository.deleteEntry(entry.id)
                     LauncherSync.afterLog(this)
                 }) { load() }
+            }
+            .setNegativeButton(R.string.cancel, null)
+        if (habit?.type == HabitType.COUNT) builder.setNeutralButton(R.string.entry_set_trigger) { _, _ -> chooseTrigger(entry) }
+        builder.show()
+    }
+
+    /** Sets or changes an entry's trigger, from the habit's triggers (and the entry's own). */
+    private fun chooseTrigger(entry: Entry) {
+        val h = habit ?: return
+        val names = (repository.settings.triggers(h.id) + listOfNotNull(entry.trigger)).distinct()
+        val options = names + getString(R.string.trigger_none)
+        val checked = entry.trigger?.let { names.indexOf(it) } ?: options.lastIndex
+        AlertDialog.Builder(this)
+            .setTitle(R.string.picker_title)
+            .setSingleChoiceItems(options.toTypedArray(), checked) { dialog, which ->
+                dialog.dismiss()
+                val chosen = names.getOrNull(which)
+                Async.load({ repository.setTrigger(entry.id, chosen) }) { load() }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
@@ -717,7 +1022,7 @@ class StatsActivity : Activity() {
         private const val STATE_SELECTED = "selected"
         private const val ENTRY_LIMIT = 100
         private const val MENU_MANAGE = 10_000
-        private const val STATS_PER_ROW = 3
+        private const val TOP_HOURS = 3
 
         /** Below this many samples per bar, the Week/Month/Year chart says it is rough. */
         private const val ROUGH_BELOW = 4

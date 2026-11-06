@@ -4,6 +4,56 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-11-06
+
+### Changed
+- **Habits go on the home screen as widgets only**: *Add Icon to Home Screen* is
+  gone, and after creating a habit the app offers its widget instead. Icons added by
+  earlier versions keep working (#32).
+- Widgets no longer offer *Reconfigure* in the launcher's long-press menu (#32).
+- **A widget tap shows the full confirmation in the middle of the screen**, like a
+  habit icon, including *Log Again?* (#29).
+- **Duration habits** (e.g. Box Breathing): *Starting*, then *Ended* with the time
+  large below it. A tap within 3 seconds of the start shows *Already Started*, and
+  within 3 seconds of the end *Already Ended* with the same time; nothing changes
+  (#31).
+- While the confirmation shows, tapping the widget again counts as another tap.
+
+- **Statistics follow the research report by default** (#27): the statistics card
+  shows median, trimmed mean, mean, mean without flagged days, IQR and standard
+  deviation; new cards show entries per day with flagged days and median/mean lines,
+  the share of entries by hour (busiest three darker), the first entry of the day
+  (median, Q1, Q3) and the median per weekday with its middle half. Duration habits
+  show median, mean, IQR and the share under a target (5 minutes by default) and a
+  **Time per Session** chart with the median of the last 7. Former defaults (range,
+  time since last, vs previous 7, the time-of-day curve…) stay available in
+  *Customize*; customised setups are kept.
+- **The statistics card is grouped** (Typical, Spread…) with a short note under each
+  value (#26).
+- **The period is chosen in Customize**; the Day/Week/Month/Year tabs are gone, and
+  explanations name the chosen period instead of saying "(or week…)" (#26).
+- Charts are explained only from their titles; touching a chart only selects (#26).
+- **What set it off?** After logging a count habit, a card suggests tagging the
+  entry with a trigger (presets from the research, or type your own). It's only a
+  suggestion: skipping or ignoring it leaves the entry untagged. Each habit's
+  triggers can be edited or turned off in its settings; the statistics show the share
+  of each trigger, and entries can be tagged later from the Entries list (#28).
+- The **+** next to a habit in the app logs through the same confirmation (and
+  trigger suggestion) as its widget.
+- **How to Use** describes widgets, triggers and the new tap rules, and What's new
+  lists this release's changes. A test now fails if a release forgets to review them
+  (#33).
+
+- **A calmer widget that blends with your home screen**: a translucent panel in your
+  wallpaper's colours (Android 12+; light or dark grey before that, dark in the dark
+  theme) with the launcher's corner radius, and the habit's colour only on its icon
+  (#30).
+
+### Fixed
+- Quick taps on a widget were sometimes registered seconds late (#29).
+- A running session's timer now replaces the widget's name, so it also shows on a
+  1 × 1 widget (#29).
+
 ## [2.0.0] - 2026-11-04
 
 ### Changed

@@ -23,6 +23,7 @@ import androidx.test.uiautomator.Until
 import io.github.mendyar.habittracker.core.Period
 import io.github.mendyar.habittracker.core.PeriodMath
 import io.github.mendyar.habittracker.data.HabitRepository
+import io.github.mendyar.habittracker.data.HabitType
 import io.github.mendyar.habittracker.habits.HabitEditActivity
 import io.github.mendyar.habittracker.habits.HabitsActivity
 import io.github.mendyar.habittracker.icons.HabitColors
@@ -82,8 +83,16 @@ class ScreensTest {
             val perDay = 4 + d / 6 + random.nextInt(3)
             for (i in 0 until minOf(perDay, usual.size)) {
                 val hours = usual[i] + random.nextGaussian() * 0.35
-                repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
+                val entry = repository.log(smoking.id, midnight + (hours * 3_600_000L).toLong())
+                // Most entries tagged with what set them off, coffee and stress most often.
+                val trigger = TRIGGERS[random.nextInt(TRIGGERS.size)]
+                if (random.nextInt(10) < 7) repository.setTrigger(entry, trigger)
             }
+        }
+        // A few party nights, flagged as unusually high.
+        for (d in intArrayOf(12, 26, 47)) {
+            val evening = math.startOf(Period.DAY, now - d * day) + 20 * 3_600_000L
+            repeat(9) { repository.log(smoking.id, evening + it * 900_000L) }
         }
         repeat(5) { repository.log(smoking.id, now - (it + 1) * 1_800_000L) }
         val water = repository.createHabit("Water", "water", null, HabitColors.ALL[1])
@@ -103,27 +112,33 @@ class ScreensTest {
         waitUntil { activity.findViewById<TextView>(R.id.selected_count).text.toString() == today.toString() }
         screenshot("1_statistics_day")
 
-        // Scroll to the chart and entries.
-        instrumentation.runOnMainSync {
-            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
-            scroll.scrollTo(0, activity.findViewById<View>(R.id.stats_caption).bottom)
+        // Scroll through the cards of the research defaults.
+        fun scrollTo(card: Int) = instrumentation.runOnMainSync {
+            activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, activity.findViewById<View>(card).top - 24)
         }
+        scrollTo(R.id.history_card)
         screenshot("2_statistics_history")
 
-        // Scroll to the time-of-day chart, which peaks at one of the usual times.
-        val readout = activity.findViewById<TextView>(R.id.time_readout)
-        waitUntil { readout.text.isNotEmpty() }
-        instrumentation.runOnMainSync {
-            val scroll = activity.findViewById<ScrollView>(R.id.stats_scroll)
-            scroll.scrollTo(0, activity.findViewById<View>(R.id.time_card).top - 24)
-        }
+        // The busiest hours, and the first entry of the day.
+        waitUntil { activity.findViewById<TextView>(R.id.hours_readout).text.isNotEmpty() }
+        scrollTo(R.id.hours_card)
         screenshot("9_time_of_day")
 
-        instrumentation.runOnMainSync { activity.findViewById<TextView>(R.id.period_week).performClick() }
-        instrumentation.waitForIdleSync()
-        assertEquals(Period.WEEK, repository.settings.period(id))
+        scrollTo(R.id.weekdays_card)
+        screenshot("13_weekdays")
+
+        // A chart is explained from its title only.
+        instrumentation.runOnMainSync { activity.findViewById<View>(R.id.history_title).performClick() }
+        device.wait(Until.findObject(By.textContains("One bar per day")), 3_000)
+        screenshot("14_explanation")
+        device.pressBack()
+
+        // The period is chosen in Customize, where everything else is too.
         instrumentation.runOnMainSync { activity.findViewById<ScrollView>(R.id.stats_scroll).scrollTo(0, 0) }
-        screenshot("6_statistics_week")
+        instrumentation.runOnMainSync { activity.findViewById<View>(R.id.stats_customize).performClick() }
+        device.wait(Until.findObject(By.text(context.getString(R.string.customize_period))), 3_000)
+        screenshot("6_customize")
+        device.pressBack()
         activity.finish()
     }
 
@@ -197,8 +212,7 @@ class ScreensTest {
             val activity = resumedActivity() as? LogActivity
             if (activity != null) {
                 instrumentation.runOnMainSync {
-                    val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                    view = (content.getChildAt(0) as? LogAnimationView)?.takeIf { it.isStarted }
+                    view = activity.confirmationView.takeIf { it.isStarted }
                 }
             }
             view != null
@@ -210,11 +224,23 @@ class ScreensTest {
         screenshot("5_log_animation", settleMs = 0)
         waitUntil { repository.timestamps(id).size == before + 1 }
         instrumentation.runOnMainSync { view!!.skip() }
+
+        // Then: what set it off?
+        var activity: LogActivity? = null
+        waitUntil {
+            val resumed = resumedActivity() as? LogActivity
+            if (resumed != null) instrumentation.runOnMainSync { activity = resumed.takeIf { it.triggerPicker != null } }
+            activity != null
+        }
+        screenshot("15_trigger_picker")
+        instrumentation.runOnMainSync { activity!!.finish() }
     }
 
     /**
      * The real "Add One-Tap Widget" flow with the system launcher: choose a size,
      * accept the launcher's dialog, and land on the home screen with the widget.
+     * Then a real tap on the widget: the confirmation shows in the middle of the
+     * screen at once, and the duration habit's widget shows its live timer.
      * Skipped where adding widgets from apps is not supported (before Android 9 the
      * size cannot be chosen).
      */
@@ -224,10 +250,10 @@ class ScreensTest {
         assumeTrue(AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported)
         seed()
         usePlainWallpaper()
-        val walk = repository.createHabit("Walk", "walk", null, HabitColors.ALL[2])
-        launch(HabitEditActivity.intent(context, walk.id))
+        val breathing = repository.createHabit("Box Breathing", "box_breathing", null, HabitColors.ALL[2], HabitType.DURATION)
+        launch(HabitEditActivity.intent(context, breathing.id))
         val editor = waitForActivity()
-        waitUntil { editor.findViewById<TextView>(R.id.edit_name).text.toString() == "Walk" }
+        waitUntil { editor.findViewById<TextView>(R.id.edit_name).text.toString() == "Box Breathing" }
         instrumentation.runOnMainSync { editor.findViewById<View>(R.id.edit_add_widget).performClick() }
 
         val medium = device.wait(Until.findObject(By.desc(context.getString(R.string.widget_size_description, 2, 2))), 5_000)
@@ -240,8 +266,8 @@ class ScreensTest {
         assertNotNull("No launcher confirmation; screen shows ${device.currentPackageName}", add)
         add!!.click()
 
-        waitUntil(timeoutMs = 15_000) { HabitWidgetProvider.widgetFor(context, walk.id) != null }
-        val id = HabitWidgetProvider.widgetFor(context, walk.id)!!
+        waitUntil(timeoutMs = 15_000) { HabitWidgetProvider.widgetFor(context, breathing.id) != null }
+        val id = HabitWidgetProvider.widgetFor(context, breathing.id)!!
         val manager = AppWidgetManager.getInstance(context)
         assertTrue(id in manager.getAppWidgetIds(ComponentName(context, WidgetSize.MEDIUM.provider)))
         // The editor closed itself and the home screen, with the widget, is in front.
@@ -252,8 +278,45 @@ class ScreensTest {
         ).trim().lines().last().substringBefore('/')
         val inFront = device.wait(Until.hasObject(By.pkg(launcher).depth(0)), 8_000)
         assertTrue("Expected the home screen ($launcher), found ${device.currentPackageName}", inFront)
-        device.wait(Until.findObject(By.text("Walk")), 3_000)
+        val widget = device.wait(Until.findObject(By.desc(context.getString(R.string.widget_log_description, "Box Breathing"))), 5_000)
         screenshot("8_widget_added")
+        assertNotNull("The widget isn't on the home screen", widget)
+
+        // A real tap on the widget starts a session, with the confirmation mid-screen.
+        val widgetBounds = widget!!.visibleBounds
+        widget.click()
+        val tappedAt = System.currentTimeMillis()
+        var view: LogAnimationView? = null
+        waitUntil {
+            val activity = resumedActivity() as? LogActivity
+            if (activity != null) {
+                instrumentation.runOnMainSync {
+                    view = activity.confirmationView.takeIf { it.isStarted }
+                }
+            }
+            view != null
+        }
+        instrumentation.runOnMainSync { freeze(view!!, atMs = 900f) }
+        assertTrue("The tap was handled late", repository.running(breathing.id)!!.timestamp - tappedAt < 2_000)
+        Thread.sleep(500)
+        screenshot("11_widget_tap", settleMs = 0)
+
+        // A second real tap on the widget, through the confirmation window, is a tap of the
+        // widget: within 3 s of the start nothing changes, later it ends the session (a slow
+        // emulator can take that long), but it never just closes the confirmation.
+        device.click(widgetBounds.centerX(), widgetBounds.centerY())
+        try {
+            waitUntil { view!!.shownText.let { it.endsWith("Already Started") || it.contains("Ended") } }
+        } catch (e: AssertionError) {
+            throw AssertionError("Second tap at ${widgetBounds.centerX()},${widgetBounds.centerY()} showed '${view!!.shownText}'", e)
+        }
+        assertEquals(1, repository.timestamps(breathing.id).size)
+        instrumentation.runOnMainSync { view!!.skip() }
+
+        // Back on the home screen, the widget counts up.
+        waitUntil { resumedActivity() == null }
+        Thread.sleep(2_500)
+        screenshot("12_widget_timer")
     }
 
     /**
@@ -343,5 +406,8 @@ class ScreensTest {
     private companion object {
         /** The app's light background (`@color/bg`). */
         const val PLAIN_WALLPAPER = 0xFFF6F6F4.toInt()
+
+        /** Weighted: the earlier ones come up more often. */
+        val TRIGGERS = listOf("Coffee", "Coffee", "Coffee", "Stress", "Stress", "Craving", "After a Meal", "With Smokers", "Alcohol")
     }
 }

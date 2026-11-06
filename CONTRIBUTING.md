@@ -21,7 +21,19 @@ open an issue to discuss larger features before writing code.
 
 CI additionally runs the instrumented tests on Android 5.0, 10 and 15 emulators.
 Add a line under an *Unreleased* heading in [CHANGELOG.md](CHANGELOG.md) for
-user-visible changes.
+user-visible changes, and keep the in-app tutorial (*How to Use*, `tour_*` strings
+in `OnboardingActivity`) describing the app as it is.
+
+## Releasing
+
+1. Bump `VERSION_NAME` and `VERSION_CODE` in `gradle.properties`, and turn
+   *Unreleased* in CHANGELOG.md into the version's section.
+2. Review the tutorial pages for the release's changes.
+3. With user-visible changes, replace `whats_new_items` with them and add the version
+   code to `Onboarding.WHATS_NEW_VERSIONS`.
+4. Add the version code to `Onboarding.REVIEWED_VERSIONS` (`OnboardingTest` fails
+   until you do).
+5. Merge to `main`; when CI is green there, `release.yml` publishes the release.
 
 ## Icons
 

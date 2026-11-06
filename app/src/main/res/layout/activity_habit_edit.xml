@@ -181,6 +181,44 @@
                 android:drawableStart="@drawable/ic_ui_calendar_month"
                 android:text="@string/customize_title" />
 
+            <!-- Count habits: suggest tagging what set an entry off, and which triggers. -->
+            <LinearLayout
+                android:id="@+id/edit_triggers_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SectionLabel"
+                    android:text="@string/triggers" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <Switch
+                        android:id="@+id/edit_suggest_triggers"
+                        style="@style/ActionRow"
+                        android:layout_height="wrap_content"
+                        android:minHeight="56dp"
+                        android:text="@string/suggest_triggers" />
+
+                    <TextView
+                        android:id="@+id/edit_triggers"
+                        style="@style/ActionRow"
+                        android:layout_height="wrap_content"
+                        android:minHeight="56dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:drawableStart="@drawable/ic_ui_edit"
+                        android:text="@string/edit_triggers" />
+                </LinearLayout>
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/edit_home_section"
                 android:layout_width="match_parent"
@@ -200,16 +238,24 @@
                     android:paddingBottom="4dp">
 
                     <TextView
-                        android:id="@+id/edit_add_home"
-                        style="@style/ActionRow"
-                        android:drawableStart="@drawable/ic_ui_add_to_home_screen"
-                        android:text="@string/add_to_home" />
-
-                    <TextView
                         android:id="@+id/edit_add_widget"
                         style="@style/ActionRow"
                         android:drawableStart="@drawable/ic_ui_widgets"
                         android:text="@string/add_widget" />
+
+                    <TextView
+                        android:id="@+id/edit_widget_hint"
+                        style="@style/ActionRow"
+                        android:layout_height="wrap_content"
+                        android:minHeight="56dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:background="@null"
+                        android:drawableStart="@drawable/ic_ui_widgets"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:text="@string/add_widget_from_launcher"
+                        android:visibility="gone" />
 
                 </LinearLayout>
 

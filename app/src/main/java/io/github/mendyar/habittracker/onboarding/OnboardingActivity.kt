@@ -26,7 +26,8 @@ class OnboardingActivity : Activity() {
     private val tutorial = listOf(
         Page(R.drawable.ic_ui_check, R.string.tour_welcome_title, R.string.tour_welcome_text),
         Page(R.drawable.ic_ui_add, R.string.tour_add_title, R.string.tour_add_text),
-        Page(R.drawable.ic_ui_add_to_home_screen, R.string.tour_log_title, R.string.tour_log_text),
+        Page(R.drawable.ic_ui_widgets, R.string.tour_log_title, R.string.tour_log_text),
+        Page(R.drawable.ic_habit_mind, R.string.tour_triggers_title, R.string.tour_triggers_text),
         Page(R.drawable.ic_habit_timer, R.string.tour_duration_title, R.string.tour_duration_text),
         Page(R.drawable.ic_ui_calendar_month, R.string.tour_stats_title, R.string.tour_stats_text),
         Page(R.drawable.ic_ui_edit, R.string.tour_edit_title, R.string.tour_edit_text),
