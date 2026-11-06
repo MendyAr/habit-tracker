@@ -13,13 +13,13 @@ The Habit Tracker app icon opens the app: your habits and their statistics.
 ![Android 5.0+](https://img.shields.io/badge/Android-5.0%2B-3DDC84)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-| Tap: logged in place | Long-press: statistics | History & entries | Your habits | Make it yours |
+| Tap the widget: logged in place | What set it off? | Daily statistics | Unusual days & history | Your habits |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/tap.png" width="160" alt="A large check pops up in the middle of the home screen with the text 'Smoking · 7 today'"> | <img src="docs/screenshots/statistics.png" width="160" alt="Statistics: today's count, daily average, min, max, standard deviation, variance"> | <img src="docs/screenshots/history.png" width="160" alt="Bar chart of daily counts with a date window, and today's entries"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> |
+| <img src="docs/screenshots/widget-tap.png" width="160" alt="A tap on the Box Breathing widget: a stopwatch pops up in the middle of the home screen with 'Box Breathing · Starting'"> | <img src="docs/screenshots/triggers.png" width="160" alt="A card in the middle of the home screen asks 'What Set It Off?' with chips for Craving, Stress, Bad Mood, With Smokers, Coffee, Alcohol, After a Meal, Boredom, Habit and + Add, and Skip"> | <img src="docs/screenshots/statistics.png" width="160" alt="Daily Statistics grouped into Typical (median, trimmed mean, mean, mean without flagged days) and Spread (IQR, standard deviation), each with a short note"> | <img src="docs/screenshots/history.png" width="160" alt="Entries per Day bar chart with median and mean lines, and the share of entries by hour with the three busiest hours darker"> | <img src="docs/screenshots/habits.png" width="160" alt="List of habits with today's counts"> |
 
-| Time of day | Widget: pick a size | …and it's on your home screen |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/time-of-day.png" width="160" alt="Smooth curve of how likely the habit is at each time of day, peaking at 10:10 AM on 72% of days"> | <img src="docs/screenshots/widget-size.png" width="160" alt="Widget Size dialog with 1 × 1, 2 × 2, 3 × 3 and 4 × 4 tiles"> | <img src="docs/screenshots/widget.png" width="160" alt="A 2 × 2 widget on the home screen: a translucent panel with the habit's coloured icon"> |
+| When & first entry | Weekdays & triggers | Make it yours | Widget: pick a size | …a widget that blends in |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/time-of-day.png" width="160" alt="Share by hour, the first entry of the day (median, Q1, Q3) and the median per weekday with its middle half"> | <img src="docs/screenshots/what-sets-it-off.png" width="160" alt="Median per weekday, and What Sets It Off?: Coffee 35%, Stress 23% and more"> | <img src="docs/screenshots/edit.png" width="160" alt="Editing a habit's name, colour and icon"> | <img src="docs/screenshots/widget-size.png" width="160" alt="Widget Size dialog with 1 × 1, 2 × 2, 3 × 3 and 4 × 4 tiles"> | <img src="docs/screenshots/widget.png" width="160" alt="A 2 × 2 widget on the home screen: a light translucent panel with the Box Breathing icon in its colour and a running timer"> |
 
 <sub>Screenshots are taken automatically by the instrumented tests on an Android 15 emulator.</sub>
 
