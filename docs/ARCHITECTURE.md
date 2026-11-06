@@ -91,7 +91,7 @@ translucent neutral, `@color/widget_surface`, which on Android 12+ is the system
 wallpaper-derived `system_neutral1_50` (dark theme: `system_neutral1_900`) at 86%
 opacity (`color-v31`, `color-night-v31`), with the launcher's own corner radius;
 before that a translucent white or dark grey. The habit's colour is only on the
-icon (a disc, `IconFactory.circleBitmap`) and the stopwatch badge, and the text is
+icon (a disc with its stopwatch badge for duration habits, `IconFactory.circleBitmap`), and the text is
 dark on light (light in the dark theme), so it stays readable on any wallpaper.
 
 ### Long-press: statistics

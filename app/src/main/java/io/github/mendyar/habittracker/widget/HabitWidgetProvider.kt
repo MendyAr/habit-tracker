@@ -229,11 +229,9 @@ open class HabitWidgetProvider : AppWidgetProvider() {
             return views
         }
 
-        /** Duration habits: the stopwatch badge, and a live timer while a session runs. */
+        /** Duration habits: a live timer while a session runs (the icon carries the stopwatch badge). */
         private fun showSession(context: Context, views: RemoteViews, habit: Habit) {
             val duration = habit.type == HabitType.DURATION
-            views.setViewVisibility(R.id.widget_badge, if (duration) View.VISIBLE else View.GONE)
-            if (duration) views.setImageViewBitmap(R.id.widget_badge, glyphBitmap(context, context.getDrawable(R.drawable.ic_habit_timer), habit.color))
             val session = if (duration) HabitRepository.get(context).running(habit.id) else null
             if (session != null) {
                 val base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - session.timestamp)

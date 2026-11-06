@@ -195,12 +195,11 @@ class HabitWidgetProviderTest {
     }
 
     @Test
-    fun aDurationWidgetShowsItsBadgeAndALiveTimerWhileASessionRuns() {
+    fun aDurationWidgetShowsALiveTimerWhileASessionRuns() {
         val breathing = repository.createHabit("Box breathing", "box_breathing", null, HabitColors.ALL[3], HabitType.DURATION)
         val id = placeWidget()
         HabitWidgetProvider.bind(context, id, breathing.id)
         fun shown() = HabitWidgetProvider.views(context, id).apply(context, FrameLayout(context))
-        assertEquals(View.VISIBLE, shown().findViewById<View>(R.id.widget_badge).visibility)
         assertEquals(View.GONE, shown().findViewById<View>(R.id.widget_timer).visibility)
 
         repository.log(breathing.id, System.currentTimeMillis() - 65_000)

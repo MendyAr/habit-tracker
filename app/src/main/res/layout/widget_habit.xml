@@ -2,8 +2,8 @@
 <!--
     Resizable widget: a translucent neutral panel (widget_bg) with the habit's icon, a disc
     in its colour, in the middle. A tap opens the logging window (LogActivity).
-    Duration trackers add a stopwatch badge in the corner and, while a session runs, a
-    live timer under the name.
+    Duration trackers' icons carry a stopwatch badge and, while a session runs, a live
+    timer replaces the name.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -48,12 +48,4 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/widget_badge"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:layout_gravity="top|end"
-        android:layout_margin="10dp"
-        android:importantForAccessibility="no"
-        android:visibility="gone" />
 </FrameLayout>
