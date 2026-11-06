@@ -76,7 +76,8 @@ those versions still send `ACTION_LOG`; the provider just redraws them.
 
 The confirmation window covers the home screen, so a second tap on the widget
 lands on it. Launchers pass the widget's position as the intent's
-`sourceBounds`; `LogActivity` treats a tap there (8 dp of slack) as another tap
+`sourceBounds` (filled into the click intent, so its PendingIntent is mutable;
+Android drops fill-ins from immutable ones); `LogActivity` treats a tap there (8 dp of slack) as another tap
 of the widget (e.g. "Already Started"), and a tap anywhere else dismisses the
 confirmation.
 

@@ -214,7 +214,7 @@ open class HabitWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_label, habit.name)
                 views.setContentDescription(R.id.widget_root, context.getString(R.string.widget_log_description, habit.name))
                 showSession(context, views, habit)
-                views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, widgetId, tapIntent(context, habit.id), immutable()))
+                views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, widgetId, tapIntent(context, habit.id), fillable()))
             } else {
                 // Not chosen yet, or its habit was deleted: say so, and let a tap pick a habit.
                 val label = if (habitId == UNBOUND) R.string.widget_choose else R.string.widget_deleted
@@ -260,6 +260,14 @@ open class HabitWidgetProvider : AppWidgetProvider() {
         private fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {
             manager.updateAppWidget(widgetId, views(context, widgetId))
         }
+
+        /**
+         * Mutable on purpose: the launcher fills in the tapped widget's position (source
+         * bounds), which Android drops from immutable PendingIntents. Safe, as the intent
+         * names its component explicitly.
+         */
+        private fun fillable() = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
 
         private fun immutable() = PendingIntent.FLAG_UPDATE_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0

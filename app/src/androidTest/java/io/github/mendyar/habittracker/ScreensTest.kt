@@ -301,9 +301,15 @@ class ScreensTest {
         Thread.sleep(500)
         screenshot("11_widget_tap", settleMs = 0)
 
-        // A second real tap on the widget, through the confirmation window: nothing changes.
+        // A second real tap on the widget, through the confirmation window, is a tap of the
+        // widget: within 3 s of the start nothing changes, later it ends the session (a slow
+        // emulator can take that long), but it never just closes the confirmation.
         device.click(widgetBounds.centerX(), widgetBounds.centerY())
-        waitUntil { view!!.shownText.endsWith("Already Started") }
+        try {
+            waitUntil { view!!.shownText.let { it.endsWith("Already Started") || it.contains("Ended") } }
+        } catch (e: AssertionError) {
+            throw AssertionError("Second tap at ${widgetBounds.centerX()},${widgetBounds.centerY()} showed '${view!!.shownText}'", e)
+        }
         assertEquals(1, repository.timestamps(breathing.id).size)
         instrumentation.runOnMainSync { view!!.skip() }
 
