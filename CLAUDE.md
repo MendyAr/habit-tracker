@@ -5,7 +5,7 @@ original session. Read this first, then `docs/ARCHITECTURE.md` and `CONTRIBUTING
 
 ## State (2026-11)
 
-- Latest release: **v2.1.0** (versionCode 6) once merged (#26–#33 done); v2.0.0 (versionCode 5) before.
+- Latest release: **v2.1.0** (versionCode 6), published from `main` (#26–#33 done).
 - `main` is the default branch. Work on a feature branch and open a PR to `main`.
 - Open work: none planned beyond Dependabot (see *Roadmap* below); new ideas go in GitHub issues.
 - The app creates **widgets only** (#32); never re-add icon pinning without asking the owner.
@@ -96,5 +96,7 @@ Proposed grouping; confirm with the owner before starting:
 
 - When asked to "add an issue", only file or update the GitHub issue; don't change code.
 - Every change ships with tests and docs (README, CHANGELOG, ARCHITECTURE as relevant).
-- Ask before merging PRs; the owner merges (merging to `main` triggers a release).
+- **Merge to `main` yourself** once the work is done and CI is green on the PR's head (the owner's
+  standing permission since 2026-11-06). Merging triggers a release when `VERSION_NAME` is new, so
+  bump the version (see *Releasing*) only when a release is intended. Close the issues it resolves.
 - Keep the UI minimalist, Title Case headings, and the app working from Android 5 to 15.
